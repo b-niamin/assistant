@@ -1,0 +1,228 @@
+# assistant: production stack. Run from the repo root on the 24/7 machine:
+#   ./install.sh           # writes .env with random secrets, starts, prints the /setup code
+#   (or by hand: cp .env.example .env, fill in secrets, docker compose up -d)
+# Extensions that bring a background service add their own extensions/<id>/compose.yml; install.sh lists
+# them in COMPOSE_FILE in .env, so `docker compose` picks them up from this folder.
+#
+# Only `web` publishes a port, on 127.0.0.1 for Tailscale Serve. Everything else is internal.
+# Code is bind-mounted, so a commit in this checkout is live on the next tick / rebuild.
+# Keep the compose project name stable: volumes are prefixed with it.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-assistant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-assistant}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-assistant} -d ${POSTGRES_DB:-assistant}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 1g
+
+  # One-shot: applies db/migrations/*.sql and the least-privilege roles, then exits.
+  migrate:
+    image: postgres:16-alpine
+    restart: 'no'
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-assistant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-assistant}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+      # Login of extension background services (role ext_<id>_svc). Optional.
+      SERVICES_DB_PASSWORD: ${SERVICES_DB_PASSWORD:-}
+      CLAUDE_DB_PASSWORD: ${CLAUDE_DB_PASSWORD:?set CLAUDE_DB_PASSWORD in .env}
+      # Owner of the files web writes in the logs volume (web.log).
+      HOST_UID: ${HOST_UID:-1000}
+    volumes:
+      - ./db/migrations:/migrations:ro
+      - ./db/roles.sql:/roles.sql:ro
+      - ./db/migrate.sh:/migrate.sh:ro
+      - ./db/extension-role.sql:/extension-role.sql:ro
+      # Installed extensions: their db/migrations and per-extension roles (spec 002).
+      - ./extensions:/extensions:ro
+      - logs:/logs
+    entrypoint: ['sh', '/migrate.sh']
+
+  # Re-applies migrations when Claude installs or updates an extension, so that needs no human step.
+  ext-migrate:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-assistant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-assistant}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      SERVICES_DB_PASSWORD: ${SERVICES_DB_PASSWORD:-}
+      CLAUDE_DB_PASSWORD: ${CLAUDE_DB_PASSWORD}
+    volumes:
+      - ./db/migrations:/migrations:ro
+      - ./db/roles.sql:/roles.sql:ro
+      - ./db/migrate.sh:/migrate.sh:ro
+      - ./db/watch-extensions.sh:/watch-extensions.sh:ro
+      - ./db/extension-role.sql:/extension-role.sql:ro
+      - ./extensions:/extensions:ro
+      - logs:/logs
+    entrypoint: ['sh', '-c', 'sh /watch-extensions.sh 2>&1 | tee -a /logs/ext-migrate.log']
+
+  # Web UI + API. Live-reload builds into build-next/ and swaps it in only after a successful build.
+  # Bound to 127.0.0.1: reach it through Tailscale (`tailscale serve --bg 3000` on the host), not the LAN.
+  web:
+    # Same base (glibc) as the claude image and the same uid as the checkout owner, so both containers
+    # can share apps/web/node_modules and .svelte-kit/ without permission clashes.
+    image: node:22-bookworm-slim
+    user: '${HOST_UID:-1000}'
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    command: ['sh', '-c', 'node scripts/live-reload.mjs 2>&1 | tee -a /logs/web.log']
+    ports:
+      - '127.0.0.1:${WEB_PORT:-3000}:3000'
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=1024
+      PORT: '3000'
+      ORIGIN: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in .env}
+      DATABASE_URL: postgresql://app_rw:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
+      # Optional: without it the first-run wizard (/setup, needs SETUP_TOKEN) stores the password hash.
+      APP_PASSWORD_HASH: ${APP_PASSWORD_HASH:-}
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
+      # Profile used when none is picked; empty = the first one (made in /setup).
+      DEFAULT_PROFILE: ${DEFAULT_PROFILE:-}
+      TZ: ${APP_TIMEZONE:-UTC}
+      HOME: /tmp
+      # Encrypts extension secrets (System settings). Optional: without it secrets cannot be stored.
+      SECRETS_KEY: ${SECRETS_KEY:-}
+      # Signs the single-use tickets for the terminal and browser sidecars (spec 004). Empty = both off.
+      SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
+      # Lets Claude call the extensions' tools at /api/claude (spec 005). Empty = off.
+      CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
+    volumes:
+      - ./apps/web:/app
+      # Installed extensions, compiled into the shell (spec 002). Read-only: only Claude edits them.
+      - ./extensions:/extensions:ro
+      - logs:/logs
+    # sidecars: the internal network of the terminal and browser containers (spec 004).
+    networks: [default, sidecars]
+    mem_limit: 1536m
+
+  # Claude Code, reachable from claude.ai through Remote Control. See docker/claude/README.md.
+  # NO docker socket and NO .env: it can edit code and read data, not touch containers or secrets.
+  claude:
+    build:
+      context: ./docker/claude
+      # Must match the owner of this checkout on the host (Synology: `id -u`, often 1026).
+      args:
+        UID: ${HOST_UID:-1000}
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    tty: true
+    stdin_open: true
+    working_dir: /workspace
+    environment:
+      CLAUDE_RO_DATABASE_URL: postgresql://claude_ro:${CLAUDE_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
+      # Tools for Claude (spec 005): the `assistant` MCP server in .mcp.json calls the web app with this.
+      CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
+      ASSISTANT_URL: http://web:3000
+      DEFAULT_PROFILE: ${DEFAULT_PROFILE:-}
+      # Where `ext install` takes ready-made extensions from; empty = github.com/b-niamin/assistant-extensions.
+      EXTENSIONS_REPO: ${EXTENSIONS_REPO:-}
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-Claude}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-noreply@anthropic.com}
+      GIT_COMMITTER_NAME: ${GIT_AUTHOR_NAME:-Claude}
+      GIT_COMMITTER_EMAIL: ${GIT_AUTHOR_EMAIL:-noreply@anthropic.com}
+      # Optional: fine-grained PAT with Contents read/write on this ONE repo, so commits get pushed.
+      GITHUB_TOKEN: ${CLAUDE_GITHUB_TOKEN:-}
+    volumes:
+      - .:/workspace
+      # Shadow the secrets file: the container sees an empty .env.
+      - /dev/null:/workspace/.env:ro
+      - claude-home:/home/claude
+      - logs:/logs:ro
+    # sidecars: drives the in-app browser over CDP (browser:9223, see .mcp.json).
+    networks: [default, sidecars]
+    mem_limit: 2g
+
+  # In-app terminal (spec 004): System settings -> Terminal. Same image and home volume as `claude`, so
+  # `claude /login`, `codex login`, `gh auth login` typed here are what Claude Remote uses. No port, no
+  # docker socket, no .env; the web app proxies to it only with a single-use ticket, which it re-checks.
+  terminal:
+    build:
+      context: ./docker/claude
+      args:
+        UID: ${HOST_UID:-1000}
+    restart: unless-stopped
+    working_dir: /workspace
+    entrypoint: ['node', '/workspace/services/terminal/server.mjs']
+    environment:
+      SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
+      CLAUDE_RO_DATABASE_URL: postgresql://claude_ro:${CLAUDE_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
+      # Tools for Claude (spec 005): the `assistant` MCP server in .mcp.json calls the web app with this.
+      CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
+      ASSISTANT_URL: http://web:3000
+      TZ: ${APP_TIMEZONE:-UTC}
+    volumes:
+      - .:/workspace
+      - /dev/null:/workspace/.env:ro
+      - claude-home:/home/claude
+    networks: [default, sidecars]
+    mem_limit: 768m
+
+  # In-app browser (spec 004): System settings -> Browser. Chromium + noVNC; its signed-in profile is
+  # in the browser-profile volume (treat it as a secret). Only reachable on the internal sidecars network.
+  browser:
+    build: ./docker/browser
+    restart: unless-stopped
+    environment:
+      BROWSER_SCREEN: ${BROWSER_SCREEN:-1366x860}
+      # noVNC accepts only the web proxy, which sends this Origin; pages in the browser cannot (spec 004).
+      VNC_EXPECT_ORIGIN: ${PUBLIC_ORIGIN:-}
+      TZ: ${APP_TIMEZONE:-UTC}
+    volumes:
+      - browser-profile:/data
+    shm_size: 512m
+    networks: [sidecars, browser-egress]
+    mem_limit: 1536m
+
+  # Daily logical backup, 14 days kept. Restore: pg_restore -d assistant /backups/<file>.dump
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-assistant}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-assistant}
+      KEEP_DAYS: '14'
+    volumes:
+      - backups:/backups
+      - ./db/backup.sh:/backup.sh:ro
+    entrypoint: ['sh', '/backup.sh']
+
+networks:
+  default:
+  # Internal: web, claude, terminal and browser only. No internet, nothing else can reach noVNC/CDP.
+  sidecars:
+    internal: true
+  # The browser's own way out to the internet, shared with no other service.
+  browser-egress:
+
+volumes:
+  browser-profile:
+  db-data:
+  claude-home:
+  logs:
+  backups:

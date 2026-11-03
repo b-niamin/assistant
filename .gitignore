@@ -1,0 +1,11 @@
+.env
+*.sql.gz
+*.dump
+__pycache__/
+.pytest_cache/
+node_modules/
+.venv/
+# Installed extensions are local to each instance (spec 002): `ext install` copies them from the
+# extensions repo, Claude builds new ones here. Only the README is part of this repo.
+/extensions/*
+!/extensions/README.md

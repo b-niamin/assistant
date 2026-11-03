@@ -1,0 +1,40 @@
+#!/bin/sh
+# Blocks a commit that breaks the fast checks. Installed by docker/claude/entrypoint.sh
+# (git config core.hooksPath scripts/hooks); humans can run the same: git config core.hooksPath scripts/hooks
+set -e
+root=$(git rev-parse --show-toplevel)
+
+# Never commit secrets.
+if git diff --cached --name-only | grep -qE '(^|/)\.env$'; then
+  echo "pre-commit: refusing to commit .env" >&2
+  exit 1
+fi
+
+# Migrations are additive only.
+if git diff --cached -U0 -- db/migrations | grep -iqE '^\+.*\b(DROP|TRUNCATE)\b'; then
+  echo "pre-commit: DROP/TRUNCATE in db/migrations is not allowed (migrations are additive)" >&2
+  exit 1
+fi
+
+# Shell scripts parse.
+for f in $(git ls-files '*.sh' scripts/hooks); do sh -n "$root/$f"; done
+
+# extensions: manifests, imports allowed from the shell, route generation.
+if git diff --cached --name-only | grep -qE '^(extensions/|scripts/ext)'; then
+  (cd "$root" && node scripts/ext.mjs check)
+fi
+
+# terminal sidecar: ticket, WebSocket framing, a real pty round trip.
+if git diff --cached --name-only | grep -qE '^services/terminal/'; then
+  (cd "$root" && node --test services/terminal/*.test.mjs)
+fi
+
+# auto-update: which services a change touches.
+if git diff --cached --name-only | grep -qE '^scripts/auto-update'; then
+  sh "$root/scripts/auto-update.test.sh"
+fi
+
+# web: tests + typecheck, only when the commit touches it.
+if git diff --cached --name-only | grep -qE '^apps/web/'; then
+  (cd "$root/apps/web" && { [ -d node_modules ] || npm ci --no-audit --no-fund; } && npm test --silent && npm run check --silent)
+fi

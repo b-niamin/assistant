@@ -1,0 +1,10 @@
+node_modules/
+node_modules.prev*/
+.deps-next/
+.svelte-kit/
+build/
+build-next/
+build-prev/
+# generated from ../../extensions by scripts/gen-extensions.mjs
+src/routes/(extensions)/
+src/lib/extensions/generated/

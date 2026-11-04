@@ -1,0 +1,14 @@
+{
+  "name": "Assistant",
+  "short_name": "Assistant",
+  "description": "A self-hosted assistant, with Pip the mascot.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff4ec",
+  "theme_color": "#ff7527",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

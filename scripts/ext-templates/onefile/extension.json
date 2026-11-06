@@ -1,0 +1,10 @@
+{
+  "id": "{{id}}",
+  "name": "{{name}}",
+  "description": "TODO: one sentence on what this app does.",
+  "version": "0.1.0",
+  "kind": "onefile",
+  "scope": "{{scope}}",
+  "shell": {{shell}},
+  "entry": "app.html"
+}

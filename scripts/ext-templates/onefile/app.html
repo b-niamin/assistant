@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="color-scheme" content="light dark">
+<title>{{name}}</title>
+<style>
+  /* The shell's look: inside the assistant the shell injects its tokens (--page, --surface, --ink, --accent,
+     --space-*, ...) and <assistant-pip>. The fallbacks keep the file working on its own. */
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: var(--space-4, 16px); font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: var(--page, #f9f9f7); color: var(--ink, #0b0b0b); }
+  @media (prefers-color-scheme: dark) { body { background: var(--page, #0d0d0d); color: var(--ink, #f0efec); } }
+  header { display: flex; align-items: center; gap: var(--space-3, 12px); margin-bottom: var(--space-4, 16px); }
+  h1 { margin: 0; font-size: 1.75rem; font-weight: 650; letter-spacing: -0.01em; }
+  form { display: flex; gap: var(--space-2, 8px); }
+  input { flex: 1; height: 34px; padding: 0 12px; border: 1px solid var(--ring, rgba(127,127,127,.25)); border-radius: var(--radius-sm, 6px); background: var(--surface, transparent); color: inherit; font: inherit; }
+  button { height: 34px; padding: 0 14px; border: 1px solid var(--accent, #2a78d6); border-radius: var(--radius-sm, 6px); background: var(--accent, #2a78d6); color: #fff; font: inherit; font-weight: 600; }
+  ul { list-style: none; padding: 0; margin: var(--space-4, 16px) 0 0; display: grid; gap: var(--space-2, 8px); }
+  li { padding: var(--space-3, 12px); background: var(--surface, transparent); border: 1px solid var(--ring, rgba(127,127,127,.25)); border-radius: var(--radius, 8px); display: flex; justify-content: space-between; }
+  .lang { margin-left: auto; background: none; border: none; color: var(--ink-2, #52514e); padding: 0 6px; font-weight: 500; }
+  .empty { display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3, 12px); color: var(--ink-3, #898781); }
+</style>
+</head>
+<body>
+<header><assistant-pip mood="steady" size="40"></assistant-pip><h1>{{name}}</h1><button class="lang" id="lang" type="button"></button></header>
+<form id="add"><input id="title" required maxlength="200"><button id="addBtn"></button></form>
+<ul id="list"></ul>
+<script>
+  'use strict';
+  const KEY = '{{id}}:v1';
+  const T = {
+    en: { add: 'Add', placeholder: 'New item', empty: 'Nothing yet.', lang: 'PL' },
+    pl: { add: 'Dodaj', placeholder: 'Nowa pozycja', empty: 'Jeszcze nic.', lang: 'EN' }
+  };
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { lang: 'pl', items: [] }; } catch { return { lang: 'pl', items: [] }; } };
+  const state = load();
+  const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+  const $ = (id) => document.getElementById(id);
+  function render() {
+    const t = T[state.lang];
+    document.documentElement.lang = state.lang;
+    $('addBtn').textContent = t.add; $('title').placeholder = t.placeholder; $('lang').textContent = t.lang;
+    const list = $('list'); list.replaceChildren();
+    if (!state.items.length) {
+      const li = document.createElement('li'); li.className = 'empty';
+      const pip = document.createElement('assistant-pip'); pip.setAttribute('mood', 'idle'); pip.setAttribute('size', '36');
+      li.append(pip, t.empty); list.append(li);
+    }
+    for (const item of state.items) { const li = document.createElement('li'); li.textContent = item.title; list.append(li); }
+  }
+  $('add').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = $('title').value.trim(); if (!title) return;
+    state.items.unshift({ title, at: Date.now() }); $('title').value = ''; save(); render();
+  });
+  $('lang').addEventListener('click', () => { state.lang = state.lang === 'pl' ? 'en' : 'pl'; save(); render(); });
+  render();
+</script>
+</body>
+</html>

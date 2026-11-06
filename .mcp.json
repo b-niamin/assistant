@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "assistant": {
+      "command": "node",
+      "args": [
+        "/workspace/scripts/assistant-mcp.mjs"
+      ]
+    },
+    "browser": {
+      "command": "playwright-mcp",
+      "args": [
+        "--cdp-endpoint",
+        "http://localhost:9222"
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "{{id}}",
+  "name": "{{name}}",
+  "description": "TODO: one sentence on what this extension does.",
+  "version": "0.1.0",
+  "kind": "native",
+  "scope": "{{scope}}",
+  "shell": {{shell}},
+  "schema": "{{schema}}"
+}

@@ -46,7 +46,8 @@ Native:
   (`export const tools: ExtTool[]`) for an overview or for writes (validate input, write via `ctx.db`).
   See `extensions/health/web/tools.server.ts` and spec 005.
 - Look (required): the shell's layout and tokens (`specs/001-design.md`) and Beni from `$shell/ui` in the
-  header and every empty or error state. No UI libraries, no raw hex. See the `add-extension` skill, step 4.
+  header and every empty or error state, and its `"accessory"` in `extension.json` (what Beni wears, list in
+  `specs/001-design.md`). No UI libraries, no raw hex. See the `add-extension` skill, step 4.
 - Settings and secrets: declare fields in `extension.json` `"settings"` (text, number, boolean, select,
   secret). The shell draws its panel in System settings; read with `ctx.settings.get` / `ctx.secrets.get`.
   Secret values never go in code, KV, chat or the repo: the owner types them in the panel.

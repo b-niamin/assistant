@@ -20,6 +20,8 @@ export interface ExtensionInfo {
   settings: SettingField[];
   /** Names of its secret fields; an admin sets the values (spec 004). */
   secrets: string[];
+  /** What Beni wears on its pages (manifest "accessory", beni-accessories.ts); null = guessed from id and name. */
+  accessory: string | null;
   /** Switched off in System settings: gone from nav, routes and APIs, data kept. */
   enabled: boolean;
 }

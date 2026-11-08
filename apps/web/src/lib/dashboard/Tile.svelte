@@ -3,6 +3,8 @@
   import { formatDelta, formatKpi, type TileData, type TileSize } from '$lib/extensions/tiles';
   import TileChart from './TileChart.svelte';
   import Mascot from '$lib/Mascot.svelte';
+  import { page } from '$app/state';
+  import { accessoryFor } from '$lib/mascot';
 
   type Result = { ok: true; data: TileData } | { ok: false; reason: 'timeout' | 'error' };
   let {
@@ -25,6 +27,8 @@
 
   /** The whole card is one link (stretched title link); an action button sits above it. */
   const linkOf = (r: Result | null) => (r?.ok && r.data.href ? r.data.href : href);
+  /** Beni in the tile wears the accessory of the app the tile comes from. */
+  const worn = $derived(accessoryFor(href, page.data?.extensions ?? []));
   let resolved = $state<Result | null>(null);
   $effect(() => {
     resolved = null;
@@ -49,7 +53,7 @@
   {:then r}
     {#if !r.ok}
       <div class="pipnote">
-        <Mascot mood="tired" size={36} decorative />
+        <Mascot mood="tired" size={36} accessory={worn} decorative />
         <p class="soft">{r.reason === 'timeout' ? 'Still loading. Open to see more.' : 'Unavailable right now.'}</p>
       </div>
     {:else}
@@ -94,7 +98,7 @@
           </ul>
         {:else if !d.kpis}
           <div class="pipnote">
-            <Mascot mood="steady" size={36} decorative />
+            <Mascot mood="steady" size={36} accessory={worn} decorative />
             <p class="soft">Nothing coming up.</p>
           </div>
         {/if}
@@ -102,7 +106,7 @@
       {#if d.empty}
         <div class="empty">
           <div class="pipnote">
-            <Mascot mood="idle" size={36} decorative />
+            <Mascot mood="idle" size={36} accessory={worn} decorative />
             <p>{d.empty.message}</p>
           </div>
           {#if d.empty.action}<a class="btn action" href={d.empty.action.href}>{d.empty.action.label}</a>{/if}

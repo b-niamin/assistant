@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain JS module without types
 import * as lib from './extensions-lib.mjs';
+import { ACCESSORY_IDS } from '../src/lib/beni-accessories';
 
 const manifest = (over = {}) => ({
   id: 'notes',
@@ -43,6 +44,12 @@ describe('manifest validation', () => {
     expect(lib.validateManifest(manifest({ secrets: 'token' }), 'notes').join()).toMatch(/"secrets"/);
     const onefile = manifest({ kind: 'onefile', entry: 'index.html', secrets: ['token'] });
     expect(lib.validateManifest(onefile, 'notes').join()).toMatch(/only native/);
+  });
+  it('checks what Beni wears against the drawings the shell has', () => {
+    expect(lib.ACCESSORIES).toEqual([...ACCESSORY_IDS]);
+    expect(lib.validateManifest(manifest({ accessory: 'book' }), 'notes')).toEqual([]);
+    expect(lib.validateManifest(manifest({ accessory: 'cape' }), 'notes').join()).toMatch(/"accessory"/);
+    expect(lib.infoOf({ entry: { id: 'notes' }, manifest: manifest({ accessory: 'pencil' }), root: null }).accessory).toBe('pencil');
   });
 });
 

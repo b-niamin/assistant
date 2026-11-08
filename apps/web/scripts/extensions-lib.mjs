@@ -72,6 +72,24 @@ export function validateEntry(e) {
   return errors;
 }
 
+/** What Beni can wear (manifest "accessory"); the drawings are in src/lib/beni-accessories.ts. */
+export const ACCESSORIES = [
+  'none',
+  'headband',
+  'stethoscope',
+  'book',
+  'wrench',
+  'glasses',
+  'headphones',
+  'chef-hat',
+  'pencil',
+  'bulb',
+  'coin',
+  'umbrella',
+  'party-hat',
+  'nightcap'
+];
+
 /** A secret name: lowercase, digits, underscores, e.g. "api_token". */
 export const SECRET_RE = /^[a-z][a-z0-9_]{0,39}$/;
 
@@ -96,6 +114,9 @@ export function validateManifest(m, dirName) {
   }
   // Its settings panel in System settings (spec 002, "Settings"): fields the shell renders.
   if (m.settings !== undefined) errors.push(...settingsProblems(m.settings, m.kind, dirName));
+  // What Beni wears on its pages; left out, the shell guesses from the id and name.
+  if (m.accessory !== undefined && !ACCESSORIES.includes(m.accessory))
+    errors.push(`${dirName}/extension.json: "accessory" must be one of ${ACCESSORIES.join(', ')}`);
   if (m.kind === 'onefile') req('entry', typeof m.entry === 'string' && /^[A-Za-z0-9._-]+\.html$/.test(m.entry));
   return errors;
 }
@@ -193,6 +214,7 @@ export function infoOf({ entry, manifest, root }) {
     settingsPage: !!root && existsSync(path.join(root, 'web', 'routes', 'settings', '+page.svelte')),
     settings: settingsOf(manifest),
     secrets: settingsOf(manifest).filter((f) => f.type === 'secret').map((f) => f.name),
+    accessory: manifest.accessory ?? null,
     enabled: true
   };
 }

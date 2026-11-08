@@ -8,6 +8,7 @@ import { kvAll } from '$lib/extensions/kv.server';
 import { readSettings } from '$lib/extensions/config.server';
 import { injectShim, ONEFILE_CSP } from '$lib/extensions/onefile';
 import { themeTags } from '$lib/extensions/theme';
+import { accessoryOf } from '$lib/mascot';
 import { extensionById, visibleTo } from '$lib/extensions/registry.server';
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {
@@ -16,7 +17,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
   if (!ext.entry) throw error(404, 'Not found');
   const html = await readFile(path.join(EXTENSIONS_DIR, ext.id, ext.entry), 'utf8');
   const [data, settings] = await Promise.all([kvAll(ext, locals.profileId), readSettings(ext)]);
-  const body = injectShim(html, data, url.origin, settings, themeTags());
+  const body = injectShim(html, data, url.origin, settings, themeTags(undefined, undefined, accessoryOf(ext)));
   return new Response(body, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',

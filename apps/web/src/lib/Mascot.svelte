@@ -1,23 +1,49 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { Mood } from './mascot';
+  import { page } from '$app/state';
+  import { accessoryFor, type Accessory, type Mood } from './mascot';
+  import { accessorySvg, SHY_SVG } from './beni-accessories';
+  import { beniWatch, watchSecrets } from './beni-watch.svelte';
 
   /**
-   * Beni: a jelly-bean runner in a sweatband. Pure SVG + CSS (transform/opacity only), so it costs
+   * Beni: a jelly-bean runner that dresses for the page. Pure SVG + CSS (transform/opacity only), so it costs
    * nothing to animate. Mood picks the idle loop; a click makes it bounce; pupils follow the pointer.
    * Everything stands still under prefers-reduced-motion.
+   *
+   * What Beni wears follows the page (`accessoryFor`: the app's own accessory, a wrench in settings, ...)
+   * unless `accessory` names one; an asleep Beni with nothing else on gets a nightcap. While a password
+   * field has focus Beni covers its eyes (`shy`), and peeks when the password is revealed.
    */
   let {
     mood = 'idle',
     size = 96,
     label = 'Beni',
-    decorative = false
-  }: { mood?: Mood; size?: number; label?: string; decorative?: boolean } = $props();
+    decorative = false,
+    accessory = 'auto',
+    shy = 'auto'
+  }: {
+    mood?: Mood;
+    size?: number;
+    label?: string;
+    decorative?: boolean;
+    accessory?: Accessory | 'auto';
+    shy?: boolean | 'peek' | 'auto';
+  } = $props();
 
   const uid = $props.id();
   let el: SVGSVGElement;
   let boing = $state(false);
   let look = $state({ x: 0, y: 0 });
+
+  const worn = $derived.by((): Accessory => {
+    if (accessory !== 'auto') return accessory;
+    const a = accessoryFor(page.url?.pathname ?? '/', page.data?.extensions ?? []);
+    return a === 'none' && mood === 'asleep' ? 'nightcap' : a;
+  });
+  const covering = $derived.by(() => {
+    if (shy !== 'auto') return shy === true ? 'hidden' : shy === 'peek' ? 'shown' : 'none';
+    return beniWatch.secrecy;
+  });
 
   function poke() {
     boing = false;
@@ -25,6 +51,7 @@
   }
 
   onMount(() => {
+    watchSecrets();
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let frame = 0;
     const onMove = (e: PointerEvent) => {
@@ -48,8 +75,10 @@
 
 <svelte:element
   this={decorative ? 'span' : 'button'}
-  class="pip {mood}"
+  class="pip {mood} wears-{worn}"
   class:boing
+  class:shy={covering === 'hidden'}
+  class:peek={covering === 'shown'}
   onclick={decorative ? undefined : poke}
   onanimationend={() => (boing = false)}
   aria-label={decorative ? undefined : label}
@@ -75,12 +104,8 @@
     <g class="body">
       <path class="skin" d="M32 11C47 11 56 26 56 41 56 51.6 46 56 32 56 18 56 8 51.6 8 41 8 26 17 11 32 11Z" />
       <g clip-path="url(#{uid}-body)">
-        <rect class="band" x="0" y="21" width="64" height="6.5" />
-        <rect class="band-stripe" x="0" y="23.4" width="64" height="1.6" />
         <ellipse class="belly" cx="32" cy="50" rx="17" ry="9" />
       </g>
-      <path class="tail" d="M51.5 22.5q6 -2 8 -6" />
-      <path class="tail" d="M52.5 25.5q6.5 0 9.5 -3" />
       <ellipse class="shine" cx="20.6" cy="17" rx="3.6" ry="1.8" transform="rotate(-35 20.6 17)" />
 
       <g class="eyes">
@@ -111,6 +136,9 @@
       <path class="mouth smile" d="M28 45.2q4 3.4 8 0" />
       <path class="mouth flat" d="M29 46.4h6" />
       <ellipse class="mouth snore" cx="32" cy="46.6" rx="1.8" ry="1.4" />
+
+      {#key worn}<g class="acc">{@html accessorySvg(worn, `${uid}-body`)}</g>{/key}
+      <g class="cover">{@html SHY_SVG}</g>
     </g>
 
     <g class="zzz">
@@ -150,17 +178,32 @@
     fill: var(--m-lt);
     opacity: 0.35;
   }
-  .band {
-    fill: #fff;
+  .pip {
+    --beni-skin: var(--m);
+    --beni-paw: color-mix(in oklch, var(--m), white 22%);
   }
-  .band-stripe {
+  .pip :global(.band-stripe) {
     fill: var(--accent);
   }
-  .tail {
-    fill: none;
-    stroke: #fff;
-    stroke-width: 2.6;
-    stroke-linecap: round;
+  .cover {
+    opacity: 0;
+    transform: translateY(14px);
+    transform-origin: 50% 100%;
+  }
+  .shy .cover,
+  .peek .cover {
+    opacity: 1;
+    transform: none;
+  }
+  .peek .cover :global(.hand-l) {
+    transform: translate(-3px, 8px);
+  }
+  .shy .pupils,
+  .peek .pupils {
+    transform: none !important;
+  }
+  .shy .cheeks {
+    fill: oklch(0.68 0.2 15 / 0.75);
   }
   .shine {
     fill: #fff;
@@ -239,7 +282,7 @@
   .asleep .snore {
     opacity: 1;
   }
-  .charged .tail {
+  .charged :global(.tail) {
     stroke: var(--accent);
   }
 
@@ -251,12 +294,25 @@
     .blink {
       animation: blink 4.6s infinite;
     }
-    .tail {
+    .pip :global(.tail) {
       animation: flutter 1.6s ease-in-out infinite;
+      transform-box: fill-box;
       transform-origin: 0 50%;
     }
-    .tail + .tail {
+    .pip :global(.tail-2) {
       animation-delay: -0.4s;
+    }
+    .pip :global(.glow) {
+      animation: glow 2.4s ease-in-out infinite;
+    }
+    .acc {
+      animation: pop-on 0.45s cubic-bezier(0.3, 1.4, 0.5, 1);
+    }
+    .cover,
+    .cover :global(.hand-l) {
+      transition:
+        transform 260ms cubic-bezier(0.3, 1.3, 0.5, 1),
+        opacity 160ms ease-out;
     }
 
     .charged .body {
@@ -274,14 +330,14 @@
     .charged .spark path:nth-child(3) {
       animation-delay: -1.8s;
     }
-    .charged .tail {
+    .charged :global(.tail) {
       animation-duration: 0.6s;
     }
 
     .tired .body {
       animation: sway 5s ease-in-out infinite;
     }
-    .tired .tail {
+    .tired :global(.tail) {
       animation-duration: 3.2s;
     }
     .tired .blink {
@@ -291,7 +347,7 @@
     .asleep .body {
       animation: breathe 5.5s ease-in-out infinite;
     }
-    .asleep .tail {
+    .asleep :global(.tail) {
       animation: none;
     }
     .asleep .zzz text {
@@ -316,6 +372,17 @@
     }
   }
 
+  @keyframes glow {
+    50% {
+      opacity: 0.25;
+    }
+  }
+  @keyframes pop-on {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.6);
+    }
+  }
   @keyframes breathe {
     50% {
       transform: scale(1.03, 0.97);

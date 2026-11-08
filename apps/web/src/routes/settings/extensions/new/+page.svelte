@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import Mascot from '$lib/Mascot.svelte';
   import AgentConsole from '$lib/settings/AgentConsole.svelte';
-  import { hueFor, initials, inspirationPrompt, installCommand } from '$lib/settings/guide';
+  import { hueFor, inspirationPrompt, installCommand } from '$lib/settings/guide';
+  import { guessAccessory } from '$lib/mascot';
 
   let { data } = $props();
 
@@ -76,7 +77,7 @@
     <ul class="row" id="row-ready">
       {#each ready as e (e.id)}
         <li class="card tile" style="--hue: {hueFor(e.id)}">
-          <span class="mark" aria-hidden="true">{initials(e.name)}</span>
+          <span class="mark" aria-hidden="true"><Mascot mood="steady" size={34} accessory={e.accessory ?? guessAccessory(e.id, e.name)} decorative /></span>
           <h3>{e.name}</h3>
           <p class="meta grow">{e.description}</p>
           <button type="button" class="btn btn-primary"
@@ -103,7 +104,7 @@
       {#each data.catalog.inspirations as i (i.id)}
         {@const p = inspirationPrompt(i)}
         <li class="card tile" style="--hue: {hueFor(i.id)}">
-          <span class="mark" aria-hidden="true">{initials(i.name)}</span>
+          <span class="mark" aria-hidden="true"><Mascot mood="steady" size={34} accessory={i.accessory ?? guessAccessory(i.id, i.name)} decorative /></span>
           <h3>{i.name}</h3>
           <p class="meta grow">{i.description}</p>
           <button type="button" class="btn btn-primary" onclick={() => agent?.say(p)}>Build it</button>

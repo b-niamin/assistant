@@ -57,7 +57,9 @@ Every extension wears the assistant's layout and has Beni, the mascot, woven in.
   No UI libraries, no web fonts, no raw hex.
 - **Beni**: at least in the page header and in every empty or error state, with a fitting mood (`idle`
   no data yet, `steady` normal, `charged` a goal hit or a good day, `tired` something is off, `asleep`
-  closed or paused). Where it fits, let Beni say one short line, like on the dashboard.
+  closed or paused). Where it fits, let Beni say one short line, like on the dashboard. Give Beni the
+  accessory that fits the app in `extension.json` (`"accessory": "book"`, list in `specs/001-design.md`):
+  the shell then dresses every Beni on its pages; use `party-hat` for a record or a goal hit.
 - **native**: `import { Mascot, moodFor, moodForHour, countUp } from '$shell/ui'`; the shell's classes
   and tokens are already on the page.
 - **onefile**: inside the shell the iframe gets the tokens injected (as `@layer assistant`) and a

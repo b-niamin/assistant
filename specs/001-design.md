@@ -50,7 +50,7 @@ load bars are orange (effort). Text keeps ink tokens.
 
 ## Mascot: Beni
 
-`lib/Mascot.svelte` is a jelly-bean runner in a sweatband, pure SVG + CSS. Its mood follows today's
+`lib/Mascot.svelte` is a jelly-bean runner, pure SVG + CSS. Its mood follows today's
 Training Readiness (`lib/mascot.ts`): charged (75+, hops and sparkles), steady (50-74, breathes),
 tired (25-49, half-closed eyes, sways), asleep (<25, closed eyes, floating z's), idle (no data). It
 says one short line per mood, fixed for the day. Pupils follow the pointer; a click makes it bounce.
@@ -66,7 +66,39 @@ Beni is the app's face everywhere, so a screen without data never feels broken:
 - **Empty and error states**: a small decorative Beni (idle for "no data yet", tired for "unavailable",
   asleep for a closed terminal) sits beside the message: dashboard tiles, the empty dashboard, the
   settings extension list, the terminal veil, health charts, and `+error.svelte` (404 and errors).
-- Extensions reuse it through `$shell/ui` (`Mascot`, `moodFor`, `moodForHour`).
+- Extensions reuse it through `$shell/ui` (`Mascot`, `moodFor`, `moodForHour`, `accessoryFor`).
+
+### What Beni wears
+
+Beni dresses for what you are doing. The drawings are SVG fragments in `lib/beni-accessories.ts`, shared
+by `Mascot.svelte` and `<assistant-beni>`, so every Beni in the app (and in onefile apps) can wear them:
+
+| Accessory | Where |
+|---|---|
+| `headband` (the sweatband) | sport: gym, workouts, running |
+| `stethoscope` | health |
+| `book` | learning, reading |
+| `wrench` | System settings |
+| `glasses` | the terminal; code, data, reports |
+| `headphones` | music, podcasts, calls |
+| `chef-hat` | food, recipes, diet, shopping |
+| `pencil` (in hand) | notes, calendar, to-dos, habits |
+| `bulb` | smart home, ideas |
+| `coin` | money, budget |
+| `umbrella` | weather |
+| `party-hat` | celebrations: a record, a goal hit |
+| `nightcap` | sleep; any asleep Beni with nothing else on |
+
+`accessoryFor(pathname, extensions)` picks it from the page: the dashboard has none, `/settings` the
+wrench, `/settings/terminal` the glasses, `/<id>` the extension's manifest `"accessory"` or, without one, a
+guess from its id and name (`guessAccessory`). Every `Mascot` without an `accessory` prop follows the
+page; dashboard tiles dress Beni for the app they come from, "Extend the system" for each catalog entry.
+Pass `accessory="party-hat"` (or `"none"`) to choose yourself.
+
+**Eyes covered.** While a password field has focus (`type="password"`, or one marked with
+`autocomplete="*-password"` / `data-secret`), every Beni on the page covers its eyes with both hands; when
+the field is revealed (type flipped to `text`), it peeks through one. `lib/beni-watch.svelte.ts` holds the
+one document-wide listener; `shy` forces it (`true`, `"peek"`, `false`).
 
 ## Extensions wear this look (required)
 
@@ -77,8 +109,10 @@ fits. The source's own palette, fonts and logo are dropped.
 - Native extensions render inside the shell, so `app.css` and `$shell/ui` are there already.
 - Onefile apps run in a sandboxed iframe that cannot load the shell's files. The host injects
   (`src/lib/extensions/theme.ts`) the token blocks of `app.css` as `@layer assistant`, so the app's own
-  unlayered rules still win, and defines `<assistant-beni mood size label>`: Beni as a custom element in
-  shadow DOM, with the same moods (breathing, hop, sway, closed eyes; still under reduced motion).
+  unlayered rules still win, and defines `<assistant-beni mood size label accessory shy>`: Beni as a custom
+  element in shadow DOM, with the same moods (breathing, hop, sway, closed eyes; still under reduced
+  motion). Without `accessory` it wears the app's own (`window.assistantBeni.accessory`), and it covers
+  its eyes on password fields by itself.
 - `node scripts/ext.mjs check` prints `look:` warnings: Beni missing, no shell tokens, raw hex in native
   pages. A new extension must have none; older ones are warned only.
 

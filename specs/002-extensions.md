@@ -86,6 +86,7 @@ instances is copied into the extensions repo by hand.
   "scope": "profile",             // profile | shared
   "shell": 1,                     // SDK contract version this extension was written for
   "entry": "app.html",            // onefile only
+  "accessory": "stethoscope",     // optional: what Beni wears on its pages (specs/001-design.md); else guessed
   "settings": [                   // optional: its panel in System settings (see "Settings")
     { "name": "units", "label": "Units", "type": "select", "options": ["km", "mi"], "default": "km" }
   ],

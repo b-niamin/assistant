@@ -36,4 +36,14 @@ describe('onefile theme', () => {
     expect(tags).toContain('class=\\"eyes\\"');
     expect(tags).toContain('width=\\"64\\"'); // the headband rect keeps its size
   });
+
+  it('turns the headband into one accessory among many and passes the own accessory of the app', () => {
+    expect(pipMarkup(svg)).not.toContain('y="21"');
+    const tags = themeTags(css, svg, 'book');
+    expect(tags).toContain('window.assistantBeni = Object.freeze({ accessory: "book" })');
+    expect(tags).toContain('acc-headband');
+    expect(tags).toContain('acc-stethoscope');
+    expect(tags).toContain("class=\\\"cover\\\"");
+    expect(tags).toContain("setAttribute('covering'");
+  });
 });

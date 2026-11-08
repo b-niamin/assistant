@@ -4,6 +4,7 @@
  * Read over HTTPS and kept for 10 minutes; nothing from it is executed here.
  */
 import { env } from '$env/dynamic/private';
+import { isAccessory, type Accessory } from '$lib/mascot';
 
 const ID_RE = /^[a-z][a-z0-9-]*$/;
 
@@ -16,6 +17,8 @@ export interface CatalogExtension {
   /** Brings a background service: `./install.sh` on the host starts it. */
   service: boolean;
   needs?: string;
+  /** What Beni wears for it (its manifest "accessory"). */
+  accessory?: Accessory;
 }
 export interface CatalogInspiration {
   id: string;
@@ -23,6 +26,7 @@ export interface CatalogInspiration {
   description: string;
   scope: 'profile' | 'shared';
   idea: string;
+  accessory?: Accessory;
 }
 export interface Catalog {
   extensions: CatalogExtension[];
@@ -50,14 +54,16 @@ export function parseCatalog(raw: unknown): Catalog {
       kind: e.kind === 'onefile' ? 'onefile' : 'native',
       scope: scopeOf(e.scope),
       service: e.service === true,
-      ...(str(e.needs, 80) ? { needs: str(e.needs, 80) } : {})
+      ...(str(e.needs, 80) ? { needs: str(e.needs, 80) } : {}),
+      ...(isAccessory(e.accessory) ? { accessory: e.accessory } : {})
     })),
     inspirations: list(o.inspirations).slice(0, 50).map((e) => ({
       id: e.id,
       name: str(e.name, 40) || e.id,
       description: str(e.description, 200),
       scope: scopeOf(e.scope),
-      idea: str(e.idea, 300) || str(e.description, 300)
+      idea: str(e.idea, 300) || str(e.description, 300),
+      ...(isAccessory(e.accessory) ? { accessory: e.accessory } : {})
     }))
   };
 }

@@ -8,7 +8,7 @@ import type { ExtensionInfo } from './types';
 
 const health: ExtensionInfo = {
   id: 'health', name: 'Training & Health', description: '', version: '0.2.0', kind: 'native', scope: 'profile',
-  href: '/health', entry: null, profiles: null, inspiredBy: null, settingsPage: false, settings: [], secrets: [], enabled: true
+  href: '/health', entry: null, profiles: null, inspiredBy: null, settingsPage: false, settings: [], secrets: [], accessory: null, enabled: true
 };
 
 describe('mergeExtensions', () => {

@@ -133,7 +133,9 @@ else
   elif tailnet_https_used 443; then HTTPS_PORT=8443; while tailnet_https_used "$HTTPS_PORT"; do HTTPS_PORT=$((HTTPS_PORT + 1)); done
   else HTTPS_PORT=443; fi
 fi
-START=${ASSISTANT_START:-now}
+# How it is started (now = by this installer, manual = Container Manager & co.): asked once, kept in .env.
+saved_start=$(sed -n 's/^START_MODE=//p' "$DIR/.env" 2>/dev/null | tail -n 1)
+START=${ASSISTANT_START:-${saved_start:-now}}
 if [ "$complete" = yes ]; then
   # Re-run: keep everything; only extensions named on the command line are added.
   [ $# -gt 0 ] || [ -n "${ASSISTANT_EXTENSIONS+x}" ] || EXTENSIONS=""
@@ -325,6 +327,7 @@ fi
 # 7. next steps
 phase "Done"
 grep -q '^INSTALLED_AT=' .env || printf 'INSTALLED_AT=%s\n' "$(date -u +%Y-%m-%dT%H:%MZ)" >> .env
+sed -i '/^START_MODE=/d' .env && printf 'START_MODE=%s\n' "$START" >> .env
 token=$(sed -n 's/^SETUP_TOKEN=//p' .env)
 if [ "$START" = manual ]; then
   cat <<MANUAL

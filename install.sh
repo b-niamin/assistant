@@ -281,10 +281,11 @@ fi
 # 4. start
 if [ "$START" = manual ]; then
   phase "Preparing the stack for your own tool (not starting it)"
-  # One self-contained compose file with absolute paths, extensions merged in, secrets left as ${VARS}.
+  # One self-contained compose file: absolute paths, extensions merged in, values from .env filled in
+  # (older Compose cannot render ${VARS} in ports unresolved). It holds the secrets: mode 600, git-ignored.
   mkdir -p stack
-  $DC config --no-interpolate > stack/docker-compose.yml
-  grep -v "^COMPOSE_FILE=" .env > stack/.env && chmod 600 stack/.env
+  (umask 077 && $DC config > stack/docker-compose.yml.new) && mv stack/docker-compose.yml.new stack/docker-compose.yml
+  grep -v "^COMPOSE_FILE=" .env > stack/.env && chmod 600 stack/.env stack/docker-compose.yml
   [ "$(id -u)" = 0 ] && chown -R "$(stat -c %u:%g .)" stack 2>/dev/null || true
 else
   phase "Building and starting (the first run takes 10-20 minutes on a small NAS)"

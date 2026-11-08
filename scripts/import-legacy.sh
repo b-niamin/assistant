@@ -3,7 +3,7 @@
 # profiles, the apps' data and settings, dashboard layouts, the health data and the Garmin logins.
 #
 #   sudo sh scripts/import-legacy.sh <old checkout> [--no-garmin-login]
-#   e.g. sudo sh scripts/import-legacy.sh /volume1/system/docker/assistant
+#   e.g. sudo sh scripts/import-legacy.sh /volume1/docker/assistant
 #
 # Both stacks must be running; this one with the health extension installed. A dump of this database is
 # written to backups/ first (restore: pg_restore --clean). Rows that already exist here (same key) are kept.

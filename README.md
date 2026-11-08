@@ -71,7 +71,7 @@ Moving from the older single-repo version: install this one next to it, then cop
 app data, health history, Garmin logins; a backup of the new database is taken first):
 
 ```sh
-sudo sh scripts/import-legacy.sh /volume1/system/docker/assistant   # the old checkout
+sudo sh scripts/import-legacy.sh /path/to/old/assistant   # the old checkout
 ```
 
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task

@@ -1,31 +1,34 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
   import Mascot from '$lib/Mascot.svelte';
-  import AskAI from '$lib/settings/AskAI.svelte';
-  import {
-    hueFor,
-    initials,
-    inspirationPrompt,
-    installCommand,
-    newAppPrompt,
-    PENDING_PROMPT_KEY,
-    type PendingTask
-  } from '$lib/settings/guide';
+  import AgentConsole from '$lib/settings/AgentConsole.svelte';
+  import { hueFor, initials, inspirationPrompt, installCommand } from '$lib/settings/guide';
 
   let { data } = $props();
 
-  const installedIds = $derived(data.installed.map((e) => e.id));
+  let polled = $state<{ id: string; name: string; href: string }[] | null>(null);
+  const installed = $derived(polled ?? data.installed);
+  const installedIds = $derived(installed.map((e) => e.id));
   const ready = $derived(data.catalog.extensions.filter((e) => !installedIds.includes(e.id)));
-  const termOk = $derived(data.terminal.configured && data.terminal.reachable);
+  let agent = $state<AgentConsole>();
+  // Apps that appeared while this page was open (built or installed by the agent below).
+  let fresh = $state<{ id: string; name: string; href: string }[]>([]);
 
-  function toTerminal(task: PendingTask) {
-    try {
-      sessionStorage.setItem(PENDING_PROMPT_KEY, JSON.stringify({ ...task, before: installedIds }));
-    } catch {
-      /* private mode */
-    }
-    goto('/settings/terminal#ready');
-  }
+  onMount(() => {
+    const known = new Set(data.installed.map((e) => e.id));
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch('/settings/extensions/installed.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const list = (await res.json()) as { id: string; name: string; href: string }[];
+        polled = list;
+        fresh = list.filter((e) => !known.has(e.id));
+      } catch {
+        /* the app is restarting with a new build */
+      }
+    }, 10_000);
+    return () => clearInterval(timer);
+  });
 
   function scrollRow(id: string, dir: number) {
     const el = document.getElementById(id);
@@ -46,10 +49,10 @@
   </div>
 </div>
 
-{#if data.installed.length}
+{#if installed.length}
   <nav class="installed" aria-label="Installed apps">
     <span class="meta">Installed</span>
-    {#each data.installed as e (e.id)}
+    {#each installed as e (e.id)}
       <a class="chip" href="/settings/extensions/{e.id}">
         <span class="dot" style="--hue: {hueFor(e.id)}" aria-hidden="true"></span>{e.name}
       </a>
@@ -76,8 +79,8 @@
           <span class="mark" aria-hidden="true">{initials(e.name)}</span>
           <h3>{e.name}</h3>
           <p class="meta grow">{e.description}</p>
-          <button type="button" class="btn btn-primary" disabled={!termOk}
-            onclick={() => toTerminal({ tool: 'shell', text: installCommand(e.id), title: `Install ${e.name}` })}>
+          <button type="button" class="btn btn-primary"
+            onclick={() => agent?.say(`Install the ready-made extension ${e.id}: run ${installCommand(e.id)}, then tell me what to set up.`)}>
             Install
           </button>
           {#if e.service}<p class="meta small">Then <code>sudo ./install.sh</code> on the host, once.</p>{/if}
@@ -103,28 +106,25 @@
           <span class="mark" aria-hidden="true">{initials(i.name)}</span>
           <h3>{i.name}</h3>
           <p class="meta grow">{i.description}</p>
-          <div class="acts">
-            <button type="button" class="btn btn-primary" disabled={!termOk || !data.terminal.claude}
-              onclick={() => toTerminal({ tool: 'claude', text: p, title: `Build ${i.name} with Claude` })}>Claude</button>
-            <button type="button" class="btn" disabled={!termOk || !data.terminal.codex}
-              onclick={() => toTerminal({ tool: 'codex', text: p, title: `Build ${i.name} with Codex` })}>Codex</button>
-          </div>
+          <button type="button" class="btn btn-primary" onclick={() => agent?.say(p)}>Build it</button>
         </li>
       {/each}
     </ul>
   </section>
 {/if}
 
-<section class="block" aria-label="Your own app">
-  <AskAI
-    title="Or describe your own"
-    placeholder="e.g. a habit tracker for water and stretching, with a streak on the dashboard"
-    prompt={newAppPrompt}
-    taskTitle="Build your app"
-    terminal={data.terminal}
-    installed={installedIds}
-  />
-</section>
+{#each fresh as f (f.id)}
+  <div class="card done" role="status">
+    <Mascot mood="charged" size={44} decorative />
+    <strong class="grow">{f.name} is ready</strong>
+    <a class="btn btn-primary" href={f.href}>Open</a>
+    <a class="btn" href="/settings/extensions/{f.id}">Settings</a>
+  </div>
+{/each}
+
+<div class="block">
+  <AgentConsole bind:this={agent} title="Or tell me what to build" session="extend" terminal={data.terminal} />
+</div>
 
 <style>
   .hero {
@@ -264,12 +264,11 @@
   .grow {
     flex: 1;
   }
-  .acts {
+  .done {
     display: flex;
-    gap: var(--space-2);
-  }
-  .acts .btn-primary {
-    flex: 1;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
   }
   .none {
     display: flex;

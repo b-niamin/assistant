@@ -59,7 +59,8 @@ server.on('upgrade', (req, socket, head) => {
     // Forward the handshake. The ticket goes along: the terminal verifies it again (single use there
     // too). Cookies do not: the sidecars never see the session id.
     const query = new URLSearchParams({ ticket });
-    for (const k of ['cols', 'rows']) if (url.searchParams.has(k)) query.set(k, url.searchParams.get(k));
+    // The terminal checks session, start and dir itself (fixed names and commands only).
+    for (const k of ['cols', 'rows', 'session', 'start', 'dir']) if (url.searchParams.has(k)) query.set(k, url.searchParams.get(k));
     // Origin: the browser sidecar's websockify accepts only this app's ORIGIN (checked above), so a web
     // page open in that browser cannot open the VNC itself (spec 004).
     const lines = [

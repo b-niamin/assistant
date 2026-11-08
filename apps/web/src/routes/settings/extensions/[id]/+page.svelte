@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import AskAI from '$lib/settings/AskAI.svelte';
-  import { buildChangePrompt, hueFor, initials } from '$lib/settings/guide';
+  import AgentConsole from '$lib/settings/AgentConsole.svelte';
+  import { hueFor, initials } from '$lib/settings/guide';
   let { data, form } = $props();
   const ext = $derived(data.ext);
   const plain = $derived(ext.settings.filter((f) => f.type !== 'secret'));
@@ -28,14 +28,7 @@
 </div>
 
 <section aria-label="Change {ext.name}">
-  <AskAI
-    title="Talk to Claude about {ext.name}"
-    placeholder="e.g. add a weekly summary tile to the dashboard"
-    prompt={(t) => buildChangePrompt(ext.id, ext.name, t)}
-    taskTitle="Change {ext.name}"
-    terminal={data.terminal}
-    canResume
-  />
+  <AgentConsole title="Change {ext.name} with me" session="ext-{ext.id}" dir={ext.id} terminal={data.terminal} />
 </section>
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}

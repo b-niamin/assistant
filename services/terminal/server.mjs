@@ -76,6 +76,25 @@ const server = createServer((req, res) => {
   res.end();
 });
 
+const WORKSPACE = existsSync('/workspace') ? '/workspace' : HOME;
+const AGENTS = { claude: 'claude -c 2>/dev/null || claude', codex: 'codex' };
+/**
+ * Which tmux session to attach: `web` (the plain shell) by default, or a named one that starts an AI CLI
+ * the first time (`-A` attaches to it later, so the conversation goes on). `dir` is an installed
+ * extension, so Claude works in its folder and `claude -c` continues that folder's last conversation.
+ * Only fixed commands and checked names: the URL never reaches the shell as text.
+ */
+function sessionOf(params) {
+  const name = params.get('session') ?? '';
+  const session = /^[a-z][a-z0-9-]{0,40}$/.test(name) ? name : 'web';
+  const ext = params.get('dir') ?? '';
+  const extDir = /^[a-z][a-z0-9-]*$/.test(ext) ? path.join(WORKSPACE, 'extensions', ext) : '';
+  const cwd = extDir && existsSync(extDir) ? extDir : WORKSPACE;
+  const agent = AGENTS[params.get('start') ?? ''];
+  // After the agent exits, a login shell stays in the window.
+  return { session, cwd, start: session !== 'web' && agent ? [`${agent}; exec bash -l`] : [] };
+}
+
 server.on('upgrade', (req, socket) => {
   const url = new URL(req.url ?? '/', 'http://terminal');
   const ip = req.headers['x-forwarded-for'] ?? socket.remoteAddress;
@@ -90,9 +109,10 @@ server.on('upgrade', (req, socket) => {
   const rows = Number(url.searchParams.get('rows')) || 30;
   // tmux keeps the shell (and a half-finished `claude /login`) alive across reconnects. tmux.conf only
   // styles the status line to match the app; tmux reads it when its server starts.
-  const tmux = ['tmux', '-f', path.join(HERE, 'tmux.conf'), 'new-session', '-A', '-s', 'web'];
+  const { session, start, cwd } = sessionOf(url.searchParams);
+  const tmux = ['tmux', '-f', path.join(HERE, 'tmux.conf'), 'new-session', '-A', '-s', session, '-c', cwd, ...start];
   const child = spawn('python3', ['-I', path.join(HERE, 'ptyhost.py'), ...tmux], {
-    cwd: existsSync('/workspace') ? '/workspace' : HOME,
+    cwd,
     env: { ...shellEnv(), COLS: String(cols), ROWS: String(rows) },
     stdio: ['pipe', 'pipe', 'inherit', 'pipe']
   });

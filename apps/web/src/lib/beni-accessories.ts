@@ -74,7 +74,7 @@ export const ACCESSORY_SVG: Record<Accessory, string> = {
     hand(17.8, 55.4, -20) +
     hand(46.2, 55.4, 20),
   wrench:
-    '<g class="tool" transform="translate(54.5 31) rotate(28)">' +
+    '<g class="tool" transform="translate(57.5 32) rotate(28)">' +
     '<rect fill="#8b97a8" x="-1.7" y="2" width="3.4" height="15" rx="1.7"/>' +
     '<path fill="#a7b2c1" d="M1.8 -4.23A4.6 4.6 0 1 1 -1.8 -4.23L-1.8 -1L1.8 -1Z"/>' +
     hand(0, 12.5, 90) +
@@ -94,7 +94,7 @@ export const ACCESSORY_SVG: Record<Accessory, string> = {
     '<g fill="#fff"><circle cx="25" cy="6.4" r="4.7"/><circle cx="32" cy="3.6" r="5.5"/><circle cx="39" cy="6.4" r="4.7"/></g>' +
     '<rect fill="#fff" stroke="#d6d1c8" stroke-width="1.2" x="22.4" y="8" width="19.2" height="6.4" rx="1.6"/>',
   pencil:
-    '<g class="tool" transform="translate(55 34) rotate(200) scale(1.25)">' +
+    '<g class="tool" transform="translate(59.5 38) rotate(200) scale(1.25)">' +
     '<rect fill="#f4b400" x="-1.9" y="-8" width="3.8" height="14"/><rect fill="#d99c00" x="-.5" y="-8" width="1" height="14"/>' +
     '<path fill="#f1d3a6" d="M-1.9 6L1.9 6L0 10.4Z"/><path fill="#33302b" d="M-.7 8.8L.7 8.8L0 10.4Z"/>' +
     '<rect fill="#c0c6cf" x="-1.9" y="-9.6" width="3.8" height="1.8"/><rect fill="#f08aa0" x="-1.9" y="-12" width="3.8" height="2.6" rx="1"/>' +

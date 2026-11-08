@@ -8,8 +8,8 @@
 <svelte:head><title>{missing ? 'Not found' : 'Error'} · Assistant</title></svelte:head>
 
 <section class="card oops rise">
-  <Mascot mood={missing ? 'tired' : 'asleep'} size={96} label="Pip, the assistant mascot. Click me." />
-  <h1>{missing ? 'Pip looked everywhere' : 'Something went wrong'}</h1>
+  <Mascot mood={missing ? 'tired' : 'asleep'} size={96} label="Beni, the assistant mascot. Click me." />
+  <h1>{missing ? 'Beni looked everywhere' : 'Something went wrong'}</h1>
   <p class="muted">
     {missing ? 'There is no page at this address.' : (page.error?.message ?? 'Try again in a moment.')}
   </p>

@@ -279,4 +279,4 @@ if [ -f extensions/health/compose.yml ]; then
   fi
 fi
 
-printf '\n\033[1mAll set.\033[0m Open %s and say hello to Pip.\n\n' "$(sed -n 's/^PUBLIC_ORIGIN=//p' .env)" > /dev/tty
+printf '\n\033[1mAll set.\033[0m Open %s and say hello to Beni.\n\n' "$(sed -n 's/^PUBLIC_ORIGIN=//p' .env)" > /dev/tty

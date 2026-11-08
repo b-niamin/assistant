@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/static/pip.svg" alt="Pip, the assistant's mascot: an orange jelly-bean runner in a sweatband" width="160" />
+  <img src="apps/web/static/beni.svg" alt="Beni, the assistant's mascot: an orange jelly-bean runner in a sweatband" width="160" />
 </p>
 
 # assistant-core
@@ -8,7 +8,7 @@ A private, self-hosted assistant you run at home: a small **core shell** (passwo
 System settings, an in-app terminal and browser) plus **extensions**, the apps. Claude runs inside the
 stack, reached through Remote Control, talks to every extension and builds new ones on request.
 
-Meet **Pip**, the mascot: a jelly-bean runner in a sweatband who greets you on the dashboard and keeps
+Meet **Beni**, the mascot: a jelly-bean runner in a sweatband who greets you on the dashboard and keeps
 every empty screen company.
 
 - Extensions: ready to install (Training & Health from Garmin, a gym tracker) and inspirations to build

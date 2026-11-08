@@ -368,7 +368,7 @@ const ALLOWED_SHELL_IMPORTS = /^(\$shell(\/.*)?|\$app\/.*|@sveltejs\/kit|svelte(
  */
 /**
  * The look every extension must have (spec 001, add-extension skill): the shell's layout and tokens, and
- * Pip woven in. Returned as warnings, not errors, so an older extension still builds; a new one must
+ * Beni woven in. Returned as warnings, not errors, so an older extension still builds; a new one must
  * come out of `ext check` without any.
  */
 export function lookWarnings(root, manifest, id) {
@@ -376,8 +376,8 @@ export function lookWarnings(root, manifest, id) {
   if (manifest.kind === 'onefile') {
     const file = manifest.entry && path.join(root, manifest.entry);
     const html = file && existsSync(file) ? readFileSync(file, 'utf8') : '';
-    if (!/<assistant-pip\b|createElement\(\s*['"]assistant-pip['"]/.test(html))
-      warnings.push(`${id}: Pip is missing (use <assistant-pip mood="..."> in its header or empty states)`);
+    if (!/<assistant-beni\b|createElement\(\s*['"]assistant-beni['"]/.test(html))
+      warnings.push(`${id}: Beni is missing (use <assistant-beni mood="..."> in its header or empty states)`);
     if (!/var\(--(page|surface|ink|accent)\b/.test(html))
       warnings.push(`${id}: does not use the shell tokens (var(--page), var(--surface), var(--ink), var(--accent), ...)`);
   } else {
@@ -385,7 +385,7 @@ export function lookWarnings(root, manifest, id) {
     const files = existsSync(web) ? walk(web).filter((/** @type {string} */ f) => /\.(svelte|ts)$/.test(f)) : [];
     const src = files.map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
     if (!/import\s*\{[^}]*\bMascot\b[^}]*\}\s*from\s*['"]\$shell\/ui['"]/.test(src))
-      warnings.push(`${id}: Pip is missing (import { Mascot } from '$shell/ui' for its header or empty states)`);
+      warnings.push(`${id}: Beni is missing (import { Mascot } from '$shell/ui' for its header or empty states)`);
     if (/#[0-9a-fA-F]{6}\b/.test(files.filter((f) => f.endsWith('.svelte')).map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n')))
       warnings.push(`${id}: raw hex colours in its pages (use the shell tokens: --ink, --accent, --hue-*, ...)`);
   }

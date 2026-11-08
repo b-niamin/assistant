@@ -3,14 +3,14 @@
   import type { Mood } from './mascot';
 
   /**
-   * Pip: a jelly-bean runner in a sweatband. Pure SVG + CSS (transform/opacity only), so it costs
+   * Beni: a jelly-bean runner in a sweatband. Pure SVG + CSS (transform/opacity only), so it costs
    * nothing to animate. Mood picks the idle loop; a click makes it bounce; pupils follow the pointer.
    * Everything stands still under prefers-reduced-motion.
    */
   let {
     mood = 'idle',
     size = 96,
-    label = 'Pip',
+    label = 'Beni',
     decorative = false
   }: { mood?: Mood; size?: number; label?: string; decorative?: boolean } = $props();
 

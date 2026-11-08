@@ -45,7 +45,7 @@ Native:
 - Tools for Claude: the shell already gives `describe` and read-only `query`. Add `web/tools.server.ts`
   (`export const tools: ExtTool[]`) for an overview or for writes (validate input, write via `ctx.db`).
   See `extensions/health/web/tools.server.ts` and spec 005.
-- Look (required): the shell's layout and tokens (`specs/001-design.md`) and Pip from `$shell/ui` in the
+- Look (required): the shell's layout and tokens (`specs/001-design.md`) and Beni from `$shell/ui` in the
   header and every empty or error state. No UI libraries, no raw hex. See the `add-extension` skill, step 4.
 - Settings and secrets: declare fields in `extension.json` `"settings"` (text, number, boolean, select,
   secret). The shell draws its panel in System settings; read with `ctx.settings.get` / `ctx.secrets.get`.
@@ -53,8 +53,8 @@ Native:
 
 Onefile:
 - Follow onefile-apps' ARTIFACTS-DEVELOPMENT.md (one file, CSP meta, EN + PL, phone-first, light + dark).
-- Look (required): the shell injects its tokens and `<assistant-pip>`; style with `var(--page, <fallback>)`
-  and put Pip in the header and empty states, not the app's own palette or fonts.
+- Look (required): the shell injects its tokens and `<assistant-beni>`; style with `var(--page, <fallback>)`
+  and put Beni in the header and empty states, not the app's own palette or fonts.
 - Keep all state in `localStorage` under a few versioned keys; the shell persists it per scope.
 
 ## 4. Check

@@ -1,5 +1,5 @@
 /**
- * Pip, the app's mascot. Its mood follows today's Training Readiness, so the hero card reads at a
+ * Beni, the app's mascot. Its mood follows today's Training Readiness, so the hero card reads at a
  * glance even before the number does. Pure logic here; the drawing is in Mascot.svelte.
  */
 export type Mood = 'charged' | 'steady' | 'tired' | 'asleep' | 'idle';
@@ -12,7 +12,7 @@ export function moodFor(readiness: number | null | undefined): Mood {
   return 'asleep';
 }
 
-/** Pip's mood by the local hour, for places with no readiness to go on (dashboard greeting). */
+/** Beni's mood by the local hour, for places with no readiness to go on (dashboard greeting). */
 export function moodForHour(hour: number): Mood {
   if (hour < 6) return 'asleep';
   if (hour < 12) return 'charged';

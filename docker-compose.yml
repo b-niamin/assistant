@@ -107,6 +107,8 @@ services:
       SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
       # Lets Claude call the extensions' tools at /api/claude (spec 005). Empty = off.
       CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
+      # What "Extend the system" offers; empty = the catalog.json of github.com/b-niamin/assistant-extensions.
+      EXTENSIONS_CATALOG_URL: ${EXTENSIONS_CATALOG_URL:-}
     volumes:
       - ./apps/web:/app
       # Installed extensions, compiled into the shell (spec 002). Read-only: only Claude edits them.

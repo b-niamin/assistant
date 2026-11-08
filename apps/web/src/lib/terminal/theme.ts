@@ -11,7 +11,7 @@ export const TERMINAL_BG = '#141413';
 export const TERMINAL_THEME = {
   background: TERMINAL_BG,
   foreground: '#e8e6df',
-  cursor: '#eb6834', // --hue-orange, Pip's colour
+  cursor: '#eb6834', // --hue-orange, Beni's colour
   cursorAccent: TERMINAL_BG,
   selectionBackground: 'rgba(57, 135, 229, 0.38)',
   selectionInactiveBackground: 'rgba(57, 135, 229, 0.2)',

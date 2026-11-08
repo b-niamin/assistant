@@ -158,10 +158,10 @@ describe('look', () => {
     return root;
   };
 
-  it('asks a native extension for Pip and tokens, not hex', () => {
+  it('asks a native extension for Beni and tokens, not hex', () => {
     const bare = ext({ 'web/routes/+page.svelte': '<h1 style="color:#123456">Hi</h1>' });
     expect(lib.lookWarnings(bare, { kind: 'native' }, 'x')).toEqual([
-      expect.stringMatching(/Pip is missing/),
+      expect.stringMatching(/Beni is missing/),
       expect.stringMatching(/raw hex/)
     ]);
     const ours = ext({
@@ -170,10 +170,10 @@ describe('look', () => {
     expect(lib.lookWarnings(ours, { kind: 'native' }, 'x')).toEqual([]);
   });
 
-  it('asks a onefile app for <assistant-pip> and the shell tokens', () => {
+  it('asks a onefile app for <assistant-beni> and the shell tokens', () => {
     const bare = ext({ 'app.html': '<style>body{color:#000}</style>' });
     expect(lib.lookWarnings(bare, { kind: 'onefile', entry: 'app.html' }, 'x')).toHaveLength(2);
-    const ours = ext({ 'app.html': '<style>body{background:var(--page,#fff)}</style><assistant-pip mood="idle"></assistant-pip>' });
+    const ours = ext({ 'app.html': '<style>body{background:var(--page,#fff)}</style><assistant-beni mood="idle"></assistant-beni>' });
     expect(lib.lookWarnings(ours, { kind: 'onefile', entry: 'app.html' }, 'x')).toEqual([]);
   });
 });

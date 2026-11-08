@@ -59,7 +59,7 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `CL
    points at is only inspiration (`add-extension` skill). `extensions/` is git-ignored in this repo: it
    is this instance's own state. Its settings live in its panel in
    System settings (manifest `"settings"`). It must wear the app's layout (shell tokens, `specs/001-design.md`)
-   and have Pip, the mascot, woven in (`$shell/ui` or `<assistant-pip>` for onefile apps).
+   and have Beni, the mascot, woven in (`$shell/ui` or `<assistant-beni>` for onefile apps).
 4. Edits to `apps/web` and `extensions/` are rebuilt within seconds; a failed build leaves the previous build serving, so check
    `/logs/web.log` for `build ok` after a change. Before committing web changes run
    `cd apps/web && npm test && npm run check`. Edits to

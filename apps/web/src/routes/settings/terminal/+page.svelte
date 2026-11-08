@@ -6,7 +6,7 @@
   import { openSidecar } from '$lib/sidecar-client';
   import { arrowSeq, BAR_KEYS, ctrlOf, type BarKey } from '$lib/terminal/keys';
   import { defaultFontSize, stepFontSize, TERMINAL_FONT, TERMINAL_THEME } from '$lib/terminal/theme';
-  import { claudeCommand, PENDING_PROMPT_KEY } from '$lib/settings/guide';
+  import { parsePending, pendingCommand, PENDING_PROMPT_KEY, type PendingTask } from '$lib/settings/guide';
 
   let { data } = $props();
 
@@ -22,8 +22,9 @@
   let full = $state(false);
   let ctrl = $state(false);
   let ws: WebSocket | null = null;
-  // A request left by "Add an app": shown above the terminal until it is run or dismissed.
-  let pending = $state<string | null>(null);
+  // A task left by "Extend the system": shown above the terminal until it is run or dismissed.
+  let pending = $state<PendingTask | null>(null);
+  const pendingNeeds = $derived(pending?.tool === 'claude' ? status.claude : pending?.tool === 'codex' ? status.codex : true);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let term: any = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,7 +95,7 @@
 
   function runPending() {
     if (!pending) return;
-    run(claudeCommand(pending));
+    run(pendingCommand(pending));
     clearPending();
   }
 
@@ -176,7 +177,7 @@
   onMount(() => {
     let disposed = false;
     try {
-      pending = sessionStorage.getItem(PENDING_PROMPT_KEY);
+      pending = parsePending(sessionStorage.getItem(PENDING_PROMPT_KEY));
     } catch {
       /* no storage */
     }
@@ -314,19 +315,23 @@
   <section class="ready card rise" id="ready" style="--i: 4" aria-label="Ready to build">
     <Mascot mood="charged" size={48} decorative />
     <div class="ask">
-      <h2>Ready to build your app</h2>
-      <p class="said">{pending}</p>
+      <h2>{pending.title}</h2>
+      <p class="said">{pending.tool === 'shell' ? pendingCommand(pending) : pending.text}</p>
       <p class="small">
-        This starts Claude Code with your request. It builds the app in the repo; answer it in the terminal if it
-        asks something. When it is done, the app appears in System settings.
+        {#if pending.tool === 'shell'}
+          This copies the app from the extensions repo and turns it on; the app rebuilds by itself within a minute.
+        {:else}
+          This starts {pending.tool === 'codex' ? 'Codex' : 'Claude Code'} with your request. It builds the app in the
+          repo; answer it in the terminal if it asks something. When it is done, the app appears in System settings.
+        {/if}
       </p>
     </div>
     <div class="go">
-      <button class="btn btn-primary" type="button" disabled={phase !== 'open' || !status.claude} onclick={runPending}>
-        Run in Claude
+      <button class="btn btn-primary" type="button" disabled={phase !== 'open' || !pendingNeeds} onclick={runPending}>
+        {pending.tool === 'shell' ? 'Run it' : pending.tool === 'codex' ? 'Run in Codex' : 'Run in Claude'}
       </button>
       <button class="btn-ghost" type="button" onclick={clearPending}>Dismiss</button>
-      {#if !status.claude}<p class="small">Sign in to Claude Code first (card above).</p>{/if}
+      {#if !pendingNeeds}<p class="small">Sign in to {pending.tool === 'codex' ? 'Codex' : 'Claude Code'} first (card above).</p>{/if}
     </div>
   </section>
 {/if}

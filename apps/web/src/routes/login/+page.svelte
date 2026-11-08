@@ -4,7 +4,7 @@
 </script>
 
 <form method="POST" class="card login rise">
-  <div class="pip"><Mascot mood="charged" size={84} label="Pip, the assistant mascot. Click me." /></div>
+  <div class="pip"><Mascot mood="charged" size={84} label="Beni, the assistant mascot. Click me." /></div>
   <div>
     <h1>Assistant</h1>
     <p class="muted">Enter the app password to continue.</p>

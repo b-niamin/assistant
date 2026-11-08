@@ -4,7 +4,7 @@ import { pipElementScript, pipMarkup, themeTags, tokensOf } from './theme';
 
 // Vitest turns CSS imports (even ?raw) into empty strings, so the tests read the real files.
 const css = readFileSync(new URL('../../app.css', import.meta.url), 'utf8');
-const svg = readFileSync(new URL('../../../static/pip.svg', import.meta.url), 'utf8');
+const svg = readFileSync(new URL('../../../static/beni.svg', import.meta.url), 'utf8');
 
 describe('onefile theme', () => {
   it('takes only the token blocks of app.css', () => {
@@ -20,9 +20,9 @@ describe('onefile theme', () => {
     expect(tags).not.toContain('box-sizing');
   });
 
-  it('defines <assistant-pip> with the eyes wrapped for moods and no raw tags in the script', () => {
-    const script = pipElementScript(pipMarkup('<svg viewBox="0 0 64 64" width="256" height="256"><title>Pip</title><circle fill="#fff" cx="24.6" cy="35" r="6.2"/><g fill="#fff"><circle cx="1"/></g></svg>'));
-    expect(script).toContain("customElements.define('assistant-pip'");
+  it('defines <assistant-beni> with the eyes wrapped for moods and no raw tags in the script', () => {
+    const script = pipElementScript(pipMarkup('<svg viewBox="0 0 64 64" width="256" height="256"><title>Beni</title><circle fill="#fff" cx="24.6" cy="35" r="6.2"/><g fill="#fff"><circle cx="1"/></g></svg>'));
+    expect(script).toContain("customElements.define('assistant-beni'");
     expect(script).not.toMatch(/<\/?(svg|style|script)/);
     const html = JSON.parse(/var html = (".*");/.exec(script)![1]);
     expect(html).toContain('<g class="body">');
@@ -31,7 +31,7 @@ describe('onefile theme', () => {
     expect(html).not.toContain('<title>');
   });
 
-  it('wraps the eyes of the real Pip too', () => {
+  it('wraps the eyes of the real Beni too', () => {
     const tags = themeTags(css, svg);
     expect(tags).toContain('class=\\"eyes\\"');
     expect(tags).toContain('width=\\"64\\"'); // the headband rect keeps its size

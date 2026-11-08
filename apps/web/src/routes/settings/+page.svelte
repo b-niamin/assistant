@@ -51,8 +51,8 @@
   <nav class="quick" aria-label="Common tasks">
     <a class="card do" href="/settings/extensions/new" style="--hue: var(--hue-orange)">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" /></svg></span>
-      <strong>Add an app</strong>
-      <span class="meta">Describe it, Claude builds it</span>
+      <strong>Extend the system</strong>
+      <span class="meta">Install an app or let AI build one</span>
     </a>
     <a class="card do" href="/settings/profiles#add" style="--hue: var(--hue-blue)">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="8" cy="7" r="3" /><path d="M2.5 16c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5M15 6v6M12 9h6" /></svg></span>
@@ -89,13 +89,13 @@
       {:else}
         <li class="none">
           <Mascot mood="idle" size={48} decorative />
-          <span class="muted">No apps yet. Add the first one: describe it and Claude builds it.</span>
+          <span class="muted">No apps yet. Install a ready-made one or let Claude build one for you.</span>
         </li>
       {/each}
       <li>
         <a href="/settings/extensions/new" class="add">
           <span class="mark plus" aria-hidden="true">+</span>
-          <span class="what"><strong>Add an app</strong><span class="meta">From an idea, a repo or an app you like</span></span>
+          <span class="what"><strong>Extend the system</strong><span class="meta">Ready-made apps, inspirations, or your own idea</span></span>
           <span class="chev" aria-hidden="true">›</span>
         </a>
       </li>

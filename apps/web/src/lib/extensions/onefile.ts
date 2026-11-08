@@ -101,7 +101,7 @@ export function injectShim(
   settings: Record<string, unknown> = {},
   theme = ''
 ): string {
-  // theme: the shell's tokens and <assistant-pip> (theme.ts), so every app wears the shell's look.
+  // theme: the shell's tokens and <assistant-beni> (theme.ts), so every app wears the shell's look.
   // window.assistantSettings: the values of the app's settings panel in System settings (read-only).
   const tag = `<script>window.assistantSettings = Object.freeze(${inlineJson(settings)});${shimScript(data, parentOrigin)}</script>${theme}`;
   const head = /<head(\s[^>]*)?>/i.exec(html);

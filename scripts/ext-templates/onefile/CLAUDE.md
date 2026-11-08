@@ -19,8 +19,8 @@ The shell renders it as text (no HTML), max 2 kpis, 90 points, 60-character stri
 Outside the shell the key is just ignored.
 
 Look (required): inside the shell the iframe gets the shell's tokens (`--page`, `--surface`, `--ink`,
-`--accent`, `--space-*`, ...; `@layer assistant`) and `<assistant-pip mood="steady" size="40">`, Pip the
-mascot. Style only with `var(--token, fallback)`, put Pip in the header and empty states, and drop any
+`--accent`, `--space-*`, ...; `@layer assistant`) and `<assistant-beni mood="steady" size="40">`, Beni the
+mascot. Style only with `var(--token, fallback)`, put Beni in the header and empty states, and drop any
 own palette or fonts. Outside the shell the fallbacks apply and the element stays empty.
 
 Check after a change: `node scripts/ext.mjs check {{id}}` in the shell repo root, then open `/{{id}}`.

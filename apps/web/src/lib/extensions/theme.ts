@@ -4,13 +4,13 @@
  *
  * - the design tokens of app.css (`--page`, `--surface`, `--ink`, `--accent`, `--space-*`, ...), light and
  *   dark, inside `@layer assistant` so the app's own unlayered rules still win;
- * - `<assistant-pip mood="steady" size="48">`: Pip, the mascot, as a custom element (shadow DOM, so
+ * - `<assistant-beni mood="steady" size="48">`: Beni, the mascot, as a custom element (shadow DOM, so
  *   its SVG ids and styles never clash with the app). Moods: idle, steady, charged, tired, asleep.
  *
  * Native extensions get the same look from the shell itself (`$shell/ui`, the classes in app.css).
  */
 import appCss from '../../app.css?raw';
-import pipSvg from '../../../static/pip.svg?raw';
+import pipSvg from '../../../static/beni.svg?raw';
 
 /** The token part of app.css: everything before the first element rule (`*,`). */
 export function tokensOf(css: string): string {
@@ -19,7 +19,7 @@ export function tokensOf(css: string): string {
   return head.replace(/\/\*[\s\S]*?\*\//g, '').trim();
 }
 
-/** Pip's static drawing without the title and the fixed size, ready for any size. */
+/** Beni's static drawing without the title and the fixed size, ready for any size. */
 export function pipMarkup(svg: string): string {
   return svg
     .replace(/<title>[\s\S]*?<\/title>/, '')
@@ -43,7 +43,7 @@ svg { width: 100%; height: 100%; overflow: visible; }
 @media (prefers-reduced-motion: reduce) { .body { animation: none !important; } }
 `;
 
-/** Script defining <assistant-pip>; `svg` is Pip's markup. */
+/** Script defining <assistant-beni>; `svg` is Beni's markup. */
 export function pipElementScript(svg: string): string {
   // Wrap the drawing in .body and the eyes (white + pupils + glints) in .eyes for the mood styles.
   const drawn = svg
@@ -54,9 +54,9 @@ export function pipElementScript(svg: string): string {
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e');
   return `(function () {
-  if (!window.customElements || customElements.get('assistant-pip')) return;
+  if (!window.customElements || customElements.get('assistant-beni')) return;
   var html = ${template};
-  customElements.define('assistant-pip', class extends HTMLElement {
+  customElements.define('assistant-beni', class extends HTMLElement {
     static get observedAttributes() { return ['size', 'label']; }
     connectedCallback() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' }).innerHTML = html;

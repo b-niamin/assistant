@@ -131,12 +131,15 @@ export interface ExtensionRequest {
   inspiration?: string;
   scope: Scope;
   template: string;
+  /** Overrides the template's starting point, e.g. `inspiration:<id>` from the catalog. */
+  from?: string;
 }
 
 /** The prompt Claude gets in the terminal. One line, so it types cleanly into the shell. */
 export function buildPrompt(r: ExtensionRequest): string {
   const idea = oneLine(r.idea) || 'a new app';
-  const t = TEMPLATES.find((x) => x.id === r.template) ?? TEMPLATES[0];
+  const found = TEMPLATES.find((x) => x.id === r.template) ?? TEMPLATES[0];
+  const t = r.from ? { ...found, from: r.from } : found;
   const parts = [
     `Use the add-extension skill to add a new extension to this assistant: ${idea.replace(/[.!?]?$/, '.')}`,
     r.inspiration?.trim() ? `Use ${oneLine(r.inspiration)} as inspiration only; build it fresh in extensions/.` : '',
@@ -146,7 +149,7 @@ export function buildPrompt(r: ExtensionRequest): string {
       : t.from
         ? `Start from ${t.from} (inspirations/ in the extensions repo; node scripts/ext.mjs available lists ready-made apps).`
         : 'Pick the kind and starting point yourself (node scripts/ext.mjs available lists ready-made apps; skeletons are in inspirations/ of the extensions repo).',
-    'Use our design system and Pip the mascot, add a settings panel and dashboard tile if useful, run the checks, commit and push.'
+    'Use our design system and Beni the mascot, add a settings panel and dashboard tile if useful, run the checks, commit and push.'
   ];
   return parts.filter(Boolean).join(' ');
 }
@@ -161,10 +164,43 @@ export function shellQuote(s: string): string {
 /** The command the terminal types: start Claude Code with the prompt as its first message. */
 export const claudeCommand = (prompt: string): string => `claude ${shellQuote(oneLine(prompt))}`;
 
-/** sessionStorage key: the "Add an app" page leaves the prompt here for the terminal page. */
+/** sessionStorage key: "Extend the system" leaves a task here for the terminal page. */
 export const PENDING_PROMPT_KEY = 'terminal.pendingPrompt';
+
+/** What the terminal runs for "Extend the system": a request to an AI CLI, or a plain command. */
+export interface PendingTask {
+  tool: 'claude' | 'codex' | 'shell';
+  text: string;
+  title: string;
+}
+
+/** Stored as JSON; a plain string (older pages) is a request for Claude. */
+export function parsePending(raw: string | null): PendingTask | null {
+  if (!raw) return null;
+  try {
+    const t = JSON.parse(raw) as Partial<PendingTask>;
+    if (t && typeof t.text === 'string' && ['claude', 'codex', 'shell'].includes(t.tool ?? ''))
+      return { tool: t.tool as PendingTask['tool'], text: t.text, title: typeof t.title === 'string' ? t.title : 'Ready' };
+  } catch {
+    /* not JSON: an older plain prompt */
+  }
+  return { tool: 'claude', text: raw, title: 'Ready to build your app' };
+}
+
+/** The command line the terminal types for a task. */
+export function pendingCommand(t: PendingTask): string {
+  if (t.tool === 'shell') return oneLine(t.text);
+  return `${t.tool} ${shellQuote(oneLine(t.text))}`;
+}
+
+/** Install ready-made extensions from the extensions repo (the same CLI Claude uses). */
+export const installCommand = (id: string): string => `node scripts/ext.mjs install ${id}`;
+
+/** The request for building an extension from one of the extensions repo's inspirations. */
+export const inspirationPrompt = (i: { id: string; idea: string; scope: Scope }, extra = ''): string =>
+  buildPrompt({ idea: [i.idea, extra].filter((s) => s.trim()).join(' '), scope: i.scope, template: i.id, from: `inspiration:${i.id}` });
 
 /** The prompt for changing an installed extension (its panel's "Ask Claude to change it"). */
 export function buildChangePrompt(id: string, name: string, change: string): string {
-  return `Change the ${name} extension (extensions/${id}, new-extension skill): ${oneLine(change).replace(/[.!?]?$/, '.')} Keep our design system and Pip, run the checks, commit and push.`;
+  return `Change the ${name} extension (extensions/${id}, new-extension skill): ${oneLine(change).replace(/[.!?]?$/, '.')} Keep our design system and Beni, run the checks, commit and push.`;
 }

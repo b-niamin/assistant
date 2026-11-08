@@ -18,7 +18,7 @@ was run through its validator against both chart surfaces (`#fcfcfb` light, `#1a
 | Chart chrome | `--grid` hairline gridlines, `--axis` baseline and de-emphasis lines, `--ring` 1px card border |
 | Data | `--accent` (single series), `--accent-wash` (10 % area fill), `--accent-ink` (links, text-safe step) |
 | Status | `--good`, `--warning`, `--serious`, `--critical` (dots); `--good-ink` for good text |
-| Metric hues | `--hue-blue/orange/aqua/yellow/magenta/green/violet/red` (validated categorical slots, own dark steps); `--brand` = Pip's orange |
+| Metric hues | `--hue-blue/orange/aqua/yellow/magenta/green/violet/red` (validated categorical slots, own dark steps); `--brand` = Beni's orange |
 | Spacing | `--space-1..7` = 4, 8, 12, 16, 24, 32, 48 px |
 
 Dark mode is its own set of steps (not an inversion), applied by `prefers-color-scheme` and by
@@ -48,38 +48,38 @@ Battery green, resting HR red, stress magenta, steps blue. The hue shows on the 
 its sparkline's latest point and its trend line, so the colour always means the same thing. Training
 load bars are orange (effort). Text keeps ink tokens.
 
-## Mascot: Pip
+## Mascot: Beni
 
 `lib/Mascot.svelte` is a jelly-bean runner in a sweatband, pure SVG + CSS. Its mood follows today's
 Training Readiness (`lib/mascot.ts`): charged (75+, hops and sparkles), steady (50-74, breathes),
 tired (25-49, half-closed eyes, sways), asleep (<25, closed eyes, floating z's), idle (no data). It
 says one short line per mood, fixed for the day. Pupils follow the pointer; a click makes it bounce.
-A small decorative Pip is the brand mark in the header; the login page shows a charged one.
+A small decorative Beni is the brand mark in the header; the login page shows a charged one.
 
-Pip is the app's face everywhere, so a screen without data never feels broken:
+Beni is the app's face everywhere, so a screen without data never feels broken:
 
 - **Icons**: `static/favicon.svg` (cropped, no shadow), `apple-touch-icon.png` and `icon-192/512.png`
-  (Pip on a warm tile) via `manifest.webmanifest`; theme colour is Pip's orange. `static/pip.svg` is
-  the full static Pip, used by the README. Regenerate the PNGs from the SVG if Pip's look changes.
-- **Dashboard**: Pip greets next to the greeting, mood by time of day (`moodForHour`: asleep before
+  (Beni on a warm tile) via `manifest.webmanifest`; theme colour is Beni's orange. `static/beni.svg` is
+  the full static Beni, used by the README. Regenerate the PNGs from the SVG if Beni's look changes.
+- **Dashboard**: Beni greets next to the greeting, mood by time of day (`moodForHour`: asleep before
   6, charged in the morning, steady until 22, tired late).
-- **Empty and error states**: a small decorative Pip (idle for "no data yet", tired for "unavailable",
+- **Empty and error states**: a small decorative Beni (idle for "no data yet", tired for "unavailable",
   asleep for a closed terminal) sits beside the message: dashboard tiles, the empty dashboard, the
   settings extension list, the terminal veil, health charts, and `+error.svelte` (404 and errors).
 - Extensions reuse it through `$shell/ui` (`Mascot`, `moodFor`, `moodForHour`).
 
 ## Extensions wear this look (required)
 
-Every extension, however it was inspired, uses this layout and has Pip: the tokens above (light and
-dark), the shell's classes, and Pip in its header and in every empty or error state, with a mood that
+Every extension, however it was inspired, uses this layout and has Beni: the tokens above (light and
+dark), the shell's classes, and Beni in its header and in every empty or error state, with a mood that
 fits. The source's own palette, fonts and logo are dropped.
 
 - Native extensions render inside the shell, so `app.css` and `$shell/ui` are there already.
 - Onefile apps run in a sandboxed iframe that cannot load the shell's files. The host injects
   (`src/lib/extensions/theme.ts`) the token blocks of `app.css` as `@layer assistant`, so the app's own
-  unlayered rules still win, and defines `<assistant-pip mood size label>`: Pip as a custom element in
+  unlayered rules still win, and defines `<assistant-beni mood size label>`: Beni as a custom element in
   shadow DOM, with the same moods (breathing, hop, sway, closed eyes; still under reduced motion).
-- `node scripts/ext.mjs check` prints `look:` warnings: Pip missing, no shell tokens, raw hex in native
+- `node scripts/ext.mjs check` prints `look:` warnings: Beni missing, no shell tokens, raw hex in native
   pages. A new extension must have none; older ones are warned only.
 
 ## Motion
@@ -88,7 +88,7 @@ fits. The source's own palette, fonts and logo are dropped.
 - The readiness number counts up; sparklines and the trend line draw in, the wash fades in after.
 - Training load bars grow from the left; tiles lift 2 px on hover.
 - Only `transform` and `opacity` (plus SVG dash offset) are animated, so it stays cheap.
-- `prefers-reduced-motion: reduce` turns every animation off, including Pip and the count-up.
+- `prefers-reduced-motion: reduce` turns every animation off, including Beni and the count-up.
 
 ## Terminal (System settings → Terminal)
 
@@ -96,7 +96,7 @@ The in-app terminal is a dark window in both themes, like a code block in an edi
 
 - Font: JetBrains Mono (variable), bundled in `lib/terminal/fonts` (OFL) because the CSP allows no font
   CDN. ANSI colours are the categorical hues, lifted for a dark background (`lib/terminal/theme.ts`);
-  the cursor is Pip's orange. `services/terminal/tmux.conf` gives tmux a matching quiet status line.
+  the cursor is Beni's orange. `services/terminal/tmux.conf` gives tmux a matching quiet status line.
 - Window chrome: connection status (dot plus word, pulsing while connecting), session name and size,
   then text size A−/A+ (remembered per device), reconnect and full screen. When the socket is not open
   a veil over the screen says why and offers Reconnect; the page reconnects by itself when a phone

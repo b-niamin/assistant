@@ -3,6 +3,10 @@ import {
   buildChangePrompt,
   buildPrompt,
   claudeCommand,
+  inspirationPrompt,
+  installCommand,
+  parsePending,
+  pendingCommand,
   hueFor,
   IDEAS,
   initials,
@@ -99,7 +103,25 @@ describe('shell quoting', () => {
 describe('change prompt', () => {
   it('names the extension folder', () => {
     expect(buildChangePrompt('gym', 'Gym', 'add a rest timer')).toBe(
-      'Change the Gym extension (extensions/gym, new-extension skill): add a rest timer. Keep our design system and Pip, run the checks, commit and push.'
+      'Change the Gym extension (extensions/gym, new-extension skill): add a rest timer. Keep our design system and Beni, run the checks, commit and push.'
     );
+  });
+});
+
+describe('pending tasks for the terminal', () => {
+  it('reads JSON tasks and older plain prompts', () => {
+    expect(parsePending(JSON.stringify({ tool: 'shell', text: 'node scripts/ext.mjs install gym', title: 'Install' })))
+      .toEqual({ tool: 'shell', text: 'node scripts/ext.mjs install gym', title: 'Install' });
+    expect(parsePending('build me a thing')?.tool).toBe('claude');
+    expect(parsePending(null)).toBeNull();
+  });
+  it('quotes AI requests and runs install commands as they are', () => {
+    expect(pendingCommand({ tool: 'codex', text: "it's", title: '' })).toBe(`codex 'it'"'"'s'`);
+    expect(pendingCommand({ tool: 'shell', text: installCommand('gym'), title: '' })).toBe('node scripts/ext.mjs install gym');
+  });
+  it('builds an inspiration request from the catalog', () => {
+    const p = inspirationPrompt({ id: 'calendar', idea: 'A family calendar.', scope: 'shared' });
+    expect(p).toContain('inspiration:calendar');
+    expect(p).toContain('scope shared');
   });
 });

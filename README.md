@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/instal
 It asks a few questions, each with a suggestion you take with Enter: the folder
 (`/volume1/docker/assistant-core` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS
 port on your tailnet (443, or 8443 when something is already served there), the extensions to install
-(`health gym`) and whether to update itself from `main` ([spec 006](specs/006-auto-update.md)). Then it
+(checkboxes from the extensions repo's `catalog.json`) and whether to update itself from `main` ([spec 006](specs/006-auto-update.md)). Then it
 clones this repo, writes `.env` with random secrets, installs the extensions, starts the stack, runs
 `tailscale serve` and prints the address plus a one-time setup code. Open `/setup` there, set the app
 password and your profile; everything else is in **System settings** (`/settings`).

@@ -47,6 +47,45 @@ ask() { # $1 = variable, $2 = question, $3 = default
   IFS= read -r a < /dev/tty || a=""
   eval "$1=\${a:-\$3}"
 }
+# The extensions repo's catalog.json, "id<TAB>name<TAB>description" per ready-made extension (max 20).
+CATALOG_URL=${EXTENSIONS_CATALOG_URL:-https://raw.githubusercontent.com/b-niamin/assistant-extensions/main/catalog.json}
+catalog_extensions() {
+  { curl -fsSL "$CATALOG_URL" 2>/dev/null || wget -qO- "$CATALOG_URL" 2>/dev/null; } | awk '
+    /"inspirations"/ { stop = 1 }
+    stop { next }
+    /"id":/ { if (id != "") print id "\t" name "\t" desc; id = $0; sub(/.*"id": *"/, "", id); sub(/".*/, "", id); name = ""; desc = "" }
+    /"name":/ { name = $0; sub(/.*"name": *"/, "", name); sub(/",? *$/, "", name) }
+    /"description":/ { desc = $0; sub(/.*"description": *"/, "", desc); sub(/",? *$/, "", desc) }
+    END { if (id != "") print id "\t" name "\t" desc }' | grep -E '^[a-z][a-z0-9-]*	' | head -n 20
+}
+# Checkboxes in plain sh: type numbers to tick or untick, Enter when done.
+pick_extensions() {
+  list=$(catalog_extensions)
+  if [ -z "$list" ]; then
+    ask EXTENSIONS "Extensions to install (could not read the catalog; ids, space separated, - for none)" "$EXTENSIONS"
+    [ "$EXTENSIONS" = - ] && EXTENSIONS=""
+    return
+  fi
+  chosen=" $(printf '%s' "$EXTENSIONS" | tr ',' ' ') "
+  while :; do
+    printf '\n  Extensions (type numbers to tick or untick, Enter when done):\n' > /dev/tty
+    i=0
+    printf '%s\n' "$list" | while IFS='	' read -r id name desc; do
+      i=$((i + 1))
+      case "$chosen" in *" $id "*) box='[x]' ;; *) box='[ ]' ;; esac
+      printf '   %2s %s %-20s %s\n' "$i" "$box" "$name" "$desc" | cut -c1-110 > /dev/tty
+    done
+    printf '\033[1m?\033[0m ' > /dev/tty
+    IFS= read -r nums < /dev/tty || nums=""
+    [ -n "$nums" ] || break
+    for n in $(printf '%s' "$nums" | tr ',' ' '); do
+      id=$(printf '%s\n' "$list" | sed -n "${n}p" 2>/dev/null | cut -f1)
+      [ -n "$id" ] || continue
+      case "$chosen" in *" $id "*) chosen=$(printf '%s' "$chosen" | sed "s/ $id / /") ;; *) chosen="$chosen$id " ;; esac
+    done
+  done
+  EXTENSIONS=$(printf '%s' "$chosen" | xargs)
+}
 if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant-core; else default_dir=$HOME/assistant; fi
 in_checkout=no
 [ -f docker-compose.yml ] && [ -f scripts/ext.mjs ] && [ -f install.sh ] && in_checkout=yes
@@ -84,9 +123,7 @@ else
       fi
     fi
     if [ $# -eq 0 ] && [ -z "${ASSISTANT_EXTENSIONS+x}" ]; then
-      printf '  Extensions: health (Garmin training and health data), gym (gym tracker). More later: ext.mjs available\n' > /dev/tty
-      ask EXTENSIONS "Extensions to install (space or comma separated, - for none)" "$EXTENSIONS"
-      [ "$EXTENSIONS" = - ] && EXTENSIONS=""
+      pick_extensions
     fi
     if [ -z "${ASSISTANT_AUTO_UPDATE:-}" ]; then
       ask a_upd "Update by itself from GitHub main every 5 minutes? (y/n)" y

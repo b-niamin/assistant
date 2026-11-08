@@ -149,7 +149,7 @@ export function buildPrompt(r: ExtensionRequest): string {
       : t.from
         ? `Start from ${t.from} (inspirations/ in the extensions repo; node scripts/ext.mjs available lists ready-made apps).`
         : 'Pick the kind and starting point yourself (node scripts/ext.mjs available lists ready-made apps; skeletons are in inspirations/ of the extensions repo).',
-    'Use our design system and Beni the mascot, add a settings panel and dashboard tile if useful, run the checks, commit and push.'
+    'Use our design system and Beni the mascot, add a settings panel and dashboard tile if useful, run the checks.'
   ];
   return parts.filter(Boolean).join(' ');
 }
@@ -172,6 +172,10 @@ export interface PendingTask {
   tool: 'claude' | 'codex' | 'shell';
   text: string;
   title: string;
+  /** Claude: continue the last conversation in the repo (`claude -c`) instead of a new one. */
+  resume?: boolean;
+  /** Extensions installed when the task was started: the terminal page links the new one when it appears. */
+  before?: string[];
 }
 
 /** Stored as JSON; a plain string (older pages) is a request for Claude. */
@@ -180,7 +184,13 @@ export function parsePending(raw: string | null): PendingTask | null {
   try {
     const t = JSON.parse(raw) as Partial<PendingTask>;
     if (t && typeof t.text === 'string' && ['claude', 'codex', 'shell'].includes(t.tool ?? ''))
-      return { tool: t.tool as PendingTask['tool'], text: t.text, title: typeof t.title === 'string' ? t.title : 'Ready' };
+      return {
+        tool: t.tool as PendingTask['tool'],
+        text: t.text,
+        title: typeof t.title === 'string' ? t.title : 'Ready',
+        ...(t.resume === true ? { resume: true } : {}),
+        ...(Array.isArray(t.before) ? { before: t.before.filter((x) => typeof x === 'string') } : {})
+      };
   } catch {
     /* not JSON: an older plain prompt */
   }
@@ -190,7 +200,7 @@ export function parsePending(raw: string | null): PendingTask | null {
 /** The command line the terminal types for a task. */
 export function pendingCommand(t: PendingTask): string {
   if (t.tool === 'shell') return oneLine(t.text);
-  return `${t.tool} ${shellQuote(oneLine(t.text))}`;
+  return `${t.tool}${t.tool === 'claude' && t.resume ? ' -c' : ''} ${shellQuote(oneLine(t.text))}`;
 }
 
 /** Install ready-made extensions from the extensions repo (the same CLI Claude uses). */
@@ -202,5 +212,10 @@ export const inspirationPrompt = (i: { id: string; idea: string; scope: Scope },
 
 /** The prompt for changing an installed extension (its panel's "Ask Claude to change it"). */
 export function buildChangePrompt(id: string, name: string, change: string): string {
-  return `Change the ${name} extension (extensions/${id}, new-extension skill): ${oneLine(change).replace(/[.!?]?$/, '.')} Keep our design system and Beni, run the checks, commit and push.`;
+  return `Change the ${name} extension (extensions/${id}, new-extension skill): ${oneLine(change).replace(/[.!?]?$/, '.')} Keep our design system and Beni, run the checks.`;
+}
+
+/** The first message for a new app described in your own words. */
+export function newAppPrompt(text: string): string {
+  return `Use the add-extension skill to add a new extension to this assistant: ${oneLine(text).replace(/[.!?]?$/, '.')} Ask me if something important is unclear. Use our design system and Beni the mascot, add settings and a dashboard tile if useful, run the checks.`;
 }

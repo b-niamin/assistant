@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
   if (!(await isElevated(cookies.get(SESSION_COOKIE)))) throw redirect(303, '/settings?next=extensions/new');
   const [extensions, status, cat] = await Promise.all([allExtensions(), terminalStatus(), catalog()]);
   return {
-    installed: extensions.map((e) => ({ id: e.id, name: e.name })),
+    installed: extensions.map((e) => ({ id: e.id, name: e.name, href: e.href })),
     catalog: cat,
     terminal: { configured: sidecarsConfigured(), reachable: status.reachable, claude: status.claude, codex: status.codex }
   };

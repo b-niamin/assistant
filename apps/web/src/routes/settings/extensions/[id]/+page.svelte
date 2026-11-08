@@ -1,19 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { goto } from '$app/navigation';
-  import Mascot from '$lib/Mascot.svelte';
-  import { buildChangePrompt, hueFor, initials, PENDING_PROMPT_KEY } from '$lib/settings/guide';
+  import AskAI from '$lib/settings/AskAI.svelte';
+  import { buildChangePrompt, hueFor, initials } from '$lib/settings/guide';
   let { data, form } = $props();
-  let change = $state('');
-
-  function askClaude() {
-    try {
-      sessionStorage.setItem(PENDING_PROMPT_KEY, buildChangePrompt(ext.id, ext.name, change));
-    } catch {
-      /* no storage */
-    }
-    goto('/settings/terminal#ready');
-  }
   const ext = $derived(data.ext);
   const plain = $derived(ext.settings.filter((f) => f.type !== 'secret'));
   const slot = (name: string) => data.secrets.find((s) => s.name === name);
@@ -37,6 +26,17 @@
   </p>
   <p><a class="btn-ghost" href={ext.href}>Open {ext.name}</a></p>
 </div>
+
+<section aria-label="Change {ext.name}">
+  <AskAI
+    title="Talk to Claude about {ext.name}"
+    placeholder="e.g. add a weekly summary tile to the dashboard"
+    prompt={(t) => buildChangePrompt(ext.id, ext.name, t)}
+    taskTitle="Change {ext.name}"
+    terminal={data.terminal}
+    canResume
+  />
+</section>
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}
@@ -131,20 +131,6 @@
   <p class="muted">{ext.name} has no settings of its own.</p>
 {/if}
 
-<section>
-  <h2>Change {ext.name}</h2>
-  <div class="card ask">
-    <Mascot mood="steady" size={48} decorative />
-    <form class="stack" onsubmit={(e) => { e.preventDefault(); askClaude(); }}>
-      <label class="field wide">
-        <span>Missing something? Describe it and Claude changes the app for you in the terminal.</span>
-        <input bind:value={change} placeholder="e.g. add a weekly summary tile to the dashboard" required minlength="4" />
-      </label>
-      <div class="actions"><button class="btn btn-primary" disabled={change.trim().length < 4}>Ask Claude</button></div>
-    </form>
-  </div>
-</section>
-
 <style>
   .head {
     display: grid;
@@ -169,18 +155,6 @@
     background: color-mix(in srgb, var(--hue) 16%, transparent);
     color: var(--hue);
     font: 700 0.9375rem/1 var(--mono);
-  }
-  .ask {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-  }
-  .ask form {
-    flex: 1;
-    min-width: 0;
-  }
-  .field.wide {
-    max-width: none;
   }
   .meta,
   .small {

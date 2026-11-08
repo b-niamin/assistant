@@ -8,6 +8,7 @@ import { readSettings, saveSettings } from '$lib/extensions/config.server';
 import { extensionById, saveExtensionSwitches } from '$lib/extensions/registry.server';
 import { deleteSecret, listSecretSlots, secretsAvailable, setSecret } from '$lib/server/extension-secrets';
 import { isElevated, listProfiles, SESSION_COOKIE } from '$lib/server/session';
+import { sidecarsConfigured, terminalStatus } from '$lib/server/sidecars';
 
 async function guard(sid: string | undefined, id?: string) {
   if (!(await isElevated(sid))) throw redirect(303, id ? `/settings?next=extensions/${encodeURIComponent(id)}` : '/settings');
@@ -23,7 +24,15 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
   await guard(cookies.get(SESSION_COOKIE), params.id);
   const ext = await extOf(params.id);
   const [values, secrets, profiles] = await Promise.all([readSettings(ext), listSecretSlots([ext]), listProfiles()]);
-  return { ext, values, secrets, profiles, secretsAvailable: secretsAvailable() };
+  const status = await terminalStatus();
+  return {
+    ext,
+    values,
+    secrets,
+    profiles,
+    secretsAvailable: secretsAvailable(),
+    terminal: { configured: sidecarsConfigured(), reachable: status.reachable, claude: status.claude, codex: status.codex }
+  };
 };
 
 const log = (what: string) => console.log(`[settings] ${new Date().toISOString()} ${what}`);

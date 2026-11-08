@@ -103,7 +103,7 @@ describe('shell quoting', () => {
 describe('change prompt', () => {
   it('names the extension folder', () => {
     expect(buildChangePrompt('gym', 'Gym', 'add a rest timer')).toBe(
-      'Change the Gym extension (extensions/gym, new-extension skill): add a rest timer. Keep our design system and Beni, run the checks, commit and push.'
+      'Change the Gym extension (extensions/gym, new-extension skill): add a rest timer. Keep our design system and Beni, run the checks.'
     );
   });
 });
@@ -118,6 +118,7 @@ describe('pending tasks for the terminal', () => {
   it('quotes AI requests and runs install commands as they are', () => {
     expect(pendingCommand({ tool: 'codex', text: "it's", title: '' })).toBe(`codex 'it'"'"'s'`);
     expect(pendingCommand({ tool: 'shell', text: installCommand('gym'), title: '' })).toBe('node scripts/ext.mjs install gym');
+    expect(pendingCommand({ tool: 'claude', text: 'more', title: '', resume: true })).toBe("claude -c 'more'");
   });
   it('builds an inspiration request from the catalog', () => {
     const p = inspirationPrompt({ id: 'calendar', idea: 'A family calendar.', scope: 'shared' });

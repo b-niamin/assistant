@@ -93,9 +93,31 @@
     }
   }
 
+  // The app a task built or installed, once it shows up (the web app rebuilds itself first).
+  let fresh = $state<{ id: string; name: string; href: string } | null>(null);
+  function watchForNew(before: string[]) {
+    const known = new Set(before);
+    const started = Date.now();
+    const tick = async () => {
+      try {
+        const res = await fetch('/settings/extensions/installed.json', { cache: 'no-store' });
+        if (res.ok) {
+          const list = (await res.json()) as { id: string; name: string; href: string }[];
+          const found = list.find((e) => !known.has(e.id));
+          if (found) return (fresh = found);
+        }
+      } catch {
+        /* the app is restarting with the new build: try again */
+      }
+      if (Date.now() - started < 45 * 60_000) setTimeout(tick, 10_000);
+    };
+    setTimeout(tick, 10_000);
+  }
+
   function runPending() {
     if (!pending) return;
     run(pendingCommand(pending));
+    if (pending.before) watchForNew(pending.before);
     clearPending();
   }
 
@@ -310,6 +332,20 @@
     </article>
   {/each}
 </section>
+
+{#if fresh}
+  <section class="ready card rise" style="--i: 4" aria-live="polite">
+    <Mascot mood="charged" size={48} decorative />
+    <div class="ask">
+      <h2>{fresh.name} is ready</h2>
+      <p class="small">Keep talking to Claude here to change it, or open its settings: the same conversation can go on from there.</p>
+    </div>
+    <div class="go">
+      <a class="btn btn-primary" href={fresh.href}>Open {fresh.name}</a>
+      <a class="btn" href="/settings/extensions/{fresh.id}">Settings</a>
+    </div>
+  </section>
+{/if}
 
 {#if pending}
   <section class="ready card rise" id="ready" style="--i: 4" aria-label="Ready to build">

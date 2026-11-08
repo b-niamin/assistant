@@ -58,7 +58,7 @@ catalog_extensions() {
     /"description":/ { desc = $0; sub(/.*"description": *"/, "", desc); sub(/",? *$/, "", desc) }
     END { if (id != "") print id "\t" name "\t" desc }' | grep -E '^[a-z][a-z0-9-]*	' | head -n 20
 }
-# Checkboxes in plain sh: type numbers to tick or untick, Enter when done.
+# Checkboxes: ↑/↓ move, Space ticks, Enter confirms (a typed number ticks that line too).
 pick_extensions() {
   list=$(catalog_extensions)
   if [ -z "$list" ]; then
@@ -67,24 +67,48 @@ pick_extensions() {
     return
   fi
   chosen=" $(printf '%s' "$EXTENSIONS" | tr ',' ' ') "
+  total=$(printf '%s\n' "$list" | wc -l | tr -d ' ')
+  cols=$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2)
+  [ "${cols:-0}" -ge 30 ] 2>/dev/null || cols=80
+  cur=1
+  saved=$(stty -g < /dev/tty)
+  trap 'stty "$saved" < /dev/tty; printf "\033[?25h" > /dev/tty; exit 130' INT TERM
+  stty -icanon -echo min 1 time 0 < /dev/tty
+  printf '\n  \033[1mExtensions\033[0m  (↑/↓ move, Space tick, Enter confirm)\n\033[?25l' > /dev/tty
+  drawn=no
   while :; do
-    printf '\n  Extensions (type numbers to tick or untick, Enter when done):\n' > /dev/tty
+    [ "$drawn" = yes ] && printf '\033[%sA' "$((total + 1))" > /dev/tty
+    drawn=yes
     i=0
     printf '%s\n' "$list" | while IFS='	' read -r id name desc; do
       i=$((i + 1))
-      case "$chosen" in *" $id "*) box='[x]' ;; *) box='[ ]' ;; esac
-      printf '   %2s %s %-20s %s\n' "$i" "$box" "$name" "$desc" | cut -c1-110 > /dev/tty
+      case "$chosen" in *" $id "*) box='\033[38;5;208m[x]\033[0m' ;; *) box='[ ]' ;; esac
+      if [ "$i" = "$cur" ]; then mark='\033[1m›'; else mark=' '; fi
+      printf "\r\033[K  $mark $box %s\033[0m\n" "$name" > /dev/tty
     done
-    printf '\033[1m?\033[0m ' > /dev/tty
-    IFS= read -r nums < /dev/tty || nums=""
-    [ -n "$nums" ] || break
-    for n in $(printf '%s' "$nums" | tr ',' ' '); do
-      id=$(printf '%s\n' "$list" | sed -n "${n}p" 2>/dev/null | cut -f1)
-      [ -n "$id" ] || continue
-      case "$chosen" in *" $id "*) chosen=$(printf '%s' "$chosen" | sed "s/ $id / /") ;; *) chosen="$chosen$id " ;; esac
-    done
+    desc=$(printf '%s\n' "$list" | sed -n "${cur}p" | cut -f3 | cut -c1-$((cols - 6)))
+    printf '\r\033[K    \033[2m%s\033[0m\n' "$desc" > /dev/tty
+    key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null)
+    case "$key" in
+      "$(printf '\033')")
+        rest=$(dd bs=1 count=2 < /dev/tty 2>/dev/null)
+        case "$rest" in '[A' | 'OA') [ "$cur" -gt 1 ] && cur=$((cur - 1)) ;; '[B' | 'OB') [ "$cur" -lt "$total" ] && cur=$((cur + 1)) ;; esac ;;
+      k) [ "$cur" -gt 1 ] && cur=$((cur - 1)) ;;
+      j) [ "$cur" -lt "$total" ] && cur=$((cur + 1)) ;;
+      ' ' | [1-9])
+        n=$cur
+        case "$key" in [1-9]) n=$key ;; esac
+        id=$(printf '%s\n' "$list" | sed -n "${n}p" | cut -f1)
+        [ -n "$id" ] || continue
+        case "$chosen" in *" $id "*) chosen=$(printf '%s' "$chosen" | sed "s/ $id / /") ;; *) chosen="$chosen$id " ;; esac ;;
+      '' | "$(printf '\r')") break ;;
+    esac
   done
+  stty "$saved" < /dev/tty
+  trap - INT TERM
+  printf '\033[?25h' > /dev/tty
   EXTENSIONS=$(printf '%s' "$chosen" | xargs)
+  printf '  → %s\n' "${EXTENSIONS:-none}" > /dev/tty
 }
 if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant-core; else default_dir=$HOME/assistant; fi
 in_checkout=no

@@ -170,10 +170,14 @@ fix_ownership() {
     rm -f "$list"
     [ "$n" = 0 ] || log "removed Synology ACLs from $n path(s)"
   fi
-  # Owner read/write everywhere (and x on directories), else the owner still cannot write. Git keeps its
-  # objects read-only on purpose: leave those.
+  # Owner read/write everywhere (and x on directories), else the owner still cannot write. Removing a
+  # Synology ACL can leave mode bits of 000 behind. Git keeps its object files read-only on purpose: they
+  # only need u+r, their directories (.git/objects/pack, ...) still need u+rwx.
   n=$(find "$DIR" -xdev ! -path "$DIR/.env" ! -path "$DIR/.git/objects/*" ! -type l \
     \( ! -perm -u+rw -o -type d ! -perm -u+x \) -print -exec chmod u+rwX {} + | grep -c . || true)
+  m=$(find "$DIR/.git/objects" -xdev \( -type d ! -perm -u+rwx -exec chmod u+rwx {} ; -print \) -o \
+    \( -type f ! -perm -u+r -exec chmod u+r {} + -print \) 2>/dev/null | grep -c . || true)
+  n=$((n + m))
   [ "$n" = 0 ] || log "made $n path(s) writable by their owner"
   if [ -n "$mp" ] && [ -d "$mp" ]; then
     chmod 1777 "$mp"

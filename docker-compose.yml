@@ -79,7 +79,7 @@ services:
   web:
     # Same base (glibc) as the claude image and the same uid as the checkout owner, so both containers
     # can share apps/web/node_modules and .svelte-kit/ without permission clashes.
-    image: node:22-bookworm-slim
+    image: node:26-trixie-slim
     user: '${HOST_UID:-1000}'
     restart: unless-stopped
     working_dir: /app

@@ -1,6 +1,6 @@
 # Claude Code workspace container. Edits the bind-mounted repo at /workspace, reads data through the
 # read-only `claude_ro` role, and is reachable from claude.ai via Remote Control.
-FROM node:22-bookworm-slim
+FROM node:26-trixie-slim
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -9,7 +9,7 @@ RUN apt-get update \
 
 RUN npm install -g @anthropic-ai/claude-code
 # Other agent CLIs (log in through System settings -> Terminal) and the browser driver for Claude.
-RUN npm install -g @openai/codex@0.163.0 @playwright/mcp@0.0.83
+RUN npm install -g @openai/codex@0.167.0 @playwright/mcp@0.0.84
 
 # Python for extension services' unit tests (offline; their own requirements are not installed here).
 RUN python3 -m venv /opt/venv \

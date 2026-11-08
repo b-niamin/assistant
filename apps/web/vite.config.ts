@@ -10,6 +10,9 @@ export default defineConfig({
   // `svelte` import resolve to this package's copy.
   server: { fs: { allow: [EXT_DIR] } },
   resolve: { dedupe: ['svelte', '@sveltejs/kit'] },
+  // noVNC (settings/browser) uses top-level await.
+  build: { target: 'es2022' },
+  optimizeDeps: { esbuildOptions: { target: 'es2022' } },
   test: {
     include: ['src/**/*.test.ts', 'scripts/**/*.test.ts', `${EXT_DIR}/*/web/**/*.test.ts`],
     exclude: ['**/node_modules/**']

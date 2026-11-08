@@ -46,7 +46,7 @@
     let disposed = false;
     (async () => {
       // @ts-expect-error noVNC ships no type declarations
-      const mod = await import('@novnc/novnc/lib/rfb.js');
+      const mod = await import('@novnc/novnc');
       RFB = mod.default?.default ?? mod.default;
       if (!disposed && data.configured && data.reachable) connect();
     })();

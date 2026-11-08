@@ -1,7 +1,7 @@
 # In-app browser (spec 004): Chromium on a virtual display. The owner signs in to services through the
 # noVNC view in the app (System settings -> Browser); Claude drives the same browser over CDP.
 # No published ports: noVNC (6080) and CDP (9223) are reachable only on the internal `sidecars` network.
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \

@@ -67,6 +67,13 @@ extension that brings a background service.
 7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
    `docker compose exec garmin-sync python -m sync backfill`.
 
+Moving from the older single-repo version: install this one next to it, then copy its data (profiles,
+app data, health history, Garmin logins; a backup of the new database is taken first):
+
+```sh
+sudo sh scripts/import-legacy.sh /volume1/system/docker/assistant   # the old checkout
+```
+
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
 Scheduler entry). A new folder name gives the new install fresh volumes, so the old data stays until you
 remove it (`docker compose down -v` in the old folder).

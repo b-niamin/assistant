@@ -9,3 +9,4 @@ node_modules/
 # extensions repo, Claude builds new ones here. Only the README is part of this repo.
 /extensions/*
 !/extensions/README.md
+/backups/

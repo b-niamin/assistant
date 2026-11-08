@@ -234,6 +234,12 @@ tz=${ASSISTANT_TIMEZONE:-}
 if [ -f .env ]; then
   say ".env exists, keeping it"
 else
+  # New secrets cannot open a database made with older ones (a re-clone into the same folder name):
+  # stop rather than leave migrate failing with "password authentication failed".
+  if docker volume inspect "$(basename "$DIR")_db-data" >/dev/null 2>&1; then
+    die "A database from an earlier install exists (volume $(basename "$DIR")_db-data), but .env is new.
+    Put back the old .env, or start empty: sudo docker compose -p $(basename "$DIR") down -v  (deletes that data)"
+  fi
   say "writing .env with new random secrets"
   umask 077
   cat > .env <<ENV

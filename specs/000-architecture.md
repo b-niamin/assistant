@@ -46,7 +46,8 @@ db/extension-role.sql         per-extension roles
 docker/claude/, docker/browser/   images
 services/terminal/            in-app terminal sidecar
 scripts/                      ext CLI, MCP server for Claude, auto-update, hooks
-CLAUDE.md                     rules for Claude in this repo
+AGENTS.md                     rules for AI agents in this repo (CLAUDE.md points to it)
+.ai/skills/                   project skills (.claude/skills and .agents/skills link here)
 ```
 
 Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin/assistant-extensions).
@@ -91,5 +92,5 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
    are pushed, so history also lives off the machine.
 4. **Read-only data access** for conversations. Schema changes go through new migration files.
 5. **Daily backups** (`pg_dump`, 14 days) in the `backups` volume.
-6. **`CLAUDE.md` + `.claude/settings.json`**: profile, extension and migration rules, deny rules for
+6. **`AGENTS.md` + `.claude/settings.json`**: profile, extension and migration rules, deny rules for
    `.env`, force pushes, `--no-verify`, `docker`.

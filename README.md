@@ -16,7 +16,7 @@ every empty screen company.
   [assistant-extensions](https://github.com/b-niamin/assistant-extensions)
 - Architecture: [specs/000-architecture.md](specs/000-architecture.md), extensions:
   [specs/002-extensions.md](specs/002-extensions.md), security: [specs/004-security.md](specs/004-security.md)
-- Rules for working in this repo: [CLAUDE.md](CLAUDE.md)
+- Rules for working in this repo (people and AI agents): [AGENTS.md](AGENTS.md); skills in [.ai/](.ai)
 
 ## Install (one command)
 

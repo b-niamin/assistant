@@ -30,7 +30,7 @@ node scripts/ext.mjs new <id> --from onefile:habit-tracker/weekly-grid
 ```
 
 The id is the URL (`/<id>`), the DB schema and the role `ext_<id>`. It creates `extensions/<id>/` in this
-repo and adds it to `extensions/installed.json`. Read the new `extensions/<id>/CLAUDE.md`. Starting from
+repo and adds it to `extensions/installed.json`. Read the new `extensions/<id>/AGENTS.md`. Starting from
 something the owner pointed at? Follow the `add-extension` skill: the source is inspiration only.
 
 ## 3. Build it

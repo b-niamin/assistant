@@ -114,7 +114,7 @@ folder. A missing `installed.json` means no extensions.
 
 ```
 extensions/<id>/
-  extension.json  README.md  CLAUDE.md
+  extension.json  README.md  AGENTS.md (CLAUDE.md: `@AGENTS.md`)
   web/routes/**        SvelteKit route files (+page.svelte, +page.server.ts, +server.ts, +layout.*, +error.svelte)
   web/lib/**           components, helpers, unit tests (*.test.ts run with the shell's vitest)
   db/migrations/*.sql  additive SQL for schema <id>

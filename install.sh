@@ -58,38 +58,60 @@ if [ "$interactive" = yes ] && [ -z "$DIR" ]; then
   ask DIR "Install folder" "$default_dir"
 fi
 DIR=${DIR:-$default_dir}
+# A finished install has INSTALLED_AT in .env; an interrupted one is asked again (its ports stay).
+complete=no
+[ -f "$DIR/.env" ] && grep -q '^INSTALLED_AT=' "$DIR/.env" && complete=yes
 if [ -f "$DIR/.env" ]; then
-  # An existing install keeps its answers.
   PORT=$(sed -n 's/^WEB_PORT=//p' "$DIR/.env"); PORT=${PORT:-3000}
   HTTPS_PORT=$(sed -n 's/^TAILNET_HTTPS_PORT=//p' "$DIR/.env"); HTTPS_PORT=${HTTPS_PORT:-443}
-  [ $# -gt 0 ] || [ -n "${ASSISTANT_EXTENSIONS+x}" ] || EXTENSIONS=""
 else
   PORT=${WEB_PORT:-$(free_port 3000)}
   if [ -n "${ASSISTANT_HTTPS_PORT:-}" ]; then HTTPS_PORT=$ASSISTANT_HTTPS_PORT
   elif tailnet_https_used 443; then HTTPS_PORT=8443; while tailnet_https_used "$HTTPS_PORT"; do HTTPS_PORT=$((HTTPS_PORT + 1)); done
   else HTTPS_PORT=443; fi
+fi
+START=${ASSISTANT_START:-now}
+if [ "$complete" = yes ]; then
+  # Re-run: keep everything; only extensions named on the command line are added.
+  [ $# -gt 0 ] || [ -n "${ASSISTANT_EXTENSIONS+x}" ] || EXTENSIONS=""
+else
   AUTO=${ASSISTANT_AUTO_UPDATE:-1}
   if [ "$interactive" = yes ]; then
-    [ -n "${WEB_PORT:-}" ] || ask PORT "Local port for the app (free ones only)" "$PORT"
-    if command -v tailscale >/dev/null 2>&1 && [ -z "${ASSISTANT_HTTPS_PORT:-}" ]; then
-      ask HTTPS_PORT "HTTPS port on your tailnet (443 = plain https://<machine>...; another keeps what is served there)" "$HTTPS_PORT"
+    if [ ! -f "$DIR/.env" ]; then
+      [ -n "${WEB_PORT:-}" ] || ask PORT "Local port for the app (free ones only)" "$PORT"
+      if command -v tailscale >/dev/null 2>&1 && [ -z "${ASSISTANT_HTTPS_PORT:-}" ]; then
+        ask HTTPS_PORT "HTTPS port on your tailnet (443 = plain https://<machine>...; another keeps what is served there)" "$HTTPS_PORT"
+      fi
     fi
     if [ $# -eq 0 ] && [ -z "${ASSISTANT_EXTENSIONS+x}" ]; then
       printf '  Extensions: health (Garmin training and health data), gym (gym tracker). More later: ext.mjs available\n' > /dev/tty
-      ask EXTENSIONS "Extensions to install (space separated, - for none)" "$EXTENSIONS"
+      ask EXTENSIONS "Extensions to install (space or comma separated, - for none)" "$EXTENSIONS"
       [ "$EXTENSIONS" = - ] && EXTENSIONS=""
     fi
     if [ -z "${ASSISTANT_AUTO_UPDATE:-}" ]; then
       ask a_upd "Update by itself from GitHub main every 5 minutes? (y/n)" y
       case $a_upd in [nN]*) AUTO=0 ;; *) AUTO=1 ;; esac
     fi
+    if [ -z "${ASSISTANT_START:-}" ]; then
+      printf '  Start: 1 = now, by this installer (recommended)\n         2 = I start it myself (Synology Container Manager, Portainer, docker compose)\n' > /dev/tty
+      ask a_start "How to start it? (1/2)" 1
+      case $a_start in 2*) START=manual ;; *) START=now ;; esac
+    fi
     printf '\n' > /dev/tty
   fi
   ASSISTANT_AUTO_UPDATE=$AUTO
-  port_used "$PORT" && die "port $PORT is already in use; pick another (WEB_PORT=...)"
+  [ -f "$DIR/.env" ] || ! port_used "$PORT" || die "port $PORT is already in use; pick another (WEB_PORT=...)"
 fi
+# "health, gym" and "health gym" both work.
+EXTENSIONS=$(printf '%s' "$EXTENSIONS" | tr ',' ' ')
+
+# Progress: one numbered line per phase.
+PHASES=6
+n_phase=0
+phase() { n_phase=$((n_phase + 1)); printf '\n\033[1;38;5;208m[%s/%s]\033[0m \033[1m%s\033[0m\n' "$n_phase" "$PHASES" "$*"; }
 
 # 1. checkout
+phase "Getting the code"
 if [ "$in_checkout" = yes ]; then
   :
 elif [ -d "$DIR/.git" ]; then
@@ -110,6 +132,7 @@ git config core.hooksPath scripts/hooks 2>/dev/null || true
 [ "$(id -u)" = 0 ] && chown "$(stat -c %u:%g .)" .git/config 2>/dev/null || true
 
 # 2. secrets
+phase "Writing the configuration (.env with fresh random secrets)"
 rand() { head -c 48 /dev/urandom | base64 | tr -d '/+=\n' | cut -c1-"$1"; }
 fernet() { head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '\n'; }
 origin=""
@@ -126,7 +149,6 @@ if [ -f .env ]; then
   say ".env exists, keeping it"
 else
   say "writing .env with new random secrets"
-  fresh=yes
   umask 077
   cat > .env <<ENV
 # Written by install.sh on $(date -u +%Y-%m-%dT%H:%MZ). Keep this file private; back it up.
@@ -183,18 +205,28 @@ compose_files
 # 3. extensions: copied from the extensions repo by the same `ext` CLI Claude uses, in the claude image
 # (node + git, runs as the checkout owner).
 if [ -n "$EXTENSIONS" ]; then
-  say "building the claude image to install extensions: $EXTENSIONS"
-  $DC build --quiet claude
+  phase "Installing extensions: $EXTENSIONS (builds the claude image first, a few minutes)"
+  $DC build claude
   # shellcheck disable=SC2086 # one word per extension id
   $DC run --rm --no-deps -T --entrypoint node claude scripts/ext.mjs install $EXTENSIONS
   compose_files
 fi
 
 # 4. start
-say "building and starting (the first run takes a few minutes)"
-$DC up -d --build --remove-orphans
+if [ "$START" = manual ]; then
+  phase "Preparing the stack for your own tool (not starting it)"
+  # One self-contained compose file with absolute paths, extensions merged in, secrets left as ${VARS}.
+  mkdir -p stack
+  $DC config --no-interpolate > stack/docker-compose.yml
+  grep -v "^COMPOSE_FILE=" .env > stack/.env && chmod 600 stack/.env
+  [ "$(id -u)" = 0 ] && chown -R "$(stat -c %u:%g .)" stack 2>/dev/null || true
+else
+  phase "Building and starting (the first run takes 10-20 minutes on a small NAS)"
+  $DC up -d --build --remove-orphans
+fi
 
 # 5. tailnet
+phase "Publishing on your tailnet and setting up auto-update"
 if command -v tailscale >/dev/null 2>&1; then
   if tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1 ||
     sudo tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1; then
@@ -214,7 +246,22 @@ if [ "${ASSISTANT_AUTO_UPDATE:-1}" != 0 ]; then
 fi
 
 # 7. next steps
+phase "Done"
+grep -q '^INSTALLED_AT=' .env || printf 'INSTALLED_AT=%s\n' "$(date -u +%Y-%m-%dT%H:%MZ)" >> .env
 token=$(sed -n 's/^SETUP_TOKEN=//p' .env)
+if [ "$START" = manual ]; then
+  cat <<MANUAL
+
+  Not started yet. Start it with one of:
+    - Synology Container Manager: Project > Create. Name: $(basename "$DIR")  Path: $DIR/stack
+      ("use the existing docker-compose.yml"), then Next > Done. The name must be $(basename "$DIR")
+      so auto-update and the commands below find the same containers.
+    - Portainer or another tool: the compose file $DIR/stack/docker-compose.yml with $DIR/stack/.env,
+      project name $(basename "$DIR").
+    - A terminal:  cd $DIR && sudo $DC up -d
+  The first start builds images: 10-20 minutes on a small NAS.
+MANUAL
+fi
 cat <<NEXT
 
   Open:        $(sed -n 's/^PUBLIC_ORIGIN=//p' .env)/setup
@@ -230,11 +277,15 @@ $( [ -f extensions/health/compose.yml ] && echo "    $DC exec -it garmin-sync py
 NEXT
 
 # 8. guided first run (terminal, new install only): walk through the steps above one by one.
-[ "$interactive" = yes ] && [ "${fresh:-no}" = yes ] || exit 0
+[ "$interactive" = yes ] && [ "$complete" = no ] || exit 0
 yes_no() { ask _yn "$1 (y/n)" y; case $_yn in [nN]*) return 1 ;; *) return 0 ;; esac; }
 n_step=0
 step() { n_step=$((n_step + 1)); printf '\n\033[1m== Step %s: %s\033[0m\n' "$n_step" "$*" > /dev/tty; }
 
+if [ "$START" = manual ]; then
+  step "start it"
+  printf '  Start the stack now with your tool (see above); this waits for it.\n' > /dev/tty
+fi
 step "wait for the app"
 printf '  The web app builds itself on the first start (a few minutes on a small NAS).\n' > /dev/tty
 if command -v curl >/dev/null 2>&1; then

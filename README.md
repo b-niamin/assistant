@@ -37,8 +37,13 @@ password and your profile; everything else is in **System settings** (`/settings
 In a terminal it then walks you through the rest step by step: it waits for the app, shows the setup
 address and code, reminds you of the Synology schedule, and offers to log in to Claude and Garmin.
 
+It shows numbered progress for each phase. The last question is how to start: by the installer
+(default), or by yourself, e.g. in Synology Container Manager or Portainer: then it prepares
+`stack/docker-compose.yml` (extensions merged in) and `stack/.env` and tells you where to point the tool.
+
 Unattended: `... | sudo ASSISTANT_YES=1 sh` takes the suggestions; `ASSISTANT_DIR`, `WEB_PORT`,
-`ASSISTANT_HTTPS_PORT`, `ASSISTANT_EXTENSIONS` and `ASSISTANT_AUTO_UPDATE=0|1` answer up front.
+`ASSISTANT_HTTPS_PORT`, `ASSISTANT_EXTENSIONS`, `ASSISTANT_AUTO_UPDATE=0|1` and `ASSISTANT_START=now|manual`
+answer up front.
 
 Two steps stay in a terminal because they log in to outside accounts:
 

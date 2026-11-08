@@ -175,7 +175,7 @@ fix_ownership() {
   # only need u+r, their directories (.git/objects/pack, ...) still need u+rwx.
   n=$(find "$DIR" -xdev ! -path "$DIR/.env" ! -path "$DIR/.git/objects/*" ! -type l \
     \( ! -perm -u+rw -o -type d ! -perm -u+x \) -print -exec chmod u+rwX {} + | grep -c . || true)
-  m=$(find "$DIR/.git/objects" -xdev \( -type d ! -perm -u+rwx -exec chmod u+rwx {} ; -print \) -o \
+  m=$(find "$DIR/.git/objects" -xdev \( -type d ! -perm -u+rwx -exec chmod u+rwx {} \; -print \) -o \
     \( -type f ! -perm -u+r -exec chmod u+r {} + -print \) 2>/dev/null | grep -c . || true)
   n=$((n + m))
   [ "$n" = 0 ] || log "made $n path(s) writable by their owner"

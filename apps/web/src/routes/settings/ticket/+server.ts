@@ -1,8 +1,8 @@
 /** POST {aud} -> {ticket}: a 60 s single-use ticket to open a sidecar WebSocket (spec 004). */
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { isElevated, SESSION_COOKIE } from '$lib/server/session';
-import { SIDECARS, sidecarsConfigured, ticketFor, type Sidecar } from '$lib/server/sidecars';
+import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
+import { SIDECARS, sidecarsConfigured, ticketFor, type Sidecar } from '#lib/server/sidecars.ts';
 
 export const POST: RequestHandler = async ({ request, cookies, getClientAddress }) => {
   const sid = cookies.get(SESSION_COOKIE);

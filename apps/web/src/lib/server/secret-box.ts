@@ -3,7 +3,7 @@
  * SECRETS_KEY in .env (any long random string, hashed to 256 bits); it never reaches the database.
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import * as env from '$app/env/private';
 
 function key(): Buffer {
   const raw = env.SECRETS_KEY ?? '';

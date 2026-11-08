@@ -1,8 +1,8 @@
 /** GET -> which CLIs are logged in, so the terminal page can update its sign-in cards after a login. */
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { isElevated, SESSION_COOKIE } from '$lib/server/session';
-import { terminalStatus } from '$lib/server/sidecars';
+import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
+import { terminalStatus } from '#lib/server/sidecars.ts';
 
 export const GET: RequestHandler = async ({ cookies }) => {
   // Same guard as the page itself: only an unlocked (elevated) session.

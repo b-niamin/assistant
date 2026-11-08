@@ -3,7 +3,7 @@
  * Plain fields live in core.extension_config; secret fields in secrets.extension_secrets
  * (extension-secrets.ts). Code reads them with ctx.settings.get(name) / ctx.secrets.get(name).
  */
-import { db } from '$lib/server/db';
+import { db } from '#lib/server/db.ts';
 import type { ExtensionInfo, SettingField } from './types';
 
 export type SettingValue = string | number | boolean | null;

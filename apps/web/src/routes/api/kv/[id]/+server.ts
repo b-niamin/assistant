@@ -1,8 +1,8 @@
 /** Extension key-value storage: GET everything, PATCH {set, remove, clear}. Same-origin only. */
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { kvAll, kvApply, validatePatch } from '$lib/extensions/kv.server';
-import { extensionById, visibleTo } from '$lib/extensions/registry.server';
+import { kvAll, kvApply, validatePatch } from '#lib/extensions/kv.server.ts';
+import { extensionById, visibleTo } from '#lib/extensions/registry.server.ts';
 
 async function extFor(id: string, profileId: string) {
   const ext = await extensionById(id);

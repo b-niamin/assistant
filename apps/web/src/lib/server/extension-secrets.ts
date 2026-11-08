@@ -6,7 +6,7 @@
 import { decrypt, encrypt } from './secret-box';
 export { secretsAvailable } from './secret-box';
 import { db } from './db';
-import type { ExtensionInfo } from '$lib/extensions/types';
+import type { ExtensionInfo } from '#lib/extensions/types.ts';
 
 export interface SecretSlot {
   extensionId: string;

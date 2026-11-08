@@ -1,9 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { passwordHash } from '$lib/server/app-config';
-import { verifyPassword } from '$lib/server/password';
-import { createLimiter } from '$lib/server/rate-limit';
-import { createSession, SESSION_COOKIE, SESSION_DAYS } from '$lib/server/session';
+import { passwordHash } from '#lib/server/app-config.ts';
+import { verifyPassword } from '#lib/server/password.ts';
+import { createLimiter } from '#lib/server/rate-limit.ts';
+import { createSession, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
 
 const limiter = createLimiter(10, 15 * 60 * 1000);
 

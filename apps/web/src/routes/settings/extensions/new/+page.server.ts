@@ -5,10 +5,10 @@
  */
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { allExtensions } from '$lib/extensions/registry.server';
-import { catalog } from '$lib/server/catalog';
-import { isElevated, SESSION_COOKIE } from '$lib/server/session';
-import { sidecarsConfigured, terminalStatus } from '$lib/server/sidecars';
+import { allExtensions } from '#lib/extensions/registry.server.ts';
+import { catalog } from '#lib/server/catalog.ts';
+import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
+import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 
 export const load: PageServerLoad = async ({ cookies }) => {
   if (!(await isElevated(cookies.get(SESSION_COOKIE)))) throw redirect(303, '/settings?next=extensions/new');

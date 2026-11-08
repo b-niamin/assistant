@@ -6,13 +6,13 @@
  */
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { allExtensions } from '$lib/extensions/registry.server';
-import { passwordFromEnv, passwordHash, passwordProblem, setPassword } from '$lib/server/app-config';
-import { verifyPassword } from '$lib/server/password';
-import { createLimiter } from '$lib/server/rate-limit';
-import { sidecarsConfigured, terminalStatus } from '$lib/server/sidecars';
-import { updaterStatus } from '$lib/server/updater';
-import { deleteOtherSessions, dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '$lib/server/session';
+import { allExtensions } from '#lib/extensions/registry.server.ts';
+import { passwordFromEnv, passwordHash, passwordProblem, setPassword } from '#lib/server/app-config.ts';
+import { verifyPassword } from '#lib/server/password.ts';
+import { createLimiter } from '#lib/server/rate-limit.ts';
+import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
+import { updaterStatus } from '#lib/server/updater.ts';
+import { deleteOtherSessions, dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
 
 const limiter = createLimiter(5, 15 * 60 * 1000);
 /** Where unlock goes next (?next=profiles): a settings sub-page, nothing else. */

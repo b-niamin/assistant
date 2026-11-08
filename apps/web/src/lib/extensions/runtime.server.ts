@@ -3,10 +3,10 @@
  * these wrappers, which add the ExtensionContext (profile, scoped DB, KV) as a second argument.
  */
 import { error, type RequestEvent } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { db } from '$lib/server/db';
-import { readSecret } from '$lib/server/extension-secrets';
-import type { ExtActions, ExtensionContext, ExtHandler, ExtLoad, Sql } from '$lib/sdk';
+import * as env from '$app/env/private';
+import { db } from '#lib/server/db.ts';
+import { readSecret } from '#lib/server/extension-secrets.ts';
+import type { ExtActions, ExtensionContext, ExtHandler, ExtLoad, Sql } from '#lib/sdk/index.ts';
 import { kvAll, kvApply } from './kv.server';
 import { readSettings } from './config.server';
 import { EXTENSIONS, extensionById, visibleTo } from './registry.server';

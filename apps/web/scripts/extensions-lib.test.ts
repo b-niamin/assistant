@@ -125,11 +125,12 @@ describe('settings fields', () => {
 describe('lint', () => {
   it('allows the SDK and own files, flags shell internals and other extensions', () => {
     const dir = fixture([], {
-      'notes/web/routes/+page.server.ts': `import { fail } from '$shell';\nimport x from '../lib/x';\nimport { db } from '$lib/server/db';\nimport y from '../../../health/web/lib/y';`
+      'notes/web/routes/+page.server.ts': `import { fail } from '$shell';\nimport x from '../lib/x';\nimport { db } from '$lib/server/db';\nimport { session } from '#lib/server/session.ts';\nimport y from '../../../health/web/lib/y';`
     });
     const problems = lib.lintExtension(path.join(dir, 'notes'), 'notes');
-    expect(problems).toHaveLength(2);
+    expect(problems).toHaveLength(3);
     expect(problems.join()).toMatch(/\$lib\/server\/db/);
+    expect(problems.join()).toMatch(/#lib\/server\/session/);
     expect(problems.join()).toMatch(/outside the extension/);
   });
 });

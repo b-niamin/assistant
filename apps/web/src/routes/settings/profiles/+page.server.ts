@@ -4,10 +4,10 @@
  */
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { allExtensions, invalidate, saveExtensionSwitches, visibleTo } from '$lib/extensions/registry.server';
-import { db } from '$lib/server/db';
-import { isElevated, listProfiles, SESSION_COOKIE } from '$lib/server/session';
-import { PROFILE_ID_RE, uniqueProfileId, visibilityAfterAdd } from '$lib/settings/guide';
+import { allExtensions, invalidate, saveExtensionSwitches, visibleTo } from '#lib/extensions/registry.server.ts';
+import { db } from '#lib/server/db.ts';
+import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
+import { PROFILE_ID_RE, uniqueProfileId, visibilityAfterAdd } from '#lib/settings/guide.ts';
 
 async function guard(sid: string | undefined) {
   if (!(await isElevated(sid))) throw redirect(303, '/settings?next=profiles');

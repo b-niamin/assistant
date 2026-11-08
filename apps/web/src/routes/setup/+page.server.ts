@@ -4,10 +4,10 @@
  */
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { isConfigured, passwordProblem, setPassword, setupTokenMatches, setupTokenSet } from '$lib/server/app-config';
-import { db } from '$lib/server/db';
-import { createLimiter } from '$lib/server/rate-limit';
-import { createSession, elevateSession, PROFILE_COOKIE, SESSION_COOKIE, SESSION_DAYS } from '$lib/server/session';
+import { isConfigured, passwordProblem, setPassword, setupTokenMatches, setupTokenSet } from '#lib/server/app-config.ts';
+import { db } from '#lib/server/db.ts';
+import { createLimiter } from '#lib/server/rate-limit.ts';
+import { createSession, elevateSession, PROFILE_COOKIE, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
 
 const limiter = createLimiter(10, 15 * 60 * 1000);
 

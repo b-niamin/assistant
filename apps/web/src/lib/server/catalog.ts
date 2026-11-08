@@ -3,8 +3,8 @@
  * are installed by `ext install` in the terminal; inspirations are handed to Claude or Codex to build.
  * Read over HTTPS and kept for 10 minutes; nothing from it is executed here.
  */
-import { env } from '$env/dynamic/private';
-import { isAccessory, type Accessory } from '$lib/mascot';
+import * as env from '$app/env/private';
+import { isAccessory, type Accessory } from '#lib/mascot.ts';
 
 const ID_RE = /^[a-z][a-z0-9-]*$/;
 

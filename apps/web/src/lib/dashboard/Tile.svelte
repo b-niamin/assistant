@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { countUp } from '$lib/count-up';
-  import { formatDelta, formatKpi, type TileData, type TileSize } from '$lib/extensions/tiles';
+  import { countUp } from '#lib/count-up.ts';
+  import { formatDelta, formatKpi, type TileData, type TileSize } from '#lib/extensions/tiles.ts';
   import TileChart from './TileChart.svelte';
-  import Mascot from '$lib/Mascot.svelte';
+  import Mascot from '#lib/Mascot.svelte';
   import { page } from '$app/state';
-  import { accessoryFor } from '$lib/mascot';
+  import { accessoryFor } from '#lib/mascot.ts';
 
   type Result = { ok: true; data: TileData } | { ok: false; reason: 'timeout' | 'error' };
   let {

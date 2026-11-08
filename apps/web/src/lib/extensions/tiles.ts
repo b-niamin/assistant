@@ -4,7 +4,7 @@
  * This file is pure (no DB, no DOM): the contract types and the validator that clamps whatever an
  * extension (or an untrusted onefile app) hands back.
  */
-import type { ExtensionContext } from '$lib/sdk';
+import type { ExtensionContext } from '#lib/sdk/index.ts';
 
 /** sm = one number; md = numbers + a small chart (the default); lg = two columns wide. */
 export type TileSize = 'sm' | 'md' | 'lg';

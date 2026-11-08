@@ -3,13 +3,13 @@ import { error } from '@sveltejs/kit';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { RequestHandler } from './$types';
-import { EXTENSIONS_DIR } from '$lib/extensions/generated/registry';
-import { kvAll } from '$lib/extensions/kv.server';
-import { readSettings } from '$lib/extensions/config.server';
-import { injectShim, ONEFILE_CSP } from '$lib/extensions/onefile';
-import { themeTags } from '$lib/extensions/theme';
-import { accessoryOf } from '$lib/mascot';
-import { extensionById, visibleTo } from '$lib/extensions/registry.server';
+import { EXTENSIONS_DIR } from '#lib/extensions/generated/registry.ts';
+import { kvAll } from '#lib/extensions/kv.server.ts';
+import { readSettings } from '#lib/extensions/config.server.ts';
+import { injectShim, ONEFILE_CSP } from '#lib/extensions/onefile.ts';
+import { themeTags } from '#lib/extensions/theme.ts';
+import { accessoryOf } from '#lib/mascot.ts';
+import { extensionById, visibleTo } from '#lib/extensions/registry.server.ts';
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {
   const ext = await extensionById(params.id);

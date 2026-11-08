@@ -3,7 +3,7 @@
  * extensions/installed.json) with the switches from System settings (core.extension_settings) applied.
  * Read through a small in-process cache; every settings write calls invalidate().
  */
-import { db } from '$lib/server/db';
+import { db } from '#lib/server/db.ts';
 import { EXTENSIONS } from './generated/registry';
 import type { ExtensionInfo } from './types';
 

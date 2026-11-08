@@ -4,7 +4,7 @@
  * and every page redirects to /setup.
  */
 import { timingSafeEqual } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import * as env from '$app/env/private';
 import { db } from './db';
 import { hashPassword } from './password';
 

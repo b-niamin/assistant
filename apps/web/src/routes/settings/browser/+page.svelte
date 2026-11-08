@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { openSidecar } from '$lib/sidecar-client';
+  import { openSidecar } from '#lib/sidecar-client.ts';
 
   let { data } = $props();
 

@@ -5,7 +5,7 @@
  */
 import type { RequestEvent, ServerLoadEvent } from '@sveltejs/kit';
 import type { TransactionSql } from 'postgres';
-import type { ExtensionInfo } from '$lib/extensions/types';
+import type { ExtensionInfo } from '#lib/extensions/types.ts';
 
 export type { ExtensionInfo };
 /** SvelteKit helpers, re-exported so extensions import everything shell-related from one place. */
@@ -67,5 +67,5 @@ export type DataOf<L extends (...args: any[]) => any> = Awaited<ReturnType<L>>;
 
 /** Dashboard tiles (spec 003): `export const tiles: ExtTile[]` in web/tiles.server.ts. */
 /** Tools for Claude (spec 005): `export const tools: ExtTool[]` in web/tools.server.ts. */
-export type { ExtTool, ToolSchema } from '$lib/extensions/tools';
-export type { ExtTile, TileData, TileKpi, TileListItem, TilePoint, TileSeries, TileSize, TileTone } from '$lib/extensions/tiles';
+export type { ExtTool, ToolSchema } from '#lib/extensions/tools.ts';
+export type { ExtTile, TileData, TileKpi, TileListItem, TilePoint, TileSeries, TileSize, TileTone } from '#lib/extensions/tiles.ts';

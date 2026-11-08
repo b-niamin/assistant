@@ -23,7 +23,7 @@ const ROOT = process.cwd();
 const POLL_MS = Number(process.env.LIVE_RELOAD_POLL_MS ?? 5000);
 // Installed extensions (spec 002) are watched too: an edit in /extensions/<id> rebuilds the shell.
 const EXTENSIONS_DIR = path.resolve(process.env.EXTENSIONS_DIR ?? path.join(ROOT, '..', '..', 'extensions'));
-const WATCH = ['src', 'static', 'scripts', 'vite.config.ts', 'svelte.config.js', 'server.mjs', 'package.json', 'package-lock.json', EXTENSIONS_DIR];
+const WATCH = ['src', 'static', 'scripts', 'vite.config.ts', 'server.mjs', 'package.json', 'package-lock.json', EXTENSIONS_DIR];
 // `(extensions)` and `generated` are written by the build itself (npm run gen): never a trigger.
 const SKIP = new Set(['node_modules', '.svelte-kit', 'build', 'build-next', 'build-prev', '.git', '(extensions)', 'generated', '.trash', '.deps-next', 'node_modules.prev']);
 const BUILD = path.join(ROOT, 'build');

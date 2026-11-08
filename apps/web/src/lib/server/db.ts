@@ -1,6 +1,6 @@
 /** Postgres client for the web app (role app_rw; search_path = core, health). */
 import postgres from 'postgres';
-import { env } from '$env/dynamic/private';
+import * as env from '$app/env/private';
 
 let client: postgres.Sql | null = null;
 

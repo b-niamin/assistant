@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib/server/db', () => ({ db: () => { throw new Error('no db in unit tests'); } }));
+vi.mock('#lib/server/db.ts', () => ({ db: () => { throw new Error('no db in unit tests'); } }));
 vi.mock('./generated/registry', () => ({ EXTENSIONS: [] }));
 
 const { mergeExtensions, visibleTo } = await import('./registry.server');

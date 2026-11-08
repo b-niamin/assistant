@@ -1,5 +1,5 @@
 /** Server-side helpers for the terminal and browser sidecars (spec 004). */
-import { env } from '$env/dynamic/private';
+import * as env from '$app/env/private';
 import { mintTicket } from './sidecar-ticket.js';
 
 export type Sidecar = 'terminal' | 'browser';

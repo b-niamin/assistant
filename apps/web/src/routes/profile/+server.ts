@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { listProfiles, PROFILE_COOKIE } from '$lib/server/session';
+import { listProfiles, PROFILE_COOKIE } from '#lib/server/session.ts';
 
 export const POST: RequestHandler = async ({ request, cookies, url }) => {
   const id = String((await request.formData()).get('profile') ?? '');

@@ -3,7 +3,7 @@
  * their localStorage shim; native extensions through ctx.kv (handy for settings).
  * profile scope -> rows keyed by the viewing profile; shared scope -> profile_id IS NULL.
  */
-import { db } from '$lib/server/db';
+import { db } from '#lib/server/db.ts';
 import type { ExtensionInfo } from './types';
 
 export const MAX_VALUE_BYTES = 5 * 1024 * 1024;

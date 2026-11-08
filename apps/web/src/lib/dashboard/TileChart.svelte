@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TileSeries } from '$lib/extensions/tiles';
+  import type { TileSeries } from '#lib/extensions/tiles.ts';
 
   /**
    * The small chart inside a dashboard tile. Same rules as the health sparklines (specs/001):

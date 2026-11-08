@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: {} }));
+vi.mock('$app/env/private', () => ({ SECRETS_KEY: undefined }));
 const { decrypt, encrypt, secretsAvailable } = await import('./secret-box');
 
 describe('secret encryption', () => {

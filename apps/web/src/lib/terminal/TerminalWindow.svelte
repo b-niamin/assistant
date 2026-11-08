@@ -6,12 +6,12 @@
    * runs it in an installed extension's folder.
    */
   import { onMount } from 'svelte';
-  import Mascot from '$lib/Mascot.svelte';
+  import Mascot from '#lib/Mascot.svelte';
   import '@xterm/xterm/css/xterm.css';
-  import '$lib/terminal/fonts/fonts.css';
-  import { openSidecar } from '$lib/sidecar-client';
-  import { arrowSeq, BAR_KEYS, ctrlOf, type BarKey } from '$lib/terminal/keys';
-  import { defaultFontSize, stepFontSize, TERMINAL_FONT, TERMINAL_THEME } from '$lib/terminal/theme';
+  import '#lib/terminal/fonts/fonts.css';
+  import { openSidecar } from '#lib/sidecar-client.ts';
+  import { arrowSeq, BAR_KEYS, ctrlOf, type BarKey } from '#lib/terminal/keys.ts';
+  import { defaultFontSize, stepFontSize, TERMINAL_FONT, TERMINAL_THEME } from '#lib/terminal/theme.ts';
 
   type Phase = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
   let {

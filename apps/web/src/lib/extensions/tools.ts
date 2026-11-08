@@ -4,7 +4,7 @@
  * web/tools.server.ts (`export const tools: ExtTool[]`). The shell exposes them all through
  * /api/claude, and scripts/assistant-mcp.mjs turns that into an MCP server for Claude.
  */
-import type { ExtensionContext } from '$lib/sdk';
+import type { ExtensionContext } from '#lib/sdk/index.ts';
 
 /** A JSON Schema object describing a tool's arguments. */
 export interface ToolSchema {

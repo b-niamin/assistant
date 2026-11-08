@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Mascot from '$lib/Mascot.svelte';
-  import AgentConsole from '$lib/settings/AgentConsole.svelte';
-  import { hueFor, inspirationPrompt, installCommand } from '$lib/settings/guide';
-  import { guessAccessory } from '$lib/mascot';
+  import Mascot from '#lib/Mascot.svelte';
+  import AgentConsole from '#lib/settings/AgentConsole.svelte';
+  import { hueFor, inspirationPrompt, installCommand } from '#lib/settings/guide.ts';
+  import { guessAccessory } from '#lib/mascot.ts';
 
   let { data } = $props();
 

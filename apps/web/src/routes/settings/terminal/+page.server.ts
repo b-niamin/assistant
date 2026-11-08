@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { isElevated, SESSION_COOKIE } from '$lib/server/session';
-import { sidecarsConfigured, terminalStatus } from '$lib/server/sidecars';
+import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
+import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 
 export const load: PageServerLoad = async ({ cookies }) => {
   // Admin only: System settings unlocks with the password (10 min), then comes back here.

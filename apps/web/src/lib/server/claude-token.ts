@@ -1,6 +1,6 @@
 /** CLAUDE_TOOLS_TOKEN (spec 005): shared by web and the claude/terminal containers, 32+ characters. */
 import { timingSafeEqual } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import * as env from '$app/env/private';
 
 export function claudeTokenMatches(header: string | null, token = env.CLAUDE_TOOLS_TOKEN ?? ''): boolean {
   if (token.length < 32 || !header?.startsWith('Bearer ')) return false;

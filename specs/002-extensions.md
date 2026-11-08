@@ -142,7 +142,7 @@ export const load = (async ({ url }, ctx) => {
 
 **The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Beni the mascot,
 motion helpers). The CSS tokens from `app.css` and `specs/001-design.md` are global. `ext check` rejects an
-import of anything else from the shell (`$lib`, another extension's files). The contract version is
+import of anything else from the shell (`$lib` or `#lib`, another extension's files). The contract version is
 `SHELL_API` (now 1); a manifest with another `shell` value does not build.
 
 **Look (required).** Every extension wears the shell's layout and has Beni, the mascot, woven in: native

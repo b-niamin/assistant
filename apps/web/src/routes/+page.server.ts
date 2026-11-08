@@ -1,8 +1,8 @@
 import { fail, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { dashboardFor } from '$lib/extensions/dashboard.server';
-import { applyLayout, parseLayout, type LayoutRow } from '$lib/dashboard/layout';
-import { db } from '$lib/server/db';
+import { dashboardFor } from '#lib/extensions/dashboard.server.ts';
+import { applyLayout, parseLayout, type LayoutRow } from '#lib/dashboard/layout.ts';
+import { db } from '#lib/server/db.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const [tiles, rows] = await Promise.all([

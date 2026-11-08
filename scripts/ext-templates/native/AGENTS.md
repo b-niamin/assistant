@@ -3,7 +3,7 @@
 This folder is an extension of the assistant shell. Read the shell's `AGENTS.md` and
 `specs/002-extensions.md` first. Rules that matter here:
 
-- Import from the shell ONLY `$shell` (types, context) and `$shell/ui` (Beni, motion helpers). Never `$lib`,
+- Import from the shell ONLY `$shell` (types, context) and `$shell/ui` (Beni, motion helpers). Never `$lib` or `#lib`,
   never another extension. `node scripts/ext.mjs check {{id}}` enforces it.
 - Server code gets `ctx` as the second argument of `load`, actions and `+server.ts` handlers. Query only
   through `ctx.db(sql => ...)`: it runs as role `ext_{{schema}}`, which sees schema `{{schema}}` and

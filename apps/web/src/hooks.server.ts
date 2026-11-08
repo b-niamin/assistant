@@ -1,8 +1,9 @@
-import { error, redirect, type Handle } from '@sveltejs/kit';
-import { extensionForPath, visibleTo } from '$lib/extensions/registry.server';
-import { defaultProfile, isConfigured } from '$lib/server/app-config';
-import { claudeTokenMatches } from '$lib/server/claude-token';
-import { isValidSession, PROFILE_COOKIE, SESSION_COOKIE } from '$lib/server/session';
+import { error, redirect } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
+import { extensionForPath, visibleTo } from '#lib/extensions/registry.server.ts';
+import { defaultProfile, isConfigured } from '#lib/server/app-config.ts';
+import { claudeTokenMatches } from '#lib/server/claude-token.ts';
+import { isValidSession, PROFILE_COOKIE, SESSION_COOKIE } from '#lib/server/session.ts';
 
 const PUBLIC_PATHS = new Set(['/login', '/healthz', '/setup']);
 

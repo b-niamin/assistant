@@ -6,9 +6,9 @@
  * A native extension adds its own tools (e.g. writes with validation) in web/tools.server.ts.
  */
 import { error } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { db } from '$lib/server/db';
-import type { ExtensionContext } from '$lib/sdk';
+import * as env from '$app/env/private';
+import { db } from '#lib/server/db.ts';
+import type { ExtensionContext } from '#lib/sdk/index.ts';
 import { kvAll, kvApply, validatePatch } from './kv.server';
 import { allExtensions, visibleTo } from './registry.server';
 import { contextFor } from './runtime.server';

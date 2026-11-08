@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { enhance } from '$app/forms';
-  import Tile from '$lib/dashboard/Tile.svelte';
-  import Mascot from '$lib/Mascot.svelte';
-  import { moodForHour, type Mood } from '$lib/mascot';
+  import Tile from '#lib/dashboard/Tile.svelte';
+  import Mascot from '#lib/Mascot.svelte';
+  import { moodForHour, type Mood } from '#lib/mascot.ts';
   let { data } = $props();
 
   // The server renders its own clock; the browser re-reads its local time after hydration.

@@ -4,8 +4,8 @@
    * keeps going when you leave the page and come back. Used by "Extend the system" (new apps, in the
    * repo) and by every extension's settings (in that extension's folder).
    */
-  import Mascot from '$lib/Mascot.svelte';
-  import TerminalWindow from '$lib/terminal/TerminalWindow.svelte';
+  import Mascot from '#lib/Mascot.svelte';
+  import TerminalWindow from '#lib/terminal/TerminalWindow.svelte';
 
   let {
     title,

@@ -6,8 +6,8 @@
  */
 import { error, isHttpError, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { callTool, listTools } from '$lib/extensions/tools.server';
-import { listProfiles } from '$lib/server/session';
+import { callTool, listTools } from '#lib/extensions/tools.server.ts';
+import { listProfiles } from '#lib/server/session.ts';
 
 async function profileOf(v: unknown, fallback: string): Promise<string> {
   const id = typeof v === 'string' && v ? v : fallback;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import Mascot from '$lib/Mascot.svelte';
-  import { hueFor, initials, uniqueProfileId } from '$lib/settings/guide';
+  import Mascot from '#lib/Mascot.svelte';
+  import { hueFor, initials, uniqueProfileId } from '#lib/settings/guide.ts';
 
   let { data, form } = $props();
 

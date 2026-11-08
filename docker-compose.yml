@@ -92,6 +92,8 @@ services:
       NODE_ENV: production
       NODE_OPTIONS: --max-old-space-size=1024
       PORT: '3000'
+      # The public origin: baked into the build for CSRF and url.origin (vite.config.ts paths.origin, read
+      # when live-reload builds here) and checked on sidecar WebSocket upgrades (server.mjs).
       ORIGIN: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in .env}
       DATABASE_URL: postgresql://app_rw:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
       # Optional: without it the first-run wizard (/setup, needs SETUP_TOKEN) stores the password hash.

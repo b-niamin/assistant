@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import Mascot from '$lib/Mascot.svelte';
+  import Mascot from '#lib/Mascot.svelte';
 
   const missing = $derived(page.status === 404);
 </script>

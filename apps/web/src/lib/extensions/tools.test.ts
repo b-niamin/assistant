@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { infoOf, jsonSafe, validTools } from './tools';
 
-vi.mock('$env/dynamic/private', () => ({ env: {} }));
-const { claudeTokenMatches } = await import('$lib/server/claude-token');
+vi.mock('$app/env/private', () => ({ CLAUDE_TOOLS_TOKEN: undefined }));
+const { claudeTokenMatches } = await import('#lib/server/claude-token.ts');
 
 describe('extension tools', () => {
   const run = () => 1;

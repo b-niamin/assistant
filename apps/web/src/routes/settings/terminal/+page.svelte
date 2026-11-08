@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Mascot from '$lib/Mascot.svelte';
-  import TerminalWindow from '$lib/terminal/TerminalWindow.svelte';
-  import { parsePending, pendingCommand, PENDING_PROMPT_KEY, type PendingTask } from '$lib/settings/guide';
+  import Mascot from '#lib/Mascot.svelte';
+  import TerminalWindow from '#lib/terminal/TerminalWindow.svelte';
+  import { parsePending, pendingCommand, PENDING_PROMPT_KEY, type PendingTask } from '#lib/settings/guide.ts';
 
   let { data } = $props();
 

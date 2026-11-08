@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Mascot from '$lib/Mascot.svelte';
+  import Mascot from '#lib/Mascot.svelte';
   let { data, form } = $props();
 </script>
 

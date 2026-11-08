@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import AgentConsole from '$lib/settings/AgentConsole.svelte';
-  import { hueFor, initials } from '$lib/settings/guide';
+  import AgentConsole from '#lib/settings/AgentConsole.svelte';
+  import { hueFor, initials } from '#lib/settings/guide.ts';
   let { data, form } = $props();
   const ext = $derived(data.ext);
   const plain = $derived(ext.settings.filter((f) => f.type !== 'secret'));

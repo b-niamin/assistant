@@ -126,6 +126,7 @@ if [ -f .env ]; then
   say ".env exists, keeping it"
 else
   say "writing .env with new random secrets"
+  fresh=yes
   umask 077
   cat > .env <<ENV
 # Written by install.sh on $(date -u +%Y-%m-%dT%H:%MZ). Keep this file private; back it up.
@@ -228,8 +229,8 @@ $( [ -f extensions/health/compose.yml ] && echo "    $DC exec -it garmin-sync py
 
 NEXT
 
-# 8. guided first run (terminal only): walk through the steps above one by one.
-[ "$interactive" = yes ] || exit 0
+# 8. guided first run (terminal, new install only): walk through the steps above one by one.
+[ "$interactive" = yes ] && [ "${fresh:-no}" = yes ] || exit 0
 yes_no() { ask _yn "$1 (y/n)" y; case $_yn in [nN]*) return 1 ;; *) return 0 ;; esac; }
 n_step=0
 step() { n_step=$((n_step + 1)); printf '\n\033[1m== Step %s: %s\033[0m\n' "$n_step" "$*" > /dev/tty; }

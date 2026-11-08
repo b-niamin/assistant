@@ -34,6 +34,9 @@ clones this repo, writes `.env` with random secrets, installs the extensions, st
 `tailscale serve` and prints the address plus a one-time setup code. Open `/setup` there, set the app
 password and your profile; everything else is in **System settings** (`/settings`).
 
+In a terminal it then walks you through the rest step by step: it waits for the app, shows the setup
+address and code, reminds you of the Synology schedule, and offers to log in to Claude and Garmin.
+
 Unattended: `... | sudo ASSISTANT_YES=1 sh` takes the suggestions; `ASSISTANT_DIR`, `WEB_PORT`,
 `ASSISTANT_HTTPS_PORT`, `ASSISTANT_EXTENSIONS` and `ASSISTANT_AUTO_UPDATE=0|1` answer up front.
 

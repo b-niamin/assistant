@@ -43,7 +43,7 @@ port_used() { # a host port something already listens on, or a container publish
 free_port() { p=$1; while port_used "$p"; do p=$((p + 1)); done; echo "$p"; }
 tailnet_https_used() { command -v tailscale >/dev/null 2>&1 && tailscale serve status --json 2>/dev/null | grep -q "\"$1\""; }
 ask() { # $1 = variable, $2 = question, $3 = default
-  printf '\033[1m?\033[0m %s [%s]: ' "$2" "$3" > /dev/tty
+  if [ -n "$3" ]; then printf '\033[1m?\033[0m %s [%s]: ' "$2" "$3"; else printf '\033[1m?\033[0m %s ' "$2"; fi > /dev/tty
   IFS= read -r a < /dev/tty || a=""
   eval "$1=\${a:-\$3}"
 }
@@ -227,3 +227,55 @@ $( [ -f extensions/health/compose.yml ] && echo "    $DC exec -it garmin-sync py
   Add apps later:  $DC exec claude node scripts/ext.mjs available   (then: ext.mjs install <id>, ./install.sh)
 
 NEXT
+
+# 8. guided first run (terminal only): walk through the steps above one by one.
+[ "$interactive" = yes ] || exit 0
+yes_no() { ask _yn "$1 (y/n)" y; case $_yn in [nN]*) return 1 ;; *) return 0 ;; esac; }
+n_step=0
+step() { n_step=$((n_step + 1)); printf '\n\033[1m== Step %s: %s\033[0m\n' "$n_step" "$*" > /dev/tty; }
+
+step "wait for the app"
+printf '  The web app builds itself on the first start (a few minutes on a small NAS).\n' > /dev/tty
+if command -v curl >/dev/null 2>&1; then
+  n=0
+  until curl -fs -o /dev/null "http://127.0.0.1:$PORT/healthz"; do
+    n=$((n + 1)); [ "$n" -le 180 ] || { printf '  Still not up after 15 minutes; check: %s logs web\n' "$DC" > /dev/tty; break; }
+    printf '.' > /dev/tty; sleep 5
+  done
+  printf '\n  The app is up.\n' > /dev/tty
+fi
+
+step "first-run setup in the browser"
+printf '  Open   %s/setup\n  Code   %s\n  Choose the app password and your profile there.\n' \
+  "$(sed -n 's/^PUBLIC_ORIGIN=//p' .env)" "$token" > /dev/tty
+ask _ "Press Enter when the setup page says you are done" ""
+
+if [ "${ASSISTANT_AUTO_UPDATE:-1}" != 0 ] && [ -d /volume1 ]; then
+  step "auto-update schedule (Synology)"
+  printf '  DSM: Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script.\n' > /dev/tty
+  printf '  User root, daily, every 5 minutes, and the command printed above by [auto-update].\n' > /dev/tty
+  ask _ "Press Enter when the task is saved" ""
+fi
+
+step "Claude"
+printf '  Claude Code opens here: type /login, open the link it shows, sign in, then type /exit.\n' > /dev/tty
+printf '  After that Remote Control runs by itself (claude.ai > Code).\n' > /dev/tty
+if yes_no "Log in to Claude now?"; then
+  $DC exec -it claude claude < /dev/tty > /dev/tty 2>&1 || printf '  Later: %s exec -it claude claude\n' "$DC" > /dev/tty
+fi
+
+if [ -f extensions/health/compose.yml ]; then
+  step "Garmin (health extension)"
+  printf '  Your Garmin email and password (and an MFA code if asked). The password is never stored.\n' > /dev/tty
+  if yes_no "Connect Garmin now?"; then
+    if $DC exec -it garmin-sync python -m sync login < /dev/tty > /dev/tty 2>&1; then
+      if yes_no "Download your Garmin history in the background (takes a while)?"; then
+        $DC exec -d garmin-sync python -m sync backfill && printf '  Started; progress in /logs/garmin-sync.log.\n' > /dev/tty
+      fi
+    else
+      printf '  Later: %s exec -it garmin-sync python -m sync login\n' "$DC" > /dev/tty
+    fi
+  fi
+fi
+
+printf '\n\033[1mAll set.\033[0m Open %s and say hello to Pip.\n\n' "$(sed -n 's/^PUBLIC_ORIGIN=//p' .env)" > /dev/tty

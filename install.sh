@@ -265,6 +265,11 @@ compose_files
 
 # 3. extensions: copied from the extensions repo by the same `ext` CLI Claude uses, in the claude image
 # (node + git, runs as the checkout owner).
+# The containers write the checkout as HOST_UID: files a root run (sudo) left behind, or Synology ACLs
+# on a shared folder, would stop them (spec 006). Fixed before anything runs in a container.
+[ "$(id -u)" = 0 ] && sh scripts/auto-update.sh fix-permissions "$DIR" || true
+mkdir -p extensions
+
 if [ -n "$EXTENSIONS" ]; then
   phase "Installing extensions: $EXTENSIONS (builds the claude image first, a few minutes)"
   $DC build claude

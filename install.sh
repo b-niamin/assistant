@@ -20,6 +20,8 @@ set -eu
 REPO=${ASSISTANT_REPO:-https://github.com/b-niamin/assistant-core.git}
 DIR=${ASSISTANT_DIR:-$HOME/assistant}
 PORT=${WEB_PORT:-3000}
+# HTTPS port on the tailnet; another one (e.g. 8443) keeps an app already served on 443 there.
+HTTPS_PORT=${ASSISTANT_HTTPS_PORT:-443}
 EXTENSIONS=${*:-${ASSISTANT_EXTENSIONS:-}}
 
 say() { printf '\033[1m[assistant]\033[0m %s\n' "$*"; }
@@ -56,7 +58,7 @@ fernet() { head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '\n'; }
 origin=""
 if command -v tailscale >/dev/null 2>&1; then
   host=$(tailscale status --json 2>/dev/null | sed -n 's/.*"DNSName": *"\([^"]*\)\.".*/\1/p' | head -n 1)
-  [ -n "$host" ] && origin="https://$host"
+  [ -n "$host" ] && origin="https://$host$( [ "$HTTPS_PORT" = 443 ] || echo ":$HTTPS_PORT")"
 fi
 [ -n "$origin" ] || origin="http://localhost:$PORT"
 tz=${ASSISTANT_TIMEZONE:-}
@@ -135,10 +137,11 @@ $DC up -d --build --remove-orphans
 
 # 5. tailnet
 if command -v tailscale >/dev/null 2>&1; then
-  if tailscale serve --bg "$PORT" >/dev/null 2>&1 || sudo tailscale serve --bg "$PORT" >/dev/null 2>&1; then
-    say "published on your tailnet: $origin"
+  if tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1 ||
+    sudo tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1; then
+    say "published on your tailnet: $(sed -n 's/^PUBLIC_ORIGIN=//p' .env)"
   else
-    say "could not run 'tailscale serve --bg $PORT'; run it yourself to reach the app over HTTPS"
+    say "could not run 'tailscale serve --bg --https=$HTTPS_PORT $PORT'; run it yourself to reach the app over HTTPS"
   fi
 fi
 

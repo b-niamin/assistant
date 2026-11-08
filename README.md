@@ -67,6 +67,12 @@ extension that brings a background service.
 7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
    `docker compose exec garmin-sync python -m sync backfill`.
 
+Next to another app on the same machine: pick a free port and another HTTPS port on the tailnet, so
+neither the port nor the tailnet address of the other app is touched, e.g.
+`ASSISTANT_DIR=/volume1/docker/assistant-core WEB_PORT=3010 ASSISTANT_HTTPS_PORT=8443 sh -s -- health gym`
+(the app is then at `https://<nas>.<tailnet>.ts.net:8443`). The folder name is the compose project name,
+so containers and volumes are separate too.
+
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
 Scheduler entry). A new folder name gives the new install fresh volumes, so the old data stays until you
 remove it (`docker compose down -v` in the old folder).

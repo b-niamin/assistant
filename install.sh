@@ -1,9 +1,13 @@
 #!/bin/sh
 # One-command install of the assistant on a NAS or any Linux box with Docker (spec 002, "Install").
 #
-#   curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/install.sh | sh
-#   curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/install.sh | sh -s -- health gym
+#   curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/install.sh | sudo sh
 #   # or, from a checkout:  ./install.sh [extension ...]
+#
+# In a terminal it asks a few questions (folder, port, tailnet port, extensions, auto-update), each with a
+# default that avoids what is already running. Unattended: ASSISTANT_YES=1 takes the defaults; the
+# answers can also be given up front as ASSISTANT_DIR, WEB_PORT, ASSISTANT_HTTPS_PORT,
+# ASSISTANT_EXTENSIONS (or arguments: sh -s -- health gym) and ASSISTANT_AUTO_UPDATE=0|1.
 #
 # What it does, and nothing else:
 #   1. checks Docker + Compose, clones the repo (ASSISTANT_REPO, ASSISTANT_DIR) if not run from a checkout,
@@ -16,13 +20,11 @@
 # Re-running it is safe: it keeps .env and the installed extensions, and only (re)starts the stack.
 # Run it again after Claude installs an extension that brings a background service.
 set -eu
+# sudo's PATH may miss the Synology packages' binaries (docker, tailscale).
+PATH=$PATH:/usr/local/bin:/var/packages/ContainerManager/target/usr/bin:/var/packages/Tailscale/target/bin
 
 REPO=${ASSISTANT_REPO:-https://github.com/b-niamin/assistant-core.git}
-DIR=${ASSISTANT_DIR:-$HOME/assistant}
-PORT=${WEB_PORT:-3000}
-# HTTPS port on the tailnet; another one (e.g. 8443) keeps an app already served on 443 there.
-HTTPS_PORT=${ASSISTANT_HTTPS_PORT:-443}
-EXTENSIONS=${*:-${ASSISTANT_EXTENSIONS:-}}
+EXTENSIONS=${*:-${ASSISTANT_EXTENSIONS-health gym}}
 
 say() { printf '\033[1m[assistant]\033[0m %s\n' "$*"; }
 die() { printf '\033[31m[assistant]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -31,16 +33,71 @@ command -v docker >/dev/null 2>&1 || die "Docker is not installed (Synology: Pac
 if docker compose version >/dev/null 2>&1; then DC="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then DC="docker-compose"
 else die "Docker Compose is missing."; fi
-docker info >/dev/null 2>&1 || die "Cannot talk to Docker. Run as a user in the docker group, or with sudo -i first."
+docker info >/dev/null 2>&1 || die "Cannot talk to Docker. Run it with sudo (curl ... | sudo sh), or as a user in the docker group."
+
+# 0. the questions (only in a terminal, only for a new install; Enter takes the default)
+port_used() { # a host port something already listens on, or a container publishes
+  { netstat -ltn 2>/dev/null || ss -ltn 2>/dev/null; } | grep -qE "[:.]$1[[:space:]]" && return 0
+  docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE "[:.]$1->"
+}
+free_port() { p=$1; while port_used "$p"; do p=$((p + 1)); done; echo "$p"; }
+tailnet_https_used() { command -v tailscale >/dev/null 2>&1 && tailscale serve status --json 2>/dev/null | grep -q "\"$1\""; }
+ask() { # $1 = variable, $2 = question, $3 = default
+  printf '\033[1m?\033[0m %s [%s]: ' "$2" "$3" > /dev/tty
+  IFS= read -r a < /dev/tty || a=""
+  eval "$1=\${a:-\$3}"
+}
+if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant-core; else default_dir=$HOME/assistant; fi
+in_checkout=no
+[ -f docker-compose.yml ] && [ -f scripts/ext.mjs ] && [ -f install.sh ] && in_checkout=yes
+if [ "$in_checkout" = yes ]; then DIR=$(pwd); else DIR=${ASSISTANT_DIR:-}; fi
+interactive=no
+[ "${ASSISTANT_YES:-0}" != 1 ] && (exec < /dev/tty) 2>/dev/null && interactive=yes
+if [ "$interactive" = yes ] && [ -z "$DIR" ]; then
+  printf '\n  Assistant installer. Press Enter to take the suggestion in [brackets].\n\n' > /dev/tty
+  ask DIR "Install folder" "$default_dir"
+fi
+DIR=${DIR:-$default_dir}
+if [ -f "$DIR/.env" ]; then
+  # An existing install keeps its answers.
+  PORT=$(sed -n 's/^WEB_PORT=//p' "$DIR/.env"); PORT=${PORT:-3000}
+  HTTPS_PORT=$(sed -n 's/^TAILNET_HTTPS_PORT=//p' "$DIR/.env"); HTTPS_PORT=${HTTPS_PORT:-443}
+  [ $# -gt 0 ] || [ -n "${ASSISTANT_EXTENSIONS+x}" ] || EXTENSIONS=""
+else
+  PORT=${WEB_PORT:-$(free_port 3000)}
+  if [ -n "${ASSISTANT_HTTPS_PORT:-}" ]; then HTTPS_PORT=$ASSISTANT_HTTPS_PORT
+  elif tailnet_https_used 443; then HTTPS_PORT=8443; while tailnet_https_used "$HTTPS_PORT"; do HTTPS_PORT=$((HTTPS_PORT + 1)); done
+  else HTTPS_PORT=443; fi
+  AUTO=${ASSISTANT_AUTO_UPDATE:-1}
+  if [ "$interactive" = yes ]; then
+    [ -n "${WEB_PORT:-}" ] || ask PORT "Local port for the app (free ones only)" "$PORT"
+    if command -v tailscale >/dev/null 2>&1 && [ -z "${ASSISTANT_HTTPS_PORT:-}" ]; then
+      ask HTTPS_PORT "HTTPS port on your tailnet (443 = plain https://<machine>...; another keeps what is served there)" "$HTTPS_PORT"
+    fi
+    if [ $# -eq 0 ] && [ -z "${ASSISTANT_EXTENSIONS+x}" ]; then
+      printf '  Extensions: health (Garmin training and health data), gym (gym tracker). More later: ext.mjs available\n' > /dev/tty
+      ask EXTENSIONS "Extensions to install (space separated, - for none)" "$EXTENSIONS"
+      [ "$EXTENSIONS" = - ] && EXTENSIONS=""
+    fi
+    if [ -z "${ASSISTANT_AUTO_UPDATE:-}" ]; then
+      ask a_upd "Update by itself from GitHub main every 5 minutes? (y/n)" y
+      case $a_upd in [nN]*) AUTO=0 ;; *) AUTO=1 ;; esac
+    fi
+    printf '\n' > /dev/tty
+  fi
+  ASSISTANT_AUTO_UPDATE=$AUTO
+  port_used "$PORT" && die "port $PORT is already in use; pick another (WEB_PORT=...)"
+fi
 
 # 1. checkout
-if [ -f docker-compose.yml ] && [ -f scripts/ext.mjs ] && [ -f install.sh ]; then
-  DIR=$(pwd)
+if [ "$in_checkout" = yes ]; then
+  :
 elif [ -d "$DIR/.git" ]; then
   say "using the checkout in $DIR"
 else
   command -v git >/dev/null 2>&1 || die "git is missing (Synology: Package Center > Git Server, or set up a checkout by hand)."
   say "cloning $REPO into $DIR"
+  mkdir -p "$(dirname "$DIR")"
   git clone --quiet "$REPO" "$DIR"
   # Cloned as root through sudo: the checkout belongs to the user who ran sudo, so the containers run as them.
   if [ "$(id -u)" = 0 ] && [ -n "${SUDO_UID:-}" ] && [ "$SUDO_UID" != 0 ]; then
@@ -89,6 +146,7 @@ SIDECAR_TICKET_SECRET=$(rand 48)
 CLAUDE_TOOLS_TOKEN=$(rand 48)
 # The address you open the app at (CSRF checks depend on it).
 PUBLIC_ORIGIN=$origin
+TAILNET_HTTPS_PORT=$HTTPS_PORT
 # Days and charts follow this time zone.
 APP_TIMEZONE=$tz
 # Owner of this checkout, so the containers can edit it (not root, even when run with sudo).

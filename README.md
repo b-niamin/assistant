@@ -23,15 +23,19 @@ every empty screen company.
 On any Linux machine or NAS with Docker and Compose (Tailscale optional but recommended):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/install.sh | sh -s -- health gym
+curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/install.sh | sudo sh
 ```
 
-The words after `--` are extensions to install from the extensions repo; leave them out for a bare core.
-It clones this repo into `~/assistant` (`ASSISTANT_DIR=...` to change it), writes `.env` with random
-secrets, installs the extensions, starts the stack, runs `tailscale serve` when Tailscale is there, sets
-up auto-update from `main` ([spec 006](specs/006-auto-update.md); `ASSISTANT_AUTO_UPDATE=0` skips it)
-and prints the address plus a one-time setup code. Open `/setup` there, set the app password and your
-profile; everything else is in **System settings** (`/settings`).
+It asks a few questions, each with a suggestion you take with Enter: the folder
+(`/volume1/docker/assistant-core` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS
+port on your tailnet (443, or 8443 when something is already served there), the extensions to install
+(`health gym`) and whether to update itself from `main` ([spec 006](specs/006-auto-update.md)). Then it
+clones this repo, writes `.env` with random secrets, installs the extensions, starts the stack, runs
+`tailscale serve` and prints the address plus a one-time setup code. Open `/setup` there, set the app
+password and your profile; everything else is in **System settings** (`/settings`).
+
+Unattended: `... | sudo ASSISTANT_YES=1 sh` takes the suggestions; `ASSISTANT_DIR`, `WEB_PORT`,
+`ASSISTANT_HTTPS_PORT`, `ASSISTANT_EXTENSIONS` and `ASSISTANT_AUTO_UPDATE=0|1` answer up front.
 
 Two steps stay in a terminal because they log in to outside accounts:
 
@@ -48,30 +52,17 @@ extension that brings a background service.
 1. **Packages** (DSM, Package Center): *Container Manager*; *Git* (or *Git Server*), for `git`; and
    *Tailscale*, signed in to your tailnet, to reach the app over HTTPS.
 2. **SSH**: Control Panel → Terminal & SNMP → enable SSH. From your computer: `ssh <you>@<nas>`.
-3. **Install** as root (Docker on DSM needs it), into a folder on the data volume:
-
-   ```sh
-   sudo -i
-   curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/install.sh \
-     | ASSISTANT_DIR=/volume1/docker/assistant-core sh -s -- health gym
-   ```
-
-   The checkout is handed to your own user (the one that ran `sudo`), and the containers run as that
-   user. The first build takes 10-20 minutes on a small NAS.
+3. **Install**: the command above, answering with Enter. Next to another app it suggests a free port
+   and another tailnet port, and the folder name keeps its containers and volumes separate. The checkout
+   belongs to you (the user who ran `sudo`); the first build takes 10-20 minutes on a small NAS.
 4. **Auto-update**: the installer prints a Task Scheduler entry. Control Panel → Task Scheduler → Create
    → Scheduled Task → User-defined script, user `root`, daily, every 5 minutes, with the printed command.
-5. **First run**: open the printed address + `/setup` (e.g. `https://<nas>.<tailnet>.ts.net/setup`),
-   type the setup code, choose the app password and your profile.
+5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and
+   your profile.
 6. **Claude**: `cd /volume1/docker/assistant-core && docker compose exec -it claude claude`, then `/login`
    and `/exit`. Remote Control keeps running from then on (or log in from System settings → Terminal).
 7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
    `docker compose exec garmin-sync python -m sync backfill`.
-
-Next to another app on the same machine: pick a free port and another HTTPS port on the tailnet, so
-neither the port nor the tailnet address of the other app is touched, e.g.
-`ASSISTANT_DIR=/volume1/docker/assistant-core WEB_PORT=3010 ASSISTANT_HTTPS_PORT=8443 sh -s -- health gym`
-(the app is then at `https://<nas>.<tailnet>.ts.net:8443`). The folder name is the compose project name,
-so containers and volumes are separate too.
 
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
 Scheduler entry). A new folder name gives the new install fresh volumes, so the old data stays until you

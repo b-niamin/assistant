@@ -11,7 +11,7 @@
  *   node scripts/ext.mjs update <id>... [--ref <branch|tag>]   replace with the repo's version (old one to .trash/)
  *   node scripts/ext.mjs check [id]                      manifests, imports, route generation
  *   node scripts/ext.mjs new <id> [--kind native|onefile] [--scope profile|shared] [--name "..."]
- *                                [--from onefile:<appType>/<variant> | --from example:<name>]
+ *                                [--from onefile:<appType>/<variant> | --from inspiration:<name>]
  *                                [--inspired-by <link or note>] [--profiles a,b]
  *   node scripts/ext.mjs profiles <id> [a,b | all]       who sees it (System settings can override)
  *   node scripts/ext.mjs remove <id>                     the folder moves to extensions/.trash/; data stays
@@ -126,13 +126,16 @@ function fetchRepo(url, name, ref) {
   return fetched.get(key);
 }
 const fetchExtensionsRepo = (ref) => fetchRepo(EXTENSIONS_REPO, 'assistant-extensions', ref);
-/** Ready-made extensions: top-level folders of the extensions repo with an extension.json. */
+/** Ready-made extensions: folders under extensions/ in the extensions repo with an extension.json. */
+const READY = 'extensions';
 const readyMade = (repoDir) =>
-  readdirSync(repoDir).filter((f) => ID_RE.test(f) && existsSync(path.join(repoDir, f, 'extension.json')));
+  existsSync(path.join(repoDir, READY))
+    ? readdirSync(path.join(repoDir, READY)).filter((f) => ID_RE.test(f) && existsSync(path.join(repoDir, READY, f, 'extension.json')))
+    : [];
 
-/** Copy extensions-repo/<id> into extensions/<id> and check its manifest; returns the manifest. */
+/** Copy extensions-repo/extensions/<id> into extensions/<id> and check its manifest; returns the manifest. */
 function copyFromRepo(repoDir, id) {
-  const src = path.join(repoDir, id);
+  const src = path.join(repoDir, READY, id);
   if (!existsSync(path.join(src, 'extension.json')))
     die(`no extension "${id}" in ${EXTENSIONS_REPO}; available: ${readyMade(repoDir).join(', ') || 'none'}`);
   const manifest = JSON.parse(readFileSync(path.join(src, 'extension.json'), 'utf8'));
@@ -177,7 +180,7 @@ const commands = {
     const installed = new Set(loadReg().extensions.map((e) => e.id));
     console.log(`${EXTENSIONS_REPO} @ ${commit.slice(0, 7)}`);
     for (const id of readyMade(repoDir)) {
-      const m = JSON.parse(readFileSync(path.join(repoDir, id, 'extension.json'), 'utf8'));
+      const m = JSON.parse(readFileSync(path.join(repoDir, READY, id, 'extension.json'), 'utf8'));
       console.log(`${id.padEnd(16)} ${String(m.kind ?? '?').padEnd(8)} ${String(m.version ?? '').padEnd(8)} ${installed.has(id) ? 'installed ' : '          '}${m.name}: ${m.description ?? ''}`);
     }
   },
@@ -197,7 +200,7 @@ const commands = {
       copyFromRepo(repoDir, id);
       reg.extensions.push({
         id,
-        from: `${EXTENSIONS_REPO}/tree/${commit}/${id}`,
+        from: `${EXTENSIONS_REPO}/tree/${commit}/${READY}/${id}`,
         ...(profilesOpt(opts.profiles) ? { profiles: profilesOpt(opts.profiles) } : {})
       });
       done.push(id);
@@ -216,7 +219,7 @@ const commands = {
       const e = entryOf(reg, id);
       moveToTrash(id);
       copyFromRepo(repoDir, id);
-      e.from = `${EXTENSIONS_REPO}/tree/${commit}/${id}`;
+      e.from = `${EXTENSIONS_REPO}/tree/${commit}/${READY}/${id}`;
     }
     saveReg(reg);
     regenerate();
@@ -268,11 +271,11 @@ const commands = {
   new({ pos, opts }) {
     const id = pos[0];
     checkNewId(id);
-    const example = typeof opts.from === 'string' ? /^example:([a-z0-9-]+)$/.exec(opts.from) : null;
-    // Reference skeletons live in the extensions repo under examples/<name>.
+    const example = typeof opts.from === 'string' ? /^(?:inspiration|example):([a-z0-9-]+)$/.exec(opts.from) : null;
+    // Skeletons to start from live in the extensions repo under inspirations/<name> (`example:` = old name).
     const [exRepo, exCommit] = example ? fetchExtensionsRepo() : [];
-    const src = example ? path.join(exRepo, 'examples', example[1]) : null;
-    if (example && !existsSync(path.join(src, 'extension.json'))) die(`no example examples/${example[1]} in ${EXTENSIONS_REPO}`);
+    const src = example ? path.join(exRepo, 'inspirations', example[1]) : null;
+    if (example && !existsSync(path.join(src, 'extension.json'))) die(`no inspirations/${example[1]} in ${EXTENSIONS_REPO}`);
     const ex = example ? JSON.parse(readFileSync(path.join(src, 'extension.json'), 'utf8')) : {};
     const kind = opts.kind ?? ex.kind ?? (opts.from ? 'onefile' : 'native');
     const scope = opts.scope ?? ex.scope ?? 'profile';
@@ -282,15 +285,15 @@ const commands = {
     const name = typeof opts.name === 'string' ? opts.name : id.replace(/(^|-)([a-z])/g, (_, s, c) => (s ? ' ' : '') + c.toUpperCase());
     let inspiredBy = typeof opts['inspired-by'] === 'string' ? opts['inspired-by'] : undefined;
     if (example) {
-      // A starting point copied from examples/<name>, renamed to the new id; adapt it from there.
+      // A starting point copied from inspirations/<name>, renamed to the new id; adapt it from there.
       cpSync(src, dest, { recursive: true });
       const mf = path.join(dest, 'extension.json');
       const m = JSON.parse(readFileSync(mf, 'utf8'));
       writeFileSync(mf, JSON.stringify({ ...m, id, name: opts.name ?? m.name, scope }, null, 2) + '\n');
-      inspiredBy ??= `${EXTENSIONS_REPO}/tree/${exCommit}/examples/${example[1]}`;
+      inspiredBy ??= `${EXTENSIONS_REPO}/tree/${exCommit}/inspirations/${example[1]}`;
     } else if (typeof opts.from === 'string') {
       const m = /^onefile:(.+\/.+)$/.exec(opts.from);
-      if (!m) die('--from takes onefile:<appType>/<variant> or example:<name>');
+      if (!m) die('--from takes onefile:<appType>/<variant> or inspiration:<name>');
       const [tmp, commit] = fetchRepo(ONEFILE_REPO, 'onefile-apps');
       onefileFromRepo(tmp, m[1], dest, id, { name: opts.name, scope });
       copyTemplate('onefile-docs', dest, { id, name, scope });

@@ -40,7 +40,7 @@ model and the UI. Note the link: it goes into `inspiredBy`. Do not copy code you
   `node scripts/ext.mjs new <id> --from onefile:<appType>/<variant>` starts from an app in onefile-apps.
 - **native**: SQL, server-side calls (Home Assistant, a calendar API), data other extensions or Claude
   query, settings or secrets. `node scripts/ext.mjs new <id> --kind native --scope shared` or start from
-  a reference: `--from example:home-assistant` (see `examples/README.md`).
+  a reference: `--from inspiration:home-assistant` (see `inspirations/README.md` in the extensions repo).
 
 Add `--inspired-by "<link or note>"`. Then build it with the `new-extension` skill (layout, `$shell` API,
 migrations, checks).

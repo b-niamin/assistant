@@ -11,7 +11,8 @@ stack, reached through Remote Control, talks to every extension and builds new o
 Meet **Pip**, the mascot: a jelly-bean runner in a sweatband who greets you on the dashboard and keeps
 every empty screen company.
 
-- Ready-made extensions (Training & Health from Garmin, a gym tracker, example skeletons):
+- Extensions: ready to install (Training & Health from Garmin, a gym tracker) and inspirations to build
+  new ones from (Home Assistant, calendar, learning):
   [assistant-extensions](https://github.com/b-niamin/assistant-extensions)
 - Architecture: [specs/000-architecture.md](specs/000-architecture.md), extensions:
   [specs/002-extensions.md](specs/002-extensions.md), security: [specs/004-security.md](specs/004-security.md)

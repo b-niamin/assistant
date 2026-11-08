@@ -65,7 +65,7 @@ the dashboard.
 ## Building extensions from Claude Remote
 
 The core installs bare; `ext install <id>` adds a ready-made extension, and Claude builds others with the `add-extension` skill. Whatever the owner points at (a
-git repo, an app from onefile-apps, an example in `examples/`, a sentence) is only inspiration: Claude builds
+git repo, an app from onefile-apps, a skeleton in the extensions repo's `inspirations/`, a sentence) is only inspiration: Claude builds
 the extension in `extensions/<id>/` of this repo and records the source in `inspiredBy`. No human step:
 
 - `ext-migrate` (compose service) watches `extensions/installed.json` and every migration file and runs

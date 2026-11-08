@@ -76,15 +76,15 @@ describe('add-extension prompt', () => {
     expect(p).toContain('Show my Home Assistant rooms.');
     expect(p).toContain('https://github.com/x/y as inspiration only');
     expect(p).toContain('scope shared');
-    expect(p).toContain('example:home-assistant');
+    expect(p).toContain('inspiration:home-assistant');
     expect(p).not.toContain('\n');
   });
   it('lets Claude pick by default', () => {
     expect(buildPrompt({ idea: '', scope: 'profile', template: 'nope' })).toContain('Pick the kind');
   });
-  it('every example template names an example and every idea has a template', () => {
-    // The examples live in the extensions repo (examples/<name>); `ext new --from example:<name>` fetches them.
-    for (const t of TEMPLATES) if (t.from?.startsWith('example:')) expect(t.from).toMatch(/^example:[a-z][a-z0-9-]*$/);
+  it('every inspiration template names one and every idea has a template', () => {
+    // They live in the extensions repo (inspirations/<name>); `ext new --from inspiration:<name>` fetches them.
+    for (const t of TEMPLATES) if (t.from?.startsWith('inspiration:')) expect(t.from).toMatch(/^inspiration:[a-z][a-z0-9-]*$/);
     for (const i of IDEAS) expect(TEMPLATES.map((t) => t.id)).toContain(i.template);
   });
 });

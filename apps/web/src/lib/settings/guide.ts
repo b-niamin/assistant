@@ -84,28 +84,28 @@ export interface Template {
   scope: Scope | null;
 }
 
-/** Starting points offered by the "Add an app" flow; the example ones are examples/<id> in the extensions repo. */
+/** Starting points offered by the "Add an app" flow; the others are inspirations/<id> in the extensions repo. */
 export const TEMPLATES: Template[] = [
   { id: 'auto', name: 'Let Claude pick', blurb: 'Claude chooses the best starting point for the idea.', from: null, scope: null },
   {
     id: 'home-assistant',
     name: 'Connected service',
     blurb: 'Like the Home example: an address and a token in its settings, data fetched on the server.',
-    from: 'example:home-assistant',
+    from: 'inspiration:home-assistant',
     scope: 'shared'
   },
   {
     id: 'calendar',
     name: 'Shared board',
     blurb: 'Like the Calendar example: one data set for the whole household, with dashboard tiles.',
-    from: 'example:calendar',
+    from: 'inspiration:calendar',
     scope: 'shared'
   },
   {
     id: 'learning',
     name: 'Personal tracker',
     blurb: 'Like the Learning example: each profile keeps its own data, streaks on the dashboard.',
-    from: 'example:learning',
+    from: 'inspiration:learning',
     scope: 'profile'
   },
   {
@@ -144,8 +144,8 @@ export function buildPrompt(r: ExtensionRequest): string {
     t.from === 'onefile'
       ? 'Make it a onefile app (start from a fitting app in onefile-apps).'
       : t.from
-        ? `Start from ${t.from} (examples/ in the extensions repo; node scripts/ext.mjs available lists ready-made apps).`
-        : 'Pick the kind and starting point yourself (node scripts/ext.mjs available lists ready-made apps; skeletons are in examples/ of the extensions repo).',
+        ? `Start from ${t.from} (inspirations/ in the extensions repo; node scripts/ext.mjs available lists ready-made apps).`
+        : 'Pick the kind and starting point yourself (node scripts/ext.mjs available lists ready-made apps; skeletons are in inspirations/ of the extensions repo).',
     'Use our design system and Pip the mascot, add a settings panel and dashboard tile if useful, run the checks, commit and push.'
   ];
   return parts.filter(Boolean).join(' ');

@@ -62,11 +62,11 @@ assistant-core                      the shell (this repo)
     <id>/                           one extension, copied from the extensions repo or built here
 
 assistant-extensions                ready-made extensions and reference skeletons
-  <id>/                             one installable extension (health, gym, ...)
-  examples/<name>/                  skeletons Claude may start from (not installable as they are)
+  extensions/<id>/                  ready to install as they are (health, gym, ...)
+  inspirations/<name>/              skeletons Claude starts new extensions from (not installable)
 ```
 
-`ext install <id>` shallow-clones the extensions repo (`EXTENSIONS_REPO`), copies `<id>/` into
+`ext install <id>` shallow-clones the extensions repo (`EXTENSIONS_REPO`), copies `extensions/<id>/` into
 `extensions/<id>/` and records the source commit as `from`; `ext update <id>` replaces it with the repo's
 current version (the old folder goes to `extensions/.trash/`). Nothing is fetched at runtime.
 For anything else, a source the owner names is read in a scratch directory and only inspires the code
@@ -181,7 +181,7 @@ The gym tracker in the extensions repo is a copy of an app from onefile-apps, so
 |---|---|---|
 | native tables | `profile_id` column → `core.profiles` (cascade), every query filters by `ctx.dataProfileId` | no `profile_id`; one data set |
 | onefile / `ctx.kv` | rows with `profile_id` = viewing profile | rows with `profile_id IS NULL` |
-| examples | health, learning, gym | Home Assistant dashboard, family calendar |
+| e.g. | health, learning, gym | Home Assistant dashboard, family calendar |
 
 Visibility is separate from scope: `profiles` in `installed.json` decides who sees an extension at all.
 
@@ -219,8 +219,8 @@ inspiration, build, settings panel, tools, check, commit) and `new-extension` (h
    (flashcards, a habit tracker, a checklist); **native** when it needs SQL, server-side calls (Home
    Assistant, calendars), data from another source, or sharing across profiles with real queries.
 2. Start from something: `ext new <id> --kind native|onefile --scope profile|shared`,
-   `--from onefile:<appType>/<variant>` (an app in onefile-apps) or `--from example:<name>`
-   (`examples/<name>` in the extensions repo), with `--inspired-by <link>`. A ready-made extension is
+   `--from onefile:<appType>/<variant>` (an app in onefile-apps) or `--from inspiration:<name>`
+   (`inspirations/<name>` in the extensions repo), with `--inspired-by <link>`. A ready-made extension is
    just `ext install <id>`. The `add-extension` skill is the full procedure.
 3. Build, check (`ext check <id>`, `npm test && npm run check`, `build ok` in `/logs/web.log`), and tell
    the owner what to fill in its panel. Migrations apply by themselves (`ext-migrate`); only a new
@@ -305,6 +305,6 @@ So:
 
 ## Next
 
-- More ready-made extensions in the extensions repo: Home Assistant (from `examples/home-assistant`),
+- More ready-made extensions in the extensions repo: Home Assistant (from `inspirations/home-assistant`),
   calendar, learning, Strava or Apple Health as data sources.
 - `ext update` for every installed extension from a schedule, like the shell's auto-update.

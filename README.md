@@ -76,12 +76,29 @@ Moving from the older single-repo version: install this one next to it, then cop
 app data, health history, Garmin logins; a backup of the new database is taken first):
 
 ```sh
-sudo sh scripts/import-legacy.sh /path/to/old/assistant   # the old checkout
+sudo ./beni.sh migrate /path/to/old/assistant   # the old checkout
 ```
 
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
 Scheduler entry). A new folder name gives the new install fresh volumes, so the old data stays until you
 remove it (`docker compose down -v` in the old folder).
+
+## Everyday: `beni.sh`
+
+One command for the host (Synology: `sudo` in front):
+
+```sh
+./beni.sh status                 # containers and whether the app answers
+./beni.sh start | stop | restart # the whole stack, or one service
+./beni.sh logs web               # follow a service's log
+./beni.sh update                 # git pull + installer (keeps .env, extensions, answers)
+./beni.sh ext available          # extensions: available, install <id>, update <id>, list
+./beni.sh migrate <old-checkout> # copy data from an older install, after a backup
+./beni.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
+```
+
+`install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
+Its tool output goes to `install.log`; only the tail is shown when a step fails.
 
 ## Extensions
 

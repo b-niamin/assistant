@@ -26,8 +26,30 @@ PATH=$PATH:/usr/local/bin:/var/packages/ContainerManager/target/usr/bin:/var/pac
 REPO=${ASSISTANT_REPO:-https://github.com/b-niamin/assistant-core.git}
 EXTENSIONS=${*:-${ASSISTANT_EXTENSIONS-health gym}}
 
-say() { printf '\033[1m[assistant]\033[0m %s\n' "$*"; }
-die() { printf '\033[31m[assistant]\033[0m %s\n' "$*" >&2; exit 1; }
+# Output: a numbered line per phase, "  ·" for news, "  ✓"/"  ✗" for steps. Tool output (docker builds,
+# ext, auto-update) goes to install.log in the checkout, and only its tail is shown when a step fails.
+say() { printf '  \033[2m·\033[0m %s\n' "$*"; }
+ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
+die() { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
+LOG=/dev/null
+# quietly "label" command...: runs it with its output in $LOG, a ticking line meanwhile, ✓ or ✗ after.
+quietly() {
+  label=$1; shift
+  printf '\n=== %s  %s\n' "$(date -u +%H:%M:%S)" "$label" >> "$LOG"
+  "$@" >> "$LOG" 2>&1 &
+  pid=$!; t0=$(date +%s)
+  if [ -t 1 ]; then
+    while kill -0 "$pid" 2>/dev/null; do
+      printf '\r  \033[2m…\033[0m %s \033[2m%ss\033[0m\033[K' "$label" "$(($(date +%s) - t0))"
+      sleep 1
+    done
+    printf '\r\033[K'
+  fi
+  if wait "$pid"; then ok "$label ($(($(date +%s) - t0))s)"; return 0; fi
+  printf '  \033[31m✗\033[0m %s failed. Last lines of %s:\n' "$label" "$LOG" >&2
+  tail -n 25 "$LOG" | sed 's/^/    /' >&2
+  exit 1
+}
 
 command -v docker >/dev/null 2>&1 || die "Docker is not installed (Synology: Package Center > Container Manager)."
 if docker compose version >/dev/null 2>&1; then DC="docker compose"
@@ -108,7 +130,7 @@ pick_extensions() {
   trap - INT TERM
   printf '\033[?25h' > /dev/tty
   EXTENSIONS=$(printf '%s' "$chosen" | xargs)
-  printf '  → %s\n' "${EXTENSIONS:-none}" > /dev/tty
+  printf '\033[1A\r\033[K  \033[32m✓\033[0m Extensions: %s\n' "${EXTENSIONS:-none}" > /dev/tty
 }
 if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant-core; else default_dir=$HOME/assistant; fi
 in_checkout=no
@@ -171,7 +193,7 @@ EXTENSIONS=$(printf '%s' "$EXTENSIONS" | tr ',' ' ')
 # Progress: one numbered line per phase.
 PHASES=6
 n_phase=0
-phase() { n_phase=$((n_phase + 1)); printf '\n\033[1;38;5;208m[%s/%s]\033[0m \033[1m%s\033[0m\n' "$n_phase" "$PHASES" "$*"; }
+phase() { n_phase=$((n_phase + 1)); printf '\n\033[1;38;5;208m%s/%s\033[0m \033[1m%s\033[0m\n' "$n_phase" "$PHASES" "$*"; }
 
 # 1. checkout
 phase "Getting the code"
@@ -190,6 +212,7 @@ else
   fi
 fi
 cd "$DIR"
+LOG=$DIR/install.log
 git config core.hooksPath scripts/hooks 2>/dev/null || true
 # Run as root (sudo -i on Synology), git rewrites .git/config as root: give it back to the checkout owner.
 [ "$(id -u)" = 0 ] && chown "$(stat -c %u:%g .)" .git/config 2>/dev/null || true
@@ -276,14 +299,14 @@ compose_files
 # (node + git, runs as the checkout owner).
 # The containers write the checkout as HOST_UID: files a root run (sudo) left behind, or Synology ACLs
 # on a shared folder, would stop them (spec 006). Fixed before anything runs in a container.
-[ "$(id -u)" = 0 ] && sh scripts/auto-update.sh fix-permissions "$DIR" || true
+if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers (owner, Synology ACLs)" sh scripts/auto-update.sh fix-permissions "$DIR"; fi
 mkdir -p extensions
 
 if [ -n "$EXTENSIONS" ]; then
-  phase "Installing extensions: $EXTENSIONS (builds the claude image first, a few minutes)"
-  dc build claude
+  phase "Installing extensions"
+  quietly "Building the tools image (a few minutes the first time)" dc build claude
   # shellcheck disable=SC2086 # one word per extension id
-  dc run --rm --no-deps -T --entrypoint node claude scripts/ext.mjs install $EXTENSIONS
+  quietly "Copying $EXTENSIONS from the extensions repo" dc run --rm --no-deps -T --entrypoint node claude scripts/ext.mjs install $EXTENSIONS
   compose_files
 fi
 
@@ -293,7 +316,8 @@ if [ "$START" = manual ]; then
   # One self-contained compose file: absolute paths, extensions merged in, values from .env filled in
   # (older Compose cannot render ${VARS} in ports unresolved). It holds the secrets: mode 600, git-ignored.
   mkdir -p stack
-  (umask 077 && dc config > stack/docker-compose.yml.new) && mv stack/docker-compose.yml.new stack/docker-compose.yml
+  render() { (umask 077 && dc config > stack/docker-compose.yml.new) && mv stack/docker-compose.yml.new stack/docker-compose.yml; }
+  quietly "Writing stack/docker-compose.yml" render
   grep -v "^COMPOSE_FILE=" .env > stack/.env && chmod 600 stack/.env stack/docker-compose.yml
   # Synology Container Manager reads the project as another user: it needs the folder and both files
   # readable (they then are for every account on the NAS that can open this folder).
@@ -301,7 +325,7 @@ if [ "$START" = manual ]; then
   [ "$(id -u)" = 0 ] && chown -R "$(stat -c %u:%g .)" stack 2>/dev/null || true
 else
   phase "Building and starting (the first run takes 10-20 minutes on a small NAS)"
-  dc up -d --build --remove-orphans
+  quietly "Building images and starting the containers" dc up -d --build --remove-orphans
 fi
 
 # 5. tailnet
@@ -309,19 +333,27 @@ phase "Publishing on your tailnet and setting up auto-update"
 if command -v tailscale >/dev/null 2>&1; then
   if tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1 ||
     sudo tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1; then
-    say "published on your tailnet: $(sed -n 's/^PUBLIC_ORIGIN=//p' .env)"
+    ok "On your tailnet: $(sed -n 's/^PUBLIC_ORIGIN=//p' .env)"
   else
-    say "could not run 'tailscale serve --bg --https=$HTTPS_PORT $PORT'; run it yourself to reach the app over HTTPS"
+    say "Could not run 'tailscale serve --bg --https=$HTTPS_PORT $PORT'; run it yourself for HTTPS"
   fi
 fi
 
 # Root-owned files or Synology ACLs in the checkout stop web/claude from writing it (spec 006).
-[ "$(id -u)" = 0 ] && sh scripts/auto-update.sh fix-permissions "$DIR" || true
+if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers" sh scripts/auto-update.sh fix-permissions "$DIR"; fi
 
 # 6. auto-update (spec 006): a mirror outside the checkout plus a 5-minute schedule. On Synology the
 # schedule is a Task Scheduler entry; the installer prints what to paste.
 if [ "${ASSISTANT_AUTO_UPDATE:-1}" != 0 ]; then
-  sh scripts/auto-update.sh install "$DIR" || say "auto-update not set up; rerun: sudo sh scripts/auto-update.sh install"
+  if (quietly "Auto-update from GitHub main" sh scripts/auto-update.sh install "$DIR"); then
+    updater="${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}/auto-update.sh run $DIR"
+    if [ -f /etc/synoinfo.conf ]; then
+      say "Add it once in DSM: Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script,"
+      say "user root, daily every 5 minutes, command:  sh $updater"
+    fi
+  else
+    say "Auto-update not set up; later: sudo sh scripts/auto-update.sh install"
+  fi
 fi
 
 # 7. next steps
@@ -338,7 +370,7 @@ if [ "$START" = manual ]; then
       so auto-update and the commands below find the same containers.
     - Portainer or another tool: the compose file $DIR/stack/docker-compose.yml with $DIR/stack/.env,
       project name $(basename "$DIR").
-    - A terminal:  cd $DIR && sudo $DC up -d
+    - A terminal:  cd $DIR && sudo ./beni.sh start
   The first start builds images: 10-20 minutes on a small NAS.
 MANUAL
 fi
@@ -352,7 +384,7 @@ $( [ "$origin" = "http://localhost:$PORT" ] && echo "  (No Tailscale found: from
     $DC exec -it claude claude                        # /login once, Remote Control starts by itself
 $( [ -f extensions/health/compose.yml ] && echo "    $DC exec -it garmin-sync python -m sync login     # health: connect Garmin (password never stored)")
 
-  Add apps later:  $DC exec claude node scripts/ext.mjs available   (then: ext.mjs install <id>, ./install.sh)
+  Later:  ./beni.sh status | logs | ext available | update   (./beni.sh help)
 
 NEXT
 

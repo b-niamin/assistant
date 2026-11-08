@@ -11,3 +11,4 @@ node_modules/
 !/extensions/README.md
 /backups/
 /stack/
+/install.log

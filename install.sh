@@ -286,6 +286,9 @@ if [ "$START" = manual ]; then
   mkdir -p stack
   (umask 077 && $DC config > stack/docker-compose.yml.new) && mv stack/docker-compose.yml.new stack/docker-compose.yml
   grep -v "^COMPOSE_FILE=" .env > stack/.env && chmod 600 stack/.env stack/docker-compose.yml
+  # Synology Container Manager reads the project as another user: it needs the folder and both files
+  # readable (they then are for every account on the NAS that can open this folder).
+  if [ -d /volume1 ]; then chmod 755 stack && chmod 644 stack/.env stack/docker-compose.yml; fi
   [ "$(id -u)" = 0 ] && chown -R "$(stat -c %u:%g .)" stack 2>/dev/null || true
 else
   phase "Building and starting (the first run takes 10-20 minutes on a small NAS)"

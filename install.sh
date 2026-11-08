@@ -257,9 +257,16 @@ compose_files() {
       [ -f "extensions/$id/compose.yml" ] && files="$files:extensions/$id/compose.yml"
     done
   fi
+  # Absolute paths: some Compose wrappers (Synology's) do not run in this folder.
+  abs=$(printf '%s\n' "$files" | tr ':' '\n' | sed "s|^|$DIR/|" | tr '\n' ':' | sed 's/:$//')
   sed -i '/^COMPOSE_FILE=/d' .env
-  printf 'COMPOSE_FILE=%s\n' "$files" >> .env
+  printf 'COMPOSE_FILE=%s\n' "$abs" >> .env
   [ "$files" = docker-compose.yml ] || say "extension services: ${files#docker-compose.yml:}"
+}
+# Compose with everything explicit (folder, .env, files), whatever directory the binary thinks it is in.
+dc() {
+  set -- --project-directory "$DIR" --env-file "$DIR/.env" $(sed -n 's/^COMPOSE_FILE=//p' "$DIR/.env" | tr ':' '\n' | sed 's/^/-f /') "$@"
+  $DC "$@"
 }
 compose_files
 
@@ -272,9 +279,9 @@ mkdir -p extensions
 
 if [ -n "$EXTENSIONS" ]; then
   phase "Installing extensions: $EXTENSIONS (builds the claude image first, a few minutes)"
-  $DC build claude
+  dc build claude
   # shellcheck disable=SC2086 # one word per extension id
-  $DC run --rm --no-deps -T --entrypoint node claude scripts/ext.mjs install $EXTENSIONS
+  dc run --rm --no-deps -T --entrypoint node claude scripts/ext.mjs install $EXTENSIONS
   compose_files
 fi
 
@@ -284,7 +291,7 @@ if [ "$START" = manual ]; then
   # One self-contained compose file: absolute paths, extensions merged in, values from .env filled in
   # (older Compose cannot render ${VARS} in ports unresolved). It holds the secrets: mode 600, git-ignored.
   mkdir -p stack
-  (umask 077 && $DC config > stack/docker-compose.yml.new) && mv stack/docker-compose.yml.new stack/docker-compose.yml
+  (umask 077 && dc config > stack/docker-compose.yml.new) && mv stack/docker-compose.yml.new stack/docker-compose.yml
   grep -v "^COMPOSE_FILE=" .env > stack/.env && chmod 600 stack/.env stack/docker-compose.yml
   # Synology Container Manager reads the project as another user: it needs the folder and both files
   # readable (they then are for every account on the NAS that can open this folder).
@@ -292,7 +299,7 @@ if [ "$START" = manual ]; then
   [ "$(id -u)" = 0 ] && chown -R "$(stat -c %u:%g .)" stack 2>/dev/null || true
 else
   phase "Building and starting (the first run takes 10-20 minutes on a small NAS)"
-  $DC up -d --build --remove-orphans
+  dc up -d --build --remove-orphans
 fi
 
 # 5. tailnet
@@ -383,16 +390,16 @@ step "Claude"
 printf '  Claude Code opens here: type /login, open the link it shows, sign in, then type /exit.\n' > /dev/tty
 printf '  After that Remote Control runs by itself (claude.ai > Code).\n' > /dev/tty
 if yes_no "Log in to Claude now?"; then
-  $DC exec -it claude claude < /dev/tty > /dev/tty 2>&1 || printf '  Later: %s exec -it claude claude\n' "$DC" > /dev/tty
+  dc exec -it claude claude < /dev/tty > /dev/tty 2>&1 || printf '  Later: %s exec -it claude claude\n' "$DC" > /dev/tty
 fi
 
 if [ -f extensions/health/compose.yml ]; then
   step "Garmin (health extension)"
   printf '  Your Garmin email and password (and an MFA code if asked). The password is never stored.\n' > /dev/tty
   if yes_no "Connect Garmin now?"; then
-    if $DC exec -it garmin-sync python -m sync login < /dev/tty > /dev/tty 2>&1; then
+    if dc exec -it garmin-sync python -m sync login < /dev/tty > /dev/tty 2>&1; then
       if yes_no "Download your Garmin history in the background (takes a while)?"; then
-        $DC exec -d garmin-sync python -m sync backfill && printf '  Started; progress in /logs/garmin-sync.log.\n' > /dev/tty
+        dc exec -d garmin-sync python -m sync backfill && printf '  Started; progress in /logs/garmin-sync.log.\n' > /dev/tty
       fi
     else
       printf '  Later: %s exec -it garmin-sync python -m sync login\n' "$DC" > /dev/tty

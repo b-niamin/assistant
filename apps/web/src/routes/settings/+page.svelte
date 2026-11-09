@@ -310,8 +310,8 @@
           <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Manual: show new versions, update when I click</label>
           <noscript><button class="btn">Save</button></noscript>
         </form>
-        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label="Restarts of claude and terminal">
-          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Ask before restarting claude and terminal</label>
+        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label="Restarts of llm and terminal">
+          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Ask before restarting llm and terminal</label>
           <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Restart them by themselves</label>
           <noscript><button class="btn">Save</button></noscript>
         </form>

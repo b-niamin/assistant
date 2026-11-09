@@ -70,7 +70,7 @@ supervise() {
 
 # Codex needs a terminal of its own (with stdin at EOF it stops at once, and the app showed it as
 # "restarting" forever): it runs in a detached tmux session, which this loop watches. Its output goes
-# to ~/.beni/remote/codex.log; `docker compose exec claude tmux attach -t remote-codex` shows it live.
+# to ~/.beni/remote/codex.log; `docker compose exec llm tmux attach -t remote-codex` shows it live.
 codex_remote() {
   tmux has-session -t =remote-codex 2>/dev/null ||
     tmux new-session -d -s remote-codex -x 200 -y 50 -c /workspace 'sleep 1; exec codex remote-control --no-daemon' || return 1

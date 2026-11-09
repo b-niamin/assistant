@@ -1,6 +1,6 @@
 /**
  * GET -> what the dock at the bottom of every page shows: the terminal's sign-ins, the Remote Control
- * sessions (the claude container's and any started here in the background), whether an update is
+ * sessions (the llm container's and any started here in the background), whether an update is
  * being deployed (or the updater stopped), and whether this session may open the terminal (unlocked). States only, never file contents. Any logged-in session may read it.
  *
  * POST {start: 'claude' | 'codex'} -> start that agent's Remote Control in the background of the terminal

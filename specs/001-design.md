@@ -131,7 +131,7 @@ toggle on the left and the Remote menu on the right. The Remote button's dot sum
 sessions: green when Claude and Codex both run, orange when one does, grey when none. Its menu lists each
 with its state and, when one is down, "Start in background" (a detached tmux session `remote-<agent>` in
 the terminal container, `POST /dock`), "Unlock to start" or "Sign in". The states come from `GET /dock`
-every 30 s; normally the `claude` container keeps the sessions up on its own. Expanding the dock opens
+every 30 s; normally the `llm` container keeps the sessions up on its own. Expanding the dock opens
 the app's only terminal (created on first open, kept connected while collapsed, open or closed
 remembered per browser). Locked, it asks for the app password inline (the System settings unlock).
 Pages hand it work: `runInDock` runs a command in a new tmux window ("Extend the system", the sign-ins

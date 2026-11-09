@@ -325,7 +325,7 @@ done
 # Older installs went by the folder name: pin it, so moving the folder keeps the same containers and volumes.
 sed -i '/^COMPOSE_PROJECT_NAME=$/d' .env
 grep -q '^COMPOSE_PROJECT_NAME=' .env || printf 'COMPOSE_PROJECT_NAME=%s\n' "$PROJECT" >> .env
-# The name Remote Control shows for the claude container (Claude's session list, Codex's device): this
+# The name Remote Control shows for the llm container (Claude's session list, Codex's device): this
 # host's name, instead of a random container id.
 if ! grep -q '^ASSISTANT_HOSTNAME=.' .env; then
   sed -i '/^ASSISTANT_HOSTNAME=$/d' .env
@@ -360,9 +360,9 @@ mkdir -p extensions
 
 if [ -n "$EXTENSIONS" ]; then
   phase "Installing extensions"
-  quietly "Building the tools image (a few minutes the first time)" dc build claude
+  quietly "Building the tools image (a few minutes the first time)" dc build llm
   # shellcheck disable=SC2086 # one word per extension id
-  quietly "Copying $EXTENSIONS from the extensions repo" dc run --rm --no-deps -T --entrypoint node claude scripts/ext.mjs install $EXTENSIONS
+  quietly "Copying $EXTENSIONS from the extensions repo" dc run --rm --no-deps -T --entrypoint node llm scripts/ext.mjs install $EXTENSIONS
   compose_files
 fi
 
@@ -446,7 +446,7 @@ cat <<NEXT
 $( [ "$origin" = "http://localhost:$PORT" ] && echo "  (No Tailscale found: from your computer run  ssh -L $PORT:localhost:$PORT <this-host>  and open http://localhost:$PORT/setup)")
 
   Then, in a terminal on this host (in $DIR), or the app's terminal once it is set up:
-    $DC exec -it claude claude                        # /login once, Remote Control starts by itself
+    $DC exec -it llm claude                           # /login once, Remote Control starts by itself
 $( [ -f extensions/health/compose.yml ] && echo "    $DC exec -it garmin-sync python -m sync login     # health: connect Garmin (password never stored)")
 
   Later:  ./beni.sh status | doctor | logs | ext available | update   (./beni.sh help)
@@ -490,7 +490,7 @@ step "Claude"
 printf '  Claude Code opens here: type /login, open the link it shows, sign in, then type /exit.\n' > /dev/tty
 printf '  After that Remote Control runs by itself (claude.ai > Code).\n' > /dev/tty
 if yes_no "Log in to Claude now?"; then
-  dc exec -it claude claude < /dev/tty > /dev/tty 2>&1 || printf '  Later: %s exec -it claude claude\n' "$DC" > /dev/tty
+  dc exec -it llm claude < /dev/tty > /dev/tty 2>&1 || printf '  Later: %s exec -it llm claude\n' "$DC" > /dev/tty
 fi
 
 if [ -f extensions/health/compose.yml ]; then

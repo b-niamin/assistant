@@ -65,7 +65,7 @@ const mentions = (p, needle) => {
 
 /**
  * Remote Control state of an agent in the `claude` container, from the file its entrypoint keeps in the
- * shared home (docker/claude/entrypoint.sh): starting, running, restarting, signed-out, or off when the file is
+ * shared home (docker/llm/entrypoint.sh): starting, running, restarting, signed-out, or off when the file is
  * missing or its heartbeat (every 30 s) stopped.
  */
 const REMOTE_STATES = new Set(['starting', 'running', 'restarting', 'signed-out']);

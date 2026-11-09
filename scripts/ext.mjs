@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ext: manage the assistant's extensions (spec 002). Run from the repo root, e.g. in the claude container.
+ * ext: manage the assistant's extensions (spec 002). Run from the repo root, e.g. in the llm container.
  * Installed extensions live in extensions/<id>/ (git-ignored in the core repo). Ready-made ones come from
  * the extensions repo (EXTENSIONS_REPO); new ones Claude builds, taking any source only as inspiration
  * (the add-extension skill). Nothing is fetched at runtime, only by these commands.

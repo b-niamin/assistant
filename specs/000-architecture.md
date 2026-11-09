@@ -43,7 +43,7 @@ extensions/                   installed extensions (git-ignored; `node scripts/e
 db/migrations/                numbered SQL, additive only
 db/roles.sql                  least-privilege roles, re-applied on every migrate
 db/extension-role.sql         per-extension roles
-docker/claude/, docker/browser/   images
+docker/llm/, docker/browser/   images
 services/terminal/            in-app terminal sidecar
 scripts/                      ext CLI, MCP server for Claude, auto-update, hooks
 AGENTS.md                     rules for AI agents in this repo (CLAUDE.md points to it)
@@ -74,7 +74,7 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
 - Image: Node 22 + Claude Code + git + psql + python3, non-root user (`HOST_UID`).
 - Volumes: the repo checkout (the same files `web` runs), `claude-home` (login state), `/logs`
   read-only. `.env` is shadowed by an empty file.
-- Log in once: `docker compose exec -it claude claude`, then `/login`. The entrypoint then keeps
+- Log in once: `docker compose exec -it llm claude`, then `/login`. The entrypoint then keeps
   `claude remote-control` running in `/workspace`, restarting it with backoff.
 - Data chat: `psql "$CLAUDE_RO_DATABASE_URL"`. `claude_ro` has `SELECT` on core and extension schemas,
   `default_transaction_read_only = on`, a 30 s statement timeout, and no access to `secrets` or to an

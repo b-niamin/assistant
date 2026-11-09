@@ -65,7 +65,7 @@ free one (`assistant-2`) and says so.
 Two steps stay in a terminal because they log in to outside accounts:
 
 ```sh
-docker compose exec -it claude claude                      # /login once; Remote Control then runs by itself
+docker compose exec -it llm claude                      # /login once; Remote Control then runs by itself
 docker compose exec -it garmin-sync python -m sync login   # only with the health extension (password never stored)
 ```
 
@@ -86,7 +86,7 @@ extension that brings a background service.
    Update in System settings if you chose manual updates.
 5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and
    your profile.
-6. **Claude**: `cd /volume1/docker/assistant && docker compose exec -it claude claude`, then `/login`
+6. **Claude**: `cd /volume1/docker/assistant && docker compose exec -it llm claude`, then `/login`
    and `/exit`. Remote Control keeps running from then on (or log in from the terminal in the bar at the bottom of the app; Codex too, which then starts its own Remote Control).
 7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
    `docker compose exec garmin-sync python -m sync backfill`.
@@ -138,9 +138,9 @@ Its tool output goes to `install.log`; only the tail is shown when a step fails.
 ## Extensions
 
 ```sh
-docker compose exec claude node scripts/ext.mjs available       # what the extensions repo offers
-docker compose exec claude node scripts/ext.mjs install <id>    # then ./install.sh if it has a service
-docker compose exec claude node scripts/ext.mjs update <id>
+docker compose exec llm node scripts/ext.mjs available       # what the extensions repo offers
+docker compose exec llm node scripts/ext.mjs install <id>    # then ./install.sh if it has a service
+docker compose exec llm node scripts/ext.mjs update <id>
 ```
 
 Or just ask Claude: "add the gym tracker", "build me a habit tracker inspired by <link>".

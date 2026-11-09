@@ -10,7 +10,7 @@ export const ticketFor = (aud: Sidecar, sid: string): string =>
 
 export const sidecarsConfigured = (): boolean => (env.SIDECAR_TICKET_SECRET ?? '').length >= 32;
 
-/** Remote Control of an agent in the `claude` container (docker/claude/entrypoint.sh). */
+/** Remote Control of an agent in the `llm` container (docker/llm/entrypoint.sh). */
 export type RemoteState = 'starting' | 'running' | 'restarting' | 'signed-out' | 'off';
 const REMOTE_STATES: RemoteState[] = ['starting', 'running', 'restarting', 'signed-out', 'off'];
 const remoteOf = (v: unknown): RemoteState => (REMOTE_STATES.includes(v as RemoteState) ? (v as RemoteState) : 'off');

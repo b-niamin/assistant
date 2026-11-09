@@ -5,7 +5,7 @@ Rules for AI agents (Claude Code, Codex, ...) and humans working in this repo. R
 ## What this is
 
 A private, self-hosted assistant, built from modules. It runs 24/7 under Docker Compose on one
-machine. You usually run INSIDE that stack (the `claude` container), reached through Remote Control:
+machine. You usually run INSIDE that stack (the `llm` container), reached through Remote Control:
 the checkout you edit at `/workspace` is the code that is running.
 
 Architecture: [specs/000-architecture.md](specs/000-architecture.md). The app is a **shell with installable

@@ -1,12 +1,12 @@
-# Claude container
+# llm container (the AI agents)
 
 Claude Code (and Codex, once signed in) running inside the stack, reachable through Remote Control.
 
 ## First start
 
 ```sh
-docker compose up -d --build claude
-docker compose exec -it claude claude     # then type /login and follow the link
+docker compose up -d --build llm
+docker compose exec -it llm claude     # then type /login and follow the link
 ```
 
 Exit the interactive session after logging in (`/exit`). The entrypoint notices the stored login and
@@ -21,9 +21,9 @@ one's state: it reads `~/.beni/remote/<agent>.json`, which the entrypoint keeps 
 
 Both show up under the host's name (`ASSISTANT_HOSTNAME` in `.env`, which `install.sh` sets from the host),
 not under a random container id. Codex runs in a detached tmux session (it stops without a terminal):
-its output is in `~/.beni/remote/codex.log`, live with `docker compose exec claude tmux attach -t remote-codex`.
+its output is in `~/.beni/remote/codex.log`, live with `docker compose exec llm tmux attach -t remote-codex`.
 
-Logs: `docker compose logs -f claude`.
+Logs: `docker compose logs -f llm`.
 
 ## What it can and cannot do
 
@@ -42,7 +42,7 @@ Give the container its own key, kept in the `claude-home` volume, and add it to 
 with write access (GitHub: repo Settings -> Deploy keys). It can then push this repo and nothing else.
 
 ```sh
-docker compose exec claude sh -c 'mkdir -p ~/.ssh && ssh-keygen -t ed25519 -N "" -C claude-assistant -f ~/.ssh/id_ed25519 && ssh-keyscan github.com >> ~/.ssh/known_hosts && cat ~/.ssh/id_ed25519.pub'
+docker compose exec llm sh -c 'mkdir -p ~/.ssh && ssh-keygen -t ed25519 -N "" -C claude-assistant -f ~/.ssh/id_ed25519 && ssh-keyscan github.com >> ~/.ssh/known_hosts && cat ~/.ssh/id_ed25519.pub'
 ```
 
 The checkout's `origin` must be the SSH URL (`git@github.com:<you>/assistant.git`, your fork).
@@ -52,4 +52,4 @@ The checkout's `origin` must be the SSH URL (`git@github.com:<you>/assistant.git
 
 The checkout is bind-mounted, so the container user must be able to write it. If the host owner is
 not uid 1000 (on Synology it is usually 1026), set `HOST_UID` in `.env` to the output of `id -u` and
-rebuild: `docker compose build claude`.
+rebuild: `docker compose build llm`.

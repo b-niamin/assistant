@@ -19,7 +19,7 @@ Claude Code ──stdio──> scripts/assistant-mcp.mjs ──HTTP, Bearer CLAU
 
 - **`/api/claude`** (web): `GET` lists the extensions a profile sees with their tools; `POST
   {extension, tool, arguments, profile}` runs one. Only a bearer token opens it (`CLAUDE_TOOLS_TOKEN`,
-  32+ characters, in the web, claude and terminal containers); browser sessions cannot.
+  32+ characters, in the web, llm and terminal containers); browser sessions cannot.
 - **`scripts/assistant-mcp.mjs`**: a dependency-free MCP server (stdio). Tool names are
   `<extension>__<tool>`; every tool takes an optional `profile` (default: the main profile). The list is
   read on each `tools/list`, so a new extension appears without a restart. Registered in `.mcp.json`.

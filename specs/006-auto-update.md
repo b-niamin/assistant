@@ -65,8 +65,8 @@ GitHub main ──git fetch (checkout owner's credentials)──► <checkout>-u
  6. verify        the touched services run (no crash loop, no failed exit) 15 s later
 ```
 
-**claude and terminal wait for a confirmed restart** (System settings → Updates: "Ask before restarting
-claude and terminal", the default; or "Restart them by themselves", `restarts=auto`). Recreating or
+**llm and terminal wait for a confirmed restart** (System settings → Updates: "Ask before restarting
+llm and terminal", the default; or "Restart them by themselves", `restarts=auto`). Recreating or
 restarting them ends the Claude and Codex sessions and the terminal running there. With "ask", an update
 builds their images and does everything else, then leaves their `up`/`restart` in `<home>/state`
 (`pending`); the status carries `pendingRestart`, the panel and the dock say "Restart needed", and
@@ -81,7 +81,7 @@ and nothing is built. Every step runs under a time limit (90 minutes for a build
 | Changed path | Action |
 |---|---|
 | `docker-compose.yml` | build every image, `up -d` the whole project |
-| `docker/claude/**` | rebuild and recreate `claude` and `terminal` (ends the running Claude session) |
+| `docker/llm/**` | rebuild and recreate `llm` and `terminal` (ends the running Claude session) |
 | `docker/browser/**` | rebuild and recreate `browser` |
 | `apps/web/scripts/live-reload.mjs` | restart `web` |
 | `services/terminal/**` (not tests) | restart `terminal` |
@@ -122,7 +122,7 @@ there when a new long-lived service or build context appears.
   The schedule runs `update.sh` without arguments: it finds its checkout in `<home>/checkout`, else by the
   home's name (`<checkout>-updater`), and writes the file on every run.
 
-- **Permissions**: web, claude and terminal run as `HOST_UID` and must be able to write the checkout.
+- **Permissions**: web, llm and terminal run as `HOST_UID` and must be able to write the checkout.
   `install`, every deploy and `install.sh` (as root) run `fix-permissions`: files not owned by
   `HOST_UID` are handed back (a `git pull` or `npm ci` once run as root), Synology ACLs are removed
   (DSM puts them on everything in a shared folder; they show as `r-xr-xr-x+` and deny writes whatever the

@@ -77,7 +77,7 @@ services:
   # Web UI + API. Live-reload builds into build-next/ and swaps it in only after a successful build.
   # Bound to 127.0.0.1: reach it through Tailscale (`tailscale serve --bg 3000` on the host), not the LAN.
   web:
-    # Same base (glibc) as the claude image and the same uid as the checkout owner, so both containers
+    # Same base (glibc) as the llm image and the same uid as the checkout owner, so both containers
     # can share apps/web/node_modules and .svelte-kit/ without permission clashes.
     image: node:26-trixie-slim
     user: '${HOST_UID:-1000}'
@@ -120,13 +120,13 @@ services:
     networks: [default, sidecars]
     mem_limit: 1536m
 
-  # Claude Code (and Codex, once signed in), reachable through Remote Control. See docker/claude/README.md.
+  # The AI agents: Claude Code and Codex (once signed in), reachable through Remote Control. See docker/llm/README.md.
   # NO docker socket and NO .env: it can edit code and read data, not touch containers or secrets.
-  claude:
+  llm:
     # What Remote Control calls this machine (claude.ai/code, the Codex apps); install.sh sets the host's name.
     hostname: ${ASSISTANT_HOSTNAME:-beni-assistant}
     build:
-      context: ./docker/claude
+      context: ./docker/llm
       # Must match the owner of this checkout on the host (Synology: `id -u`, often 1026).
       args:
         UID: ${HOST_UID:-1000}
@@ -160,14 +160,14 @@ services:
     networks: [default, sidecars]
     mem_limit: 2g
 
-  # In-app terminal (spec 004): the dock at the bottom of every page. Same image and home volume as `claude`, so
+  # In-app terminal (spec 004): the dock at the bottom of every page. Same image and home volume as `llm`, so
   # `claude /login`, `codex login`, `gh auth login` typed here are what Claude Remote uses. No port, no
   # docker socket, no .env; the web app proxies to it only with a single-use ticket, which it re-checks.
   terminal:
     # Remote Control started from the app's "Start in background" runs here: named after the host too.
     hostname: ${ASSISTANT_HOSTNAME:-beni-assistant}-terminal
     build:
-      context: ./docker/claude
+      context: ./docker/llm
       args:
         UID: ${HOST_UID:-1000}
     restart: unless-stopped
@@ -222,7 +222,7 @@ services:
 
 networks:
   default:
-  # Internal: web, claude, terminal and browser only. No internet, nothing else can reach noVNC/CDP.
+  # Internal: web, llm, terminal and browser only. No internet, nothing else can reach noVNC/CDP.
   sidecars:
     internal: true
   # The browser's own way out to the internet, shared with no other service.
@@ -231,6 +231,7 @@ networks:
 volumes:
   browser-profile:
   db-data:
+  # The agents' home (logins of Claude, Codex, gh): still named claude-home, so the rename to llm kept them.
   claude-home:
   logs:
   backups:

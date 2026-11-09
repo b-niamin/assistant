@@ -1,5 +1,5 @@
 #!/bin/sh
-# Blocks a commit that breaks the fast checks. Installed by docker/claude/entrypoint.sh
+# Blocks a commit that breaks the fast checks. Installed by docker/llm/entrypoint.sh
 # (git config core.hooksPath scripts/hooks); humans can run the same: git config core.hooksPath scripts/hooks
 set -e
 root=$(git rev-parse --show-toplevel)

@@ -28,7 +28,7 @@ browser inside the app) are isolated.
 |---|---|---|
 | App password | `APP_PASSWORD_HASH` (scrypt) in `.env` | web |
 | Extension secrets | `secrets.extension_secrets`, AES-256-GCM, key `SECRETS_KEY` from `.env` | web only; an extension reads only the names it declares; never sent back to the browser, only a hint |
-| Claude tools token | `CLAUDE_TOOLS_TOKEN` in `.env` (spec 005) | web, claude, terminal |
+| Claude tools token | `CLAUDE_TOOLS_TOKEN` in `.env` (spec 005) | web, llm, terminal |
 | Extension service logins (e.g. Garmin) | `<id>.secret_*` tables, Fernet (`TOKEN_ENCRYPTION_KEY`) | that extension's service (`ext_<id>_svc`) |
 | Claude Code / Codex / gh logins | files in the `claude-home` volume | `claude` and `terminal` containers |
 | Browser sessions (cookies) | `browser-profile` volume | `browser` container; usable over CDP by `claude` |
@@ -72,7 +72,7 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
   after 8 h. The terminal lives only in the dock at the bottom of every page; `GET /dock` (any logged-in
   session) returns sign-in booleans and Remote Control states, never file contents, plus whether the
   session is unlocked. Opening a shell still needs the unlock and a ticket.
-- **Remote Control**: the `claude` container's entrypoint keeps `claude remote-control` and, once Codex
+- **Remote Control**: the `llm` container's entrypoint keeps `claude remote-control` and, once Codex
   is signed in, `codex remote-control --no-daemon` running in `/workspace`, restarting them with backoff.
   Each writes its state to `~/.beni/remote/<agent>.json` (heartbeat every 30 s); the terminal's `/status`
   reports it, and a stale file reads as off. The Remote menu can also start one in the background of the
@@ -81,12 +81,12 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
 - **Browser**: Chromium with a persistent profile on a virtual display. x11vnc listens on loopback
   only (no VNC password); websockify (noVNC) accepts only handshakes with `Origin: $PUBLIC_ORIGIN`, which
   the web proxy sends and a page inside this browser cannot; websockify and a CDP bridge listen on the internal `sidecars` network, which only web,
-  claude, terminal and browser join. The browser reaches the internet through its own `browser-egress`
+  llm, terminal and browser join. The browser reaches the internet through its own `browser-egress`
   network, so a page cannot reach Postgres or extension services. Chromium runs with `--no-sandbox` (Docker
   blocks the user namespaces its sandbox needs); the container is the sandbox: non-root, no secrets
   except its own profile, no host mounts.
 - **Claude drives the browser** through the `browser` MCP server (`.mcp.json`, `@playwright/mcp`
-  over CDP at `localhost:9222`, forwarded by socat in the claude container). Enable it once in Claude
+  over CDP at `localhost:9222`, forwarded by socat in the llm container). Enable it once in Claude
   Code when asked (project MCP servers need approval).
 
 ### Risks we accept, and what limits them

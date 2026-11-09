@@ -25,7 +25,7 @@ export interface UpdaterStatus {
   attempt: number;
   /** The app's last request the updater took ('' when none, or an older updater). */
   request: string;
-  /** Services that still run the previous version until a confirmed restart ("claude terminal"), '' when none. */
+  /** Services that still run the previous version until a confirmed restart ("llm terminal"), '' when none. */
   pendingRestart: string;
   /** The app's last "Restart now" the updater took. */
   restartRequest: string;
@@ -122,7 +122,7 @@ export interface UpdaterControl {
   request: string;
   /** When "Cancel" was last clicked during an update (ISO), '' if never. */
   cancel?: string;
-  /** Restarts of claude and terminal (they end the sessions in them): asked for first (default) or automatic. */
+  /** Restarts of llm and terminal (they end the sessions in them): asked for first (default) or automatic. */
   restarts?: 'ask' | 'auto';
   /** When "Restart now" was last clicked (ISO), '' if never. */
   restart?: string;

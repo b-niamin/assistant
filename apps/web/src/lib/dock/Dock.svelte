@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * The dock: a thin bar at the bottom of every page. Collapsed, it shows whether the Remote Control
-   * sessions of the `claude` container (Claude Code, Codex) are up. Expanded, it holds the app's only
+   * sessions of the `llm` container (Claude Code, Codex) are up. Expanded, it holds the app's only
    * terminal (spec 004): a shell in the terminal container, kept in tmux, for signing in and for running
    * Claude or Codex by hand (sign-ins are in System settings). The terminal is created on first open and stays connected while collapsed.
    * The Remote menu sums the sessions up in one dot (all up: green, some: orange, none: grey) and can
@@ -49,7 +49,7 @@
   ] as const;
   const LABEL: Record<Remote, string> = { starting: 'Starting', running: 'Running', restarting: 'Restarting', 'signed-out': 'Not signed in', off: 'Not running' };
 
-  // Up = the claude container's session runs, or one started here in the background.
+  // Up = the llm container's session runs, or one started here in the background.
   const agents = $derived(
     REMOTES.map((r) => {
       const state: Remote = status?.reachable ? status.remote[r.id] : 'off';
@@ -232,7 +232,7 @@
                 <span class="what">
                   <strong>{a.name}</strong>
                   <span class="meta">
-                    {#if a.state === 'running'}Running in the claude container · open it from {a.where}
+                    {#if a.state === 'running'}Running in the llm container · open it from {a.where}
                     {:else if a.background}Running in the background (terminal) · open it from {a.where}
                     {:else if !a.signedIn}Not signed in
                     {:else}{LABEL[a.state]}{/if}
@@ -258,7 +258,7 @@
             <p class="bad">The terminal container is not answering.</p>
           {/if}
           {#if startError}<p class="bad" role="alert">{startError}</p>{/if}
-          <p class="meta foot">The claude container starts these on its own once you are signed in. A background one runs in the terminal container until it restarts.</p>
+          <p class="meta foot">The llm container starts these on its own once you are signed in. A background one runs in the terminal container until it restarts.</p>
         </div>
       {/if}
     </div>

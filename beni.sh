@@ -286,7 +286,7 @@ doctor() {
       *) w "auto-update $st" ;;
     esac
     # Each tick leaves a timestamp; none for 15 minutes means the schedule does not run it.
-    mp=$(docker volume inspect -f '{{.Mountpoint}}' "$(envv COMPOSE_PROJECT_NAME || true)_logs" 2>/dev/null || true)
+    mp=$(docker volume inspect -f '{{.Mountpoint}}' "$(project)_logs" 2>/dev/null || true)
     if [ -n "$mp" ] && [ -f "$mp/updater-heartbeat" ] && [ -n "$(find "$mp/updater-heartbeat" -mmin -15 2>/dev/null)" ]; then
       ok "auto-update ran in the last 15 minutes"
     elif [ -n "$mp" ]; then
@@ -343,6 +343,29 @@ doctor_end() {
   if [ "$warns" -gt 0 ]; then warn "no problems, $warns warning(s)"; else ok "all good"; fi
 }
 
+# deploy_changes <actions from auto-update.sh plan>: the same rebuilds and restarts as auto-update.
+deploy_changes() {
+  acts=$1
+  [ -n "$acts" ] || { ok "no container needs a rebuild or restart"; return 0; }
+  if printf '%s\n' "$acts" | grep -qx all; then
+    say "docker-compose.yml changed: building and starting everything (minutes on a NAS)"
+    dc up -d --build || die "docker compose up --build failed"
+    return 0
+  fi
+  builds=$(printf '%s\n' "$acts" | sed -n 's/^build://p' | tr '\n' ' ')
+  if [ -n "$builds" ]; then
+    say "rebuilding:$(printf ' %s' $builds) (minutes on a NAS)"
+    # shellcheck disable=SC2086
+    dc up -d --build --no-deps $builds || die "rebuild failed: $builds"
+  fi
+  if printf '%s\n' "$acts" | grep -qx migrate; then dc up --no-deps migrate >/dev/null || die "migrate failed"; fi
+  for s in $(printf '%s\n' "$acts" | sed -n 's/^restart://p'); do
+    case " $builds " in *" $s "*) continue ;; esac
+    dc restart "$s" >/dev/null && ok "restarted $s"
+  done
+  ok "containers up to date"
+}
+
 cmd=${1:-help}
 [ $# -gt 0 ] && shift
 case $cmd in
@@ -350,9 +373,16 @@ case $cmd in
   update)
     # Root: first repair what an earlier `sudo git ...` left root-owned, then pull as the owner.
     [ "$(id -u)" != 0 ] || sh scripts/auto-update.sh fix-permissions "$DIR" >/dev/null || true
+    before=$(as_owner git rev-parse HEAD)
     as_owner git pull --ff-only ||
       die "git pull failed (local changes? run: git status; permissions? sudo ./beni.sh doctor)"
-    exec sh ./install.sh ;;
+    sh ./install.sh || exit 1
+    after=$(as_owner git rev-parse HEAD)
+    # A running stack gets what auto-update would do for this change: rebuild or restart only the
+    # services whose files changed (whatever the start mode: install.sh itself never touches containers).
+    if [ "$before" != "$after" ] && [ -n "$(dc ps -a -q 2>/dev/null)" ]; then
+      deploy_changes "$(as_owner git diff --name-only "$before" "$after" | sh scripts/auto-update.sh plan)"
+    fi ;;
   start) dc up -d "$@" && ok "started" ;;
   stop) dc stop "$@" && ok "stopped (data kept)" ;;
   restart) dc restart "$@" && ok "restarted" ;;

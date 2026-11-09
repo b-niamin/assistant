@@ -397,6 +397,16 @@ cmd_install() {
     chown -R "$OWNER_UID:$OWNER_GID" "$MIRROR" && chmod -R u+rwX "$MIRROR" && say "mirror given to uid $OWNER_UID"
   fi
 
+  # A mirror of another repo (an earlier install in this folder, before the repo moved): the updater
+  # would keep watching that one. Clone the right one; the old deployed commit is then unknown to it,
+  # so the first tick rebuilds and restarts everything (the containers may run that repo's images).
+  repo_changed=0
+  if [ -d "$MIRROR" ] && [ "$(git --git-dir="$MIRROR" config remote.origin.url 2>/dev/null)" != "$url" ]; then
+    say "the mirror tracks $(git --git-dir="$MIRROR" config remote.origin.url 2>/dev/null | sed 's#//[^@/]*@#//***@#'): replacing it"
+    rm -rf "$MIRROR"
+    repo_changed=1
+  fi
+
   if [ ! -d "$MIRROR" ]; then
     # Clone as the checkout owner (their git credentials), else as root.
     mkdir "$MIRROR"
@@ -419,6 +429,11 @@ cmd_install() {
     state_save
     SHA=$head
     write_status ok "installed; watching $BRANCH" ""
+  elif [ "$repo_changed" = 1 ]; then
+    DEPLOYED=$(state_get deployed) DEPLOYED_AT=$(state_get deployed_at) FAILED="" NOTE=""
+    state_save
+    SHA=""
+    write_status ok "installed for $(printf '%s' "$url" | sed 's#//[^@/]*@#//***@#'); the next update rebuilds everything" ""
   fi
 
   cmd="sh $HOME_DIR/auto-update.sh run $DIR"

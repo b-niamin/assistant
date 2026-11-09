@@ -195,8 +195,9 @@ fi
 # "health, gym" and "health gym" both work.
 EXTENSIONS=$(printf '%s' "$EXTENSIONS" | tr ',' ' ')
 
-# Progress: one numbered line per phase.
-PHASES=6
+# Progress: one numbered line per phase ("Installing extensions" only when there are some).
+PHASES=5
+[ -z "$EXTENSIONS" ] || PHASES=6
 n_phase=0
 phase() { n_phase=$((n_phase + 1)); printf '\n\033[1;38;5;208m%s/%s\033[0m \033[1m%s\033[0m\n' "$n_phase" "$PHASES" "$*"; }
 
@@ -416,7 +417,9 @@ phase "Done"
 grep -q '^INSTALLED_AT=' .env || printf 'INSTALLED_AT=%s\n' "$(date -u +%Y-%m-%dT%H:%MZ)" >> .env
 sed -i '/^START_MODE=/d' .env && printf 'START_MODE=%s\n' "$START" >> .env
 token=$(sed -n 's/^SETUP_TOKEN=//p' .env)
-if [ "$START" = manual ]; then
+if [ "$START" = manual ] && [ -n "$(dc ps -q 2>/dev/null)" ]; then
+  say "The stack is running. ./beni.sh update rebuilds or restarts what a pulled change touches."
+elif [ "$START" = manual ]; then
   cat <<MANUAL
 
   Not started yet. Start it with one of:

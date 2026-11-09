@@ -169,6 +169,16 @@ minutes, one `git fetch`.
 
 ## In the app
 
+When System settings opens, the web app asks GitHub for the commit of main (git's public ref advertisement,
+`github.com/<repo>.git/info/refs`, cached 30 s; the repo comes from the updater's status). A commit newer
+than the running one shows "Update available" with **Update** at once, whatever the updater's last check
+said; up to date shows no button. Update leaves a request that the every-minute run takes, fetching first.
+
+Services that main's compose file no longer has (renamed, merged, dropped), and that no extension's compose
+file (COMPOSE_FILE) has either, lose their containers at the next update: by label, never with
+`--remove-orphans`, which would take the extensions' services too. With restarts asked first, that removal
+waits for "Restart now" together with the held services (the old `claude` goes when `llm` comes up).
+
 System settings → Updates: Automatic or Manual (`/logs/updater-control`: `mode=auto|manual`, plus
 `request=<id>` for "Update now" / "Try again" / "Resume" and `cancel=<id>` for "Cancel"; the updater reads
 them as root and never runs anything from them, and echoes the request it took in its status). While an

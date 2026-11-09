@@ -18,6 +18,8 @@
     return `${date} (${ago})`;
   }
   const short = (sha: string) => sha.slice(0, 7);
+  /** States in which a newer commit on GitHub means "Update" (not while one runs or the updater is gone). */
+  const state0 = (s: string) => s === 'ok' || s === 'available' || s === 'failed' || s === 'blocked';
   const next = $derived(page.url.searchParams.get('next') ?? '');
 
   // Sign-ins for the terminal's CLIs; the commands run in the dock's terminal at the bottom.
@@ -213,13 +215,16 @@
     {#if data.updates && data.updateView}
       {@const u = data.updates}
       {@const v = data.updateView}
-      {@const state = v.state}
+      <!-- main on GitHub, asked as the page opened: a newer commit than the running one is an update now. -->
+      {@const newer = !!data.latestSha && data.latestSha !== u.deployedSha && state0(v.state)}
+      {@const state = newer && v.state === 'ok' ? 'available' : v.state}
+      {@const target = newer ? data.latestSha! : u.sha}
       {@const cancelling = !!data.updateControl.cancel && Date.parse(data.updateControl.cancel) > Date.parse(u.startedAt || u.at)}
       {@const title = {
         stale: 'The updater is not running',
         interrupted: `Update to ${short(u.sha)} interrupted`,
         updating: `Updating to ${short(u.sha)}`,
-        available: `Update available: ${short(u.sha)}`,
+        available: `Update available: ${short(target)}`,
         ok: 'Up to date',
         failed: 'Last update failed',
         blocked: 'Updates paused'
@@ -239,10 +244,11 @@
                 {cancelling ? 'Cancelling…' : 'Cancel'}
               </button>
             </form>
-          {:else if state !== 'stale'}
+          {:else if state !== 'stale' && (state !== 'ok' || !data.latestSha || v.pending)}
+            <!-- Up to date with GitHub as of now: nothing to click. Unknown (GitHub did not answer): Update asks the updater. -->
             <form method="POST" action="?/updateNow" use:enhance class="now">
               <button class="btn" class:btn-primary={state === 'available' || state === 'failed'} disabled={v.pending}>
-                {v.pending ? 'Requested…' : state === 'failed' ? 'Try again' : state === 'ok' ? 'Check now' : 'Update now'}
+                {v.pending ? 'Requested…' : state === 'failed' ? 'Try again' : 'Update'}
               </button>
             </form>
           {/if}
@@ -302,6 +308,7 @@
         <dl class="facts">
           {#if u.deployedSha}<dt>Running</dt><dd><code>{short(u.deployedSha)}</code>{u.deployedAt ? `, deployed ${when(u.deployedAt)}` : ''}</dd>{/if}
           <dt>Last change</dt><dd>{u.message}{u.at ? ` · ${when(u.at)}` : ''}</dd>
+          <dt>GitHub {u.branch}</dt><dd>{#if data.latestSha}<code>{short(data.latestSha)}</code>, checked as this page opened{:else}not reachable from the app{/if}</dd>
           <dt>Last check</dt><dd>{u.checkedAt ? when(u.checkedAt) : 'not reported'}</dd>
           {#if u.actions && state !== 'updating'}<dt>Last actions</dt><dd><code>{u.actions}</code></dd>{/if}
         </dl>

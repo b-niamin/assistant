@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, it } from 'vitest';
-import { isStale, parseControl, parseUpdaterStatus, setUpdaterControl, updateView, updaterControl, updaterStatus } from './updater';
+import { githubRepo, isStale, parseControl, parseUpdaterStatus, refFromAdvertisement, setUpdaterControl, updateView, updaterControl, updaterStatus } from './updater';
 
 const sample = {
   status: 'ok',
@@ -16,7 +16,7 @@ const sample = {
 };
 
 it('reads what update.sh writes', () => {
-  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '', step: 0, steps: 0, startedAt: '', attempt: 0, request: '', pendingRestart: '', restartRequest: '' });
+  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '', step: 0, steps: 0, startedAt: '', attempt: 0, request: '', pendingRestart: '', restartRequest: '', repo: '' });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, attempt: 2, request: 'r1', pid: 5 }))).toMatchObject({ attempt: 2, request: 'r1' });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, status: 'updating', step: 2, steps: 5, startedAt: 'x' }))).toMatchObject({ step: 2, steps: 5 });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, step: -1, steps: '9' }))).toMatchObject({ step: 0, steps: 0 });
@@ -86,4 +86,17 @@ it('tells a restart asked for and not taken yet', () => {
   expect(updateView(s, c, Date.parse('2026-11-06T20:01:30Z'))).toMatchObject({ restartPending: true, unanswered: false });
   expect(updateView(s, c, Date.parse('2026-11-06T20:05:00Z'))).toMatchObject({ restartPending: true, unanswered: true });
   expect(updateView({ ...s, restartRequest: c.restart }, c, Date.parse('2026-11-06T20:05:00Z')).restartPending).toBe(false);
+});
+
+it('reads the repo, and the commit of main from what GitHub advertises', () => {
+  expect(githubRepo('https://github.com/b-niamin/assistant.git')).toBe('b-niamin/assistant');
+  expect(githubRepo('git@github.com:b-niamin/assistant.git')).toBe('b-niamin/assistant');
+  expect(githubRepo('ssh://git@github.com/b-niamin/assistant')).toBe('b-niamin/assistant');
+  expect(githubRepo('https://evil.example/b-niamin/assistant.git')).toBeNull();
+  expect(githubRepo('/volume1/src.git')).toBeNull();
+  const a = 'a'.repeat(40), b = 'b'.repeat(40);
+  const body = `001e# service=git-upload-pack\n0000015a${a} HEAD\0multi_ack side-band-64k symref=HEAD:refs/heads/main\n003f${b} refs/heads/mainline\n003f${a} refs/heads/main\n0000`;
+  expect(refFromAdvertisement(body, 'main')).toBe(a);
+  expect(refFromAdvertisement(body, 'mainline')).toBe(b);
+  expect(refFromAdvertisement(body, 'dev')).toBeNull();
 });

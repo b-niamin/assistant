@@ -6,7 +6,7 @@
 #                                     update when automatic updates are on or the app asked for one, and
 #                                     finish an update that was interrupted
 #   sh <home>/update.sh --now         update now, also without a terminal (and retry a failed update)
-#   sh <home>/update.sh --restart     the same, and restart claude/terminal if they wait for it (see HELD)
+#   sh <home>/update.sh --restart     the same, and restart llm/terminal if they wait for it (see HELD)
 #   sh <home>/update.sh status        what it does or did (--json: the raw status)
 #   sh <home>/update.sh cancel        stop a running update; the containers that ran before keep running
 #   sh scripts/update.sh install      once: <home> with a mirror of GitHub and this script, and the schedule
@@ -40,7 +40,7 @@ STEP_TIMEOUT=${ASSISTANT_STEP_TIMEOUT:-900}       # any other step
 MAX_ATTEMPTS=3                                    # an interrupted or failed update is tried this often
 # Recreating or restarting these ends what runs in them (Claude and Codex sessions, the terminal): with
 # restarts=ask (the default, System settings -> Updates) the update leaves them to a confirmed restart.
-HELD=${ASSISTANT_HELD_SERVICES:-claude terminal}
+HELD=${ASSISTANT_HELD_SERVICES:-llm terminal}
 
 say() { printf '[update] %s\n' "$*"; }
 # An error also lands in <home>/last-error and the app's updater.log: a scheduled task's output is
@@ -67,7 +67,7 @@ plan() {
   while IFS= read -r p; do
     case $p in
       docker-compose.yml) echo all ;;
-      docker/claude/*) echo build:claude; echo build:terminal ;;
+      docker/llm/*) echo build:llm; echo build:terminal ;;
       docker/browser/*) echo build:browser ;;
       apps/web/scripts/live-reload.mjs) echo restart:web ;;
       services/terminal/*.test.mjs) ;;
@@ -148,11 +148,17 @@ buildable() {
     awk '!seen[$0]++'
 }
 
+# The image of the agents' container (it has git and sh): the throwaway containers run it. The service was
+# called claude before llm (an install updating across the rename still has that one); terminal is built
+# from the same Dockerfile.
 claude_image() {
-  c=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" --filter label=com.docker.compose.service=claude | head -n 1)
   img=""
-  [ -n "$c" ] && img=$(docker inspect -f '{{.Config.Image}}' "$c" 2>/dev/null)
-  echo "${img:-$PROJECT-claude}"
+  for v in llm claude terminal; do
+    c=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$v" | head -n 1)
+    [ -z "$c" ] || img=$(docker inspect -f '{{.Config.Image}}' "$c" 2>/dev/null)
+    [ -z "$img" ] || break
+  done
+  echo "${img:-$PROJECT-llm}"
 }
 
 # --- output for the app ----------------------------------------------------------------------------
@@ -199,7 +205,9 @@ write_status() {
     printf '"sha":%s,"deployedSha":%s,"deployedAt":%s,' "$(json_str "$SHA")" "$(json_str "$DEPLOYED")" "$(json_str "$DEPLOYED_AT")"
     printf '"at":%s,"step":%s,"steps":%s,"startedAt":%s,' "$(json_str "$(iso)")" "$STEP_NO" "$STEP_TOTAL" "$(json_str "$STARTED_AT")"
     printf '"attempt":%s,"request":%s,"pid":%s,"branch":%s,' "$ATTEMPT" "$(json_str "${HANDLED:-}")" "$$" "$(json_str "$BRANCH")"
-    printf '"pendingRestart":%s,"restartRequest":%s}\n' "$(json_str "$(pending_services)")" "$(json_str "${S_restarted:-}")"
+    printf '"pendingRestart":%s,"restartRequest":%s,' "$(json_str "$(pending_services)")" "$(json_str "${S_restarted:-}")"
+    # The repo (without credentials): the app asks GitHub for main's commit when the page opens.
+    printf '"repo":%s}\n' "$(json_str "$(sed -n 's/^[[:space:]]*url = //p' "$MIRROR/config" 2>/dev/null | head -n 1 | sed 's#//[^@/]*@#//#')")"
   } > "$HOME_DIR/status.json.tmp" && mv "$HOME_DIR/status.json.tmp" "$HOME_DIR/status.json"
   logs_put updater-status.json < "$HOME_DIR/status.json"
 }
@@ -346,6 +354,7 @@ step_name() {
     migrate) echo "migrating the database roles" ;;
     restart:*) echo "restarting ${1#restart:}" ;;
     verify) echo "checking the services" ;;
+    remove:*) echo "removing ${1#remove:} (gone from docker-compose.yml)" ;;
     *) echo "$1" ;;
   esac
 }
@@ -461,12 +470,32 @@ steps_for() {
   if [ "$all" = 1 ]; then STEPS="$STEPS up:all"
   elif [ -n "$builds" ]; then STEPS="$STEPS up:$(echo $builds | tr ' ' ,)"; fi
   [ "$migrate" = 0 ] || STEPS="$STEPS migrate"
+  # Containers of a service that neither main's compose file nor an extension's has (renamed, merged,
+  # dropped) go, by label. Never `--remove-orphans`: the updater's compose command has main's file only,
+  # so that would remove the extensions' services too.
+  for v in $(orphan_services); do STEPS="$STEPS remove:$v"; done
   # `up:all` recreates what changed, not what only needs a restart for its code.
   for s in $restarts; do case " $builds " in *" $s "*) ;; *) STEPS="$STEPS restart:$s" ;; esac; done
   [ "$RESTARTS" = auto ] || [ "$RESTART_NOW" = 1 ] || hold_steps
   # Something was started or restarted: check it runs.
   case $STEPS in *" up:"* | *" restart:"* | *" migrate"*) STEPS="$STEPS verify" ;; esac
 }
+
+# The services of a compose file (stdin): the keys under `services:`.
+compose_services() { awk '/^services:/ { s = 1; next } /^[^ #]/ { s = 0 } s && /^  [A-Za-z0-9_.-]+:/ { n = $1; sub(/:.*/, "", n); print n }'; }
+# Services with containers in this project that no compose file of it defines: main's (from the mirror)
+# and the extensions' (COMPOSE_FILE in .env, read as data).
+orphan_services() {
+  has=" $(compose_services < "$SRC/docker-compose.yml" | tr '\n' ' ') "
+  for f in $(sed -n 's/^COMPOSE_FILE=//p' "$DIR/.env" 2>/dev/null | tail -n 1 | tr ':' ' '); do
+    case $f in /*) ;; *) f=$DIR/$f ;; esac
+    [ "$f" != "$DIR/docker-compose.yml" ] || continue # main's, above (the checkout's may be older)
+    has="$has$(compose_services < "$f" 2>/dev/null | tr '\n' ' ') "
+  done
+  docker ps -a --filter "label=com.docker.compose.project=$PROJECT" --format '{{.Label "com.docker.compose.service"}}' 2>/dev/null |
+    awk 'NF && !seen[$0]++' | while IFS= read -r v; do case $has in *" $v "*) ;; *) echo "$v" ;; esac; done
+}
+project_containers() { docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$1"; }
 
 # Takes the held services out of STEPS: what they would get (up:<svc> or restart:<svc>) goes to HOLD_NEW,
 # for a restart the user confirms.
@@ -484,6 +513,8 @@ hold_steps() {
         if [ "$st" = up:all ] && [ -z "$HOLD_NEW" ]; then out="$out $st"
         elif [ -n "$keep" ]; then out="$out up:$(echo $keep | tr ' ' ,)"; fi ;;
       restart:*) case " $HELD " in *" ${st#restart:} "*) HOLD_NEW="$HOLD_NEW $st" ;; *) out="$out $st" ;; esac ;;
+      # A removed service is often replaced by a held one (terminal by claude): it goes with their restart.
+      remove:*) if [ -n "$HOLD_NEW" ] || [ -n "$S_pending" ]; then HOLD_NEW="$HOLD_NEW $st"; else out="$out $st"; fi ;;
       *) out="$out $st" ;;
     esac
   done
@@ -493,12 +524,12 @@ hold_steps() {
 # apply_restarts <who>: recreates (up:) or restarts the held services that wait for it, from the deployed
 # commit's compose file (checked against the checkout like any `up`), then checks they run.
 apply_restarts() {
-  ups="" rs=""
-  for p in $S_pending; do case $p in up:*) ups="$ups ${p#up:}" ;; restart:*) rs="$rs ${p#restart:}" ;; esac; done
+  ups="" rs="" rms=""
+  for p in $S_pending; do case $p in up:*) ups="$ups ${p#up:}" ;; restart:*) rs="$rs ${p#restart:}" ;; remove:*) rms="$rms $p" ;; esac; done
   STEPS=""
   [ -z "$ups" ] || STEPS="up:$(echo $ups | tr ' ' '\n' | awk '!seen[$0]++' | tr '\n' ',' | sed 's/,$//')"
   for v in $rs; do case " $ups " in *" $v "*) ;; *) STEPS="$STEPS restart:$v" ;; esac; done
-  STEPS="$STEPS verify" TOUCHED=$(pending_services)
+  STEPS="$STEPS $rms verify" TOUCHED=$(pending_services)
   SHA=$DEPLOYED ACTIONS=$S_pending STEP_TOTAL=$(set -- $STEPS; echo $#) STEP_NO=0 STARTED_AT=$(iso) ATTEMPT=1
   BUILD_LOG=$(build_log_path)
   printf '%s restart of %s (%s)\n' "$(iso)" "$TOUCHED" "$1" > "$BUILD_LOG" 2>/dev/null || BUILD_LOG=/dev/null
@@ -557,6 +588,7 @@ run_step() {
       fi ;;
     migrate) dc up --no-build --no-deps --exit-code-from migrate migrate >> "$BUILD_LOG" 2>&1 ;;
     restart:*) dc restart "${1#restart:}" >> "$BUILD_LOG" 2>&1 ;;
+    remove:*) for c in $(project_containers "${1#remove:}"); do docker rm -f "$c" >> "$BUILD_LOG" 2>&1 || return 1; done ;;
     verify) verify_services ;;
   esac
 }

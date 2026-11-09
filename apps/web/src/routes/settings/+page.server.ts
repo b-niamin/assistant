@@ -11,7 +11,7 @@ import { passwordFromEnv, passwordHash, passwordProblem, setPassword } from '#li
 import { verifyPassword } from '#lib/server/password.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
-import { buildTail, setUpdaterControl, updateView, updaterControl, updaterStatus } from '#lib/server/updater.ts';
+import { buildTail, latestOnGithub, setUpdaterControl, updateView, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 import { deleteOtherSessions, dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
 
 const limiter = createLimiter(5, 15 * 60 * 1000);
@@ -27,6 +27,8 @@ export const load: PageServerLoad = async ({ cookies }) => {
     profiles,
     updates,
     updateView: updates ? updateView(updates, updateControl) : null,
+    // main on GitHub right now (null when it does not answer): a newer commit shows "Update" at once.
+    latestSha: updates?.repo ? await latestOnGithub(updates.repo, updates.branch) : null,
     updateControl,
     buildTail: updates?.status === 'updating' || updates?.status === 'failed' ? await buildTail() : [],
     terminal: { ...terminal, configured: sidecarsConfigured() },

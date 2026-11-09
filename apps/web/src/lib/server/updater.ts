@@ -29,6 +29,8 @@ export interface UpdaterStatus {
   pendingRestart: string;
   /** The app's last "Restart now" the updater took. */
   restartRequest: string;
+  /** The repo the updater follows (no credentials), '' from older updaters. */
+  repo: string;
 }
 
 const STATUSES = new Set(['ok', 'failed', 'blocked', 'updating', 'available']);
@@ -62,7 +64,8 @@ export function parseUpdaterStatus(raw: string): UpdaterStatus | null {
     attempt: count(j.attempt),
     request: text(j.request, 64),
     pendingRestart: text(j.pendingRestart, 200),
-    restartRequest: text(j.restartRequest, 64)
+    restartRequest: text(j.restartRequest, 64),
+    repo: text(j.repo, 300)
   };
 }
 
@@ -165,4 +168,43 @@ export async function buildTail(lines = 12, file = STATUS_FILE()): Promise<strin
   const raw = await readFile(path.join(path.dirname(file), 'updater-build.log'), 'utf8').catch(() => '');
   // eslint-disable-next-line no-control-regex
   return raw.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').split(/\r?\n|\r/).map((l) => l.trimEnd()).filter(Boolean).slice(-lines);
+}
+
+/** owner/name of a github.com repo URL (https, ssh or scp-like), null for anything else. */
+export function githubRepo(url: string): string | null {
+  const m = url.trim().match(/^(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?\/?$/);
+  return m ? m[1] : null;
+}
+
+/** The commit of refs/heads/<branch> in git's ref advertisement (info/refs?service=git-upload-pack). */
+export function refFromAdvertisement(body: string, branch: string): string | null {
+  const re = new RegExp(`([0-9a-f]{40}) refs/heads/${branch.replace(/[^A-Za-z0-9_./-]/g, '')}(?:\\0|\\n|$)`);
+  const m = body.split(/\n/).map((l) => l.replace(/^[0-9a-f]{4}/, '')).join('\n').match(re);
+  return m ? m[1] : null;
+}
+
+const latestCache = new Map<string, { at: number; sha: string | null }>();
+/**
+ * main's commit on GitHub right now, asked when System settings opens (cached 30 s), so the panel tells a
+ * newer commit at once instead of after the updater's next check. Public github.com repos only; null when
+ * GitHub does not answer (the updater's own status is shown then).
+ */
+export async function latestOnGithub(repoUrl: string, branch: string): Promise<string | null> {
+  const repo = githubRepo(repoUrl);
+  if (!repo || !branch) return null;
+  const key = `${repo}#${branch}`;
+  const hit = latestCache.get(key);
+  if (hit && Date.now() - hit.at < 30_000) return hit.sha;
+  let sha: string | null = null;
+  try {
+    const res = await fetch(`https://github.com/${repo}.git/info/refs?service=git-upload-pack`, {
+      headers: { 'user-agent': 'git/2.45 beni-assistant' },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (res.ok) sha = refFromAdvertisement(await res.text(), branch);
+  } catch {
+    sha = null;
+  }
+  latestCache.set(key, { at: Date.now(), sha });
+  return sha;
 }

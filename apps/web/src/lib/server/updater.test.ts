@@ -51,8 +51,8 @@ it('reads the heartbeat next to the status and tells a stopped updater', async (
 it('keeps the manual mode and the update request for the host', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'upd-'));
   const file = path.join(dir, 'updater-status.json');
-  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '' });
-  await setUpdaterControl({ mode: 'manual', request: '2026-11-09T15:30:00.000Z' }, file);
-  expect(await updaterControl(file)).toEqual({ mode: 'manual', request: '2026-11-09T15:30:00.000Z' });
-  expect(parseControl('mode=manual\nrequest=$(reboot)\n')).toEqual({ mode: 'manual', request: '' });
+  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '', cancel: '' });
+  await setUpdaterControl({ mode: 'manual', request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z' }, file);
+  expect(await updaterControl(file)).toEqual({ mode: 'manual', request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z' });
+  expect(parseControl('mode=manual\nrequest=$(reboot)\n')).toEqual({ mode: 'manual', request: '', cancel: '' });
 });

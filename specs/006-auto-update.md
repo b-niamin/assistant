@@ -152,3 +152,11 @@ it with `ASSISTANT_UPDATE_NOW=1`, which deploys even in manual mode and prints e
 refreshes the configuration. Same safety (mirror, throwaway container, build from main), same status and
 progress in the app. Only without an installed updater (or not as root) does it fall back to `git pull` as the
 owner plus the same plan of rebuilds and restarts.
+
+## Cancelling
+
+"Cancel" in Updates (while updating) writes `cancel=<time>` to `/logs/updater-control`; the next tick stops the
+tick that holds the lock (its pid in `lock/pid`, or older ticks by command line, with their children such as
+`docker compose build`), frees the lock and marks main's commit failed (status "update cancelled"), so it is
+not retried until main moves or "Update now". From the host: `sudo ./beni.sh update --cancel`. A lock whose
+pid is gone is taken over at once.

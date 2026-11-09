@@ -215,13 +215,20 @@
       {@const state = data.updatesStale ? 'stale' : u.status}
       <!-- Clicked after the last status: the updater has not picked it up yet. -->
       {@const pending = !!data.updateControl.request && Date.parse(data.updateControl.request) > Date.parse(u.at)}
+      {@const cancelling = !!data.updateControl.cancel && Date.parse(data.updateControl.cancel) > Date.parse(u.startedAt || u.at)}
       <div class="card updates">
         <div class="upstate">
           <span class="dot {state}" class:pulse={state === 'updating'} aria-hidden="true"></span>
           <strong>
             {state === 'stale' ? 'The updater is not running' : state === 'updating' ? `Updating to ${short(u.sha)}` : state === 'available' ? `Update available: ${short(u.sha)}` : state === 'ok' ? 'Up to date' : state === 'failed' ? 'Last update failed' : 'Updates paused'}
           </strong>
-          {#if state !== 'updating' && state !== 'stale'}
+          {#if state === 'updating'}
+            <form method="POST" action="?/updateCancel" use:enhance class="now">
+              <button class="btn" disabled={cancelling} title="Stops the build; the containers that run now keep running">
+                {cancelling ? 'Cancelling…' : 'Cancel'}
+              </button>
+            </form>
+          {:else if state !== 'stale'}
             <form method="POST" action="?/updateNow" use:enhance class="now">
               <button class="btn" class:btn-primary={state === 'available' || state === 'failed'} disabled={pending}>
                 {pending ? 'Requested…' : 'Update now'}

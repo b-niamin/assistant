@@ -80,6 +80,8 @@ export interface UpdaterControl {
   mode: 'auto' | 'manual';
   /** When "Update now" was last clicked (ISO), '' if never. */
   request: string;
+  /** When "Cancel" was last clicked during an update (ISO), '' if never. */
+  cancel?: string;
 }
 
 const controlFile = (statusFile: string) => path.join(path.dirname(statusFile), 'updater-control');
@@ -87,8 +89,8 @@ const STATUS_FILE = () => process.env.UPDATER_STATUS_FILE ?? '/logs/updater-stat
 
 export function parseControl(raw: string): UpdaterControl {
   const get = (k: string) => raw.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1]?.trim() ?? '';
-  const request = get('request');
-  return { mode: get('mode') === 'manual' ? 'manual' : 'auto', request: /^[A-Za-z0-9:._-]{1,64}$/.test(request) ? request : '' };
+  const id = (v: string) => (/^[A-Za-z0-9:._-]{1,64}$/.test(v) ? v : '');
+  return { mode: get('mode') === 'manual' ? 'manual' : 'auto', request: id(get('request')), cancel: id(get('cancel')) };
 }
 
 export async function updaterControl(file = STATUS_FILE()): Promise<UpdaterControl> {
@@ -97,7 +99,8 @@ export async function updaterControl(file = STATUS_FILE()): Promise<UpdaterContr
 
 export async function setUpdaterControl(c: UpdaterControl, file = STATUS_FILE()): Promise<void> {
   const target = controlFile(file);
-  await writeFile(`${target}.tmp`, `mode=${c.mode}\n${c.request ? `request=${c.request}\n` : ''}`, { mode: 0o644 });
+  const lines = [`mode=${c.mode}`, c.request && `request=${c.request}`, c.cancel && `cancel=${c.cancel}`].filter(Boolean);
+  await writeFile(`${target}.tmp`, `${lines.join('\n')}\n`, { mode: 0o644 });
   await rename(`${target}.tmp`, target);
 }
 

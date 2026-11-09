@@ -75,6 +75,14 @@ export const actions: Actions = {
     return { ok: 'Update requested: it starts at the updater\'s next run.' };
   },
 
+  /** "Cancel" during an update: the updater's next tick stops the running one (old containers stay). */
+  updateCancel: async ({ cookies }) => {
+    if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
+    await setUpdaterControl({ ...(await updaterControl()), cancel: new Date().toISOString() });
+    console.log(`[settings] ${new Date().toISOString()} update cancel requested`);
+    return { ok: 'Cancelling: the updater stops the running update at its next run.' };
+  },
+
   password: async ({ request, cookies }) => {
     if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
     if (passwordFromEnv()) return fail(400, { error: 'The password is set in .env (APP_PASSWORD_HASH); change it there.' });

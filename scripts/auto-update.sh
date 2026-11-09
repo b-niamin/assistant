@@ -5,6 +5,7 @@
 #   sh <updater-home>/auto-update.sh run <checkout>     # every 5 minutes (Task Scheduler / cron)
 #   sh scripts/auto-update.sh status [checkout]         # last result
 #   sudo ./beni.sh update                               # a tick now, deploying even in manual mode
+#   sudo sh scripts/auto-update.sh cancel [checkout]    # stop a running tick (beni.sh update --cancel)
 #   sudo sh scripts/auto-update.sh fix-permissions      # owner, Synology ACLs, u+rw in the checkout
 #   sh scripts/auto-update.sh plan < changed-paths      # which services a change touches (for tests)
 #
@@ -156,19 +157,46 @@ write_status() {
 
 state_get() { sed -n "s/^$1=//p" "$STATE" 2>/dev/null | head -n 1; }
 state_save() {
-  printf 'deployed=%s\ndeployed_at=%s\nfailed=%s\nnote=%s\nhandled=%s\n' "$DEPLOYED" "$DEPLOYED_AT" "$FAILED" "$NOTE" "${HANDLED:-}" > "$STATE.tmp" &&
+  printf 'deployed=%s\ndeployed_at=%s\nfailed=%s\nnote=%s\nhandled=%s\ncancelled=%s\n' "$DEPLOYED" "$DEPLOYED_AT" "$FAILED" "$NOTE" "${HANDLED:-}" "${CANCELLED:-}" > "$STATE.tmp" &&
     mv "$STATE.tmp" "$STATE"
 }
 
 # The app's choice (System settings -> Updates), in the logs volume: `mode=auto|manual` and
 # `request=<id>` when "Update now" was clicked. Read directly (root); without access: automatic.
 read_control() {
-  MODE=auto REQUEST=""
+  MODE=auto REQUEST="" CANCEL=""
   mp=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_logs" 2>/dev/null || true)
   [ -n "$mp" ] && [ -r "$mp/updater-control" ] || return 0
   MODE=$(sed -n 's/^mode=//p' "$mp/updater-control" | grep -x -e auto -e manual | tail -n 1)
   REQUEST=$(sed -n 's/^request=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$mp/updater-control" | tail -n 1)
+  CANCEL=$(sed -n 's/^cancel=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$mp/updater-control" | tail -n 1)
   [ -n "$MODE" ] || MODE=auto
+}
+
+# cancel_tick <who>: stop a running tick (its shell and children, e.g. `docker compose build`; BuildKit
+# drops a build whose client is gone), free the lock and mark main's commit as failed, so it is not
+# retried until main moves or "Update now". The containers that ran before keep running.
+cancel_tick() {
+  pids=$(cat "$HOME_DIR/lock/pid" 2>/dev/null || true)
+  # Older ticks wrote no pid: find them by their command line.
+  command -v pgrep >/dev/null 2>&1 && pids="$pids $(pgrep -f "auto-update.sh run $DIR" 2>/dev/null | grep -vx "$$" || true)"
+  for sig in TERM KILL; do
+    for p in $pids; do
+      kill -0 "$p" 2>/dev/null || continue
+      command -v pkill >/dev/null 2>&1 && pkill "-$sig" -P "$p" 2>/dev/null
+      kill "-$sig" "$p" 2>/dev/null
+    done
+    [ "$sig" = KILL ] || sleep 3
+  done
+  rm -rf "$HOME_DIR/lock"
+  DEPLOYED=$(state_get deployed) DEPLOYED_AT=$(state_get deployed_at) NOTE=cancelled HANDLED=$(state_get handled)
+  [ -n "${CANCELLED:-}" ] || CANCELLED=$(state_get cancelled)
+  SHA=$(mirror_git rev-parse -q --verify "refs/heads/$BRANCH^{commit}" 2>/dev/null || true)
+  FAILED=$SHA STEP_NO=0 STEP_TOTAL=0
+  log "update cancelled $1; the previous containers keep running"
+  write_status failed "update cancelled $1; the previous containers keep running" ""
+  state_save
+  flush_log
 }
 
 setup_paths() {
@@ -239,6 +267,15 @@ cmd_run() {
   [ -d "$MIRROR" ] || die "no mirror at $MIRROR: run 'sh scripts/auto-update.sh install' first"
   heartbeat
 
+  read_control
+  # "Cancel" in the app: stop the tick that holds the lock (once per click).
+  if [ -n "$CANCEL" ] && [ "$CANCEL" != "$(state_get cancelled)" ]; then
+    CANCELLED=$CANCEL
+    if [ -d "$HOME_DIR/lock" ]; then cancel_tick "from the app"; exit 0; fi
+    HANDLED=$(state_get handled); DEPLOYED=$(state_get deployed) DEPLOYED_AT=$(state_get deployed_at) FAILED=$(state_get failed) NOTE=$(state_get note)
+    state_save
+  fi
+
   LOCK=$HOME_DIR/lock
   if ! mkdir "$LOCK" 2>/dev/null; then
     # Taken over when its tick is gone (pid no longer alive; a crash or a reboot) or after six hours.
@@ -257,9 +294,8 @@ cmd_run() {
   trap 'rm -rf "$LOCK" ${SRC:+"$SRC"}' EXIT INT TERM
 
   DEPLOYED=$(state_get deployed) DEPLOYED_AT=$(state_get deployed_at) FAILED=$(state_get failed) NOTE=$(state_get note)
-  HANDLED=$(state_get handled)
+  HANDLED=$(state_get handled) CANCELLED=$(state_get cancelled)
   SHA=""
-  read_control
   # A click on "Update now" counts once, and retries a commit that failed before.
   requested=0
   if [ -n "$REQUEST" ] && [ "$REQUEST" != "$HANDLED" ]; then requested=1 HANDLED=$REQUEST FORCE=1; fi
@@ -551,5 +587,6 @@ case ${1:-} in
   run) shift; cmd_run "$@" ;;
   install) shift; cmd_install "$@" ;;
   status) shift; cmd_status "$@" ;;
+  cancel) shift; setup_paths "${1:-}"; cancel_tick "from the host" ;;
   *) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

@@ -2,7 +2,8 @@
 # beni: one command for everything you do with the assistant on the host. Run it in the checkout.
 #
 #   ./beni.sh install [ext...]      install or re-run the installer (asks in a terminal; see install.sh)
-#   ./beni.sh update                git pull, then the installer again (keeps .env, extensions, answers)
+#   ./beni.sh update [--cancel]     an auto-update tick now (or git pull), then the installer again;
+#                                   --cancel stops a running update (the old containers keep running)
 #   ./beni.sh start | stop | restart [service]
 #   ./beni.sh status                containers and the app's health
 #   ./beni.sh doctor                checks the install: permissions, git, .env, database password, ...
@@ -371,6 +372,11 @@ cmd=${1:-help}
 case $cmd in
   install) exec sh ./install.sh "$@" ;;
   update)
+    # --cancel: stop an update that is running (or stuck), keep the containers that ran before.
+    if [ "${1:-}" = --cancel ]; then
+      [ "$(id -u)" = 0 ] || die "put sudo in front"
+      exec sh scripts/auto-update.sh cancel "$DIR"
+    fi
     # With auto-update installed, an update is one of its ticks, run now: the same safe path (pull into
     # the private mirror, fast-forward the checkout in a throwaway container, build from main's copy),
     # the same status and progress in the app. Then the installer refreshes the configuration.

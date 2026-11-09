@@ -136,3 +136,11 @@ status `available` (Updates and the dock show "Update available"); a request dep
 that failed) and is handled once (`handled=` in the state). Set the scheduled task to every minute so a
 click starts within a minute. Builds write their output to `/logs/updater-build.log` while they run, and the
 updater log gets the "main at …" line before the build starts.
+
+## Progress
+
+A deploy is a list of steps: one build per image (`build:` services of main's compose file, one at a time),
+then starting them, the migration, and each restart. Before each, the updater writes status `updating` with
+`step`, `steps`, `startedAt` and the step as the message, and a `== step n/m` line to
+`/logs/updater-build.log`. Updates shows a progress bar, the step, how long ago it started and the last lines
+of the build output, reloading every 5 seconds; the dock shows "Updating to <sha> · n/m".

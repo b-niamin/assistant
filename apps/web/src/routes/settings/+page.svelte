@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
   import { dock, runInDock } from '#lib/dock/dock.svelte.ts';
@@ -32,6 +33,13 @@
     'signed-out': 'Remote Control waits for the sign-in',
     off: 'Remote Control not running'
   };
+
+  // While an update runs, follow it: the page reloads its data every 5 seconds.
+  $effect(() => {
+    if (data.locked || data.updates?.status !== 'updating') return;
+    const t = setInterval(() => invalidateAll(), 5000);
+    return () => clearInterval(t);
+  });
 
   const whoSees = (ids: string[] | null, profiles: { id: string; name: string }[]) =>
     ids === null ? 'everyone' : ids.map((id) => profiles.find((p) => p.id === id)?.name ?? id).join(', ') || 'nobody';
@@ -229,7 +237,16 @@
             checks it, and <code>sudo ./beni.sh auto-update install</code> prints the exact command.
           </p>
         {:else if state === 'updating'}
-          <p class="meta">Rebuilding and restarting: <code>{u.actions}</code>. Builds take a few minutes on a NAS; the old containers keep running until then.</p>
+          <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax={u.steps || 1} aria-valuenow={u.step} aria-label="Update progress">
+            <span style="width: {u.steps ? Math.max(4, ((u.step - 0.5) / u.steps) * 100) : 4}%" class:indeterminate={!u.steps}></span>
+          </div>
+          <p class="meta">
+            {#if u.steps}Step {u.step} of {u.steps}: <strong>{u.message}</strong>{:else}{u.message}{/if}
+            {#if u.startedAt} · started {when(u.startedAt)}{/if}. A build takes minutes on a NAS; the old containers keep running until then.
+          </p>
+          {#if data.buildTail.length}
+            <pre class="tail" aria-label="Build output">{data.buildTail.join('\n')}</pre>
+          {/if}
         {:else if u.status !== 'ok'}
           <p class="meta">{u.message}</p>
         {/if}
@@ -516,6 +533,46 @@
   }
   .dot.failed {
     background: var(--critical);
+  }
+  .progress {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 400ms ease;
+  }
+  .tail {
+    margin: 0;
+    max-height: 13em;
+    overflow: auto;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: #141413;
+    color: #c9c7bf;
+    font: 0.75rem/1.5 var(--mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .progress span.indeterminate {
+      width: 30% !important;
+      animation: slide 1.4s ease-in-out infinite;
+    }
+  }
+  @keyframes slide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(340%);
+    }
   }
   .upstate .now {
     margin: 0 0 0 auto;

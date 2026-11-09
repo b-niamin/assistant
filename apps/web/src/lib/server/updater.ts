@@ -17,12 +17,17 @@ export interface UpdaterStatus {
   branch: string;
   /** Last tick (heartbeat), '' when the updater never wrote one (older updaters, or none running). */
   checkedAt: string;
+  /** While updating: step n of steps (0 when unknown) and when the deploy started. */
+  step: number;
+  steps: number;
+  startedAt: string;
 }
 
 const STATUSES = new Set(['ok', 'failed', 'blocked', 'updating', 'available']);
 /** The updater ticks every 5 minutes: no sign of life for this long means its schedule does not run. */
 export const STALE_MS = 20 * 60_000;
 const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.slice(0, max) : '');
+const count = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 1000 ? v : 0);
 
 /** Parses the status file; null when it is missing or not what the updater writes. */
 export function parseUpdaterStatus(raw: string): UpdaterStatus | null {
@@ -42,7 +47,10 @@ export function parseUpdaterStatus(raw: string): UpdaterStatus | null {
     deployedAt: text(j.deployedAt, 40),
     at: text(j.at, 40),
     branch: text(j.branch, 100),
-    checkedAt: ''
+    checkedAt: '',
+    step: count(j.step),
+    steps: count(j.steps),
+    startedAt: text(j.startedAt, 40)
   };
 }
 
@@ -91,4 +99,11 @@ export async function setUpdaterControl(c: UpdaterControl, file = STATUS_FILE())
   const target = controlFile(file);
   await writeFile(`${target}.tmp`, `mode=${c.mode}\n${c.request ? `request=${c.request}\n` : ''}`, { mode: 0o644 });
   await rename(`${target}.tmp`, target);
+}
+
+/** The last lines of the running (or last) deploy's build output, /logs/updater-build.log. */
+export async function buildTail(lines = 12, file = STATUS_FILE()): Promise<string[]> {
+  const raw = await readFile(path.join(path.dirname(file), 'updater-build.log'), 'utf8').catch(() => '');
+  // eslint-disable-next-line no-control-regex
+  return raw.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').split(/\r?\n|\r/).map((l) => l.trimEnd()).filter(Boolean).slice(-lines);
 }

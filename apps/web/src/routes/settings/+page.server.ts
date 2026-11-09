@@ -11,7 +11,7 @@ import { passwordFromEnv, passwordHash, passwordProblem, setPassword } from '#li
 import { verifyPassword } from '#lib/server/password.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
-import { isStale, setUpdaterControl, updaterControl, updaterStatus } from '#lib/server/updater.ts';
+import { buildTail, isStale, setUpdaterControl, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 import { deleteOtherSessions, dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
 
 const limiter = createLimiter(5, 15 * 60 * 1000);
@@ -28,6 +28,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
     updates,
     updatesStale: updates ? isStale(updates) : false,
     updateControl,
+    buildTail: updates?.status === 'updating' ? await buildTail() : [],
     terminal: { ...terminal, configured: sidecarsConfigured() },
     passwordFromEnv: passwordFromEnv()
   };

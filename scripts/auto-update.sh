@@ -80,6 +80,18 @@ else DC_BIN=""; fi
 dc() { $DC_BIN -p "$PROJECT" --project-directory "$DIR" -f "$DIR/docker-compose.yml" --env-file "$DIR/.env" "$@"; }
 # Same, but every build context comes from the verified copy of main ($SRC), not the checkout.
 dc_build() { $DC_BIN -p "$PROJECT" --project-directory "$SRC" -f "$SRC/docker-compose.yml" --env-file "$DIR/.env" build "$@"; }
+# Services of main's compose file that have a build section (one build step each in the progress).
+buildable() {
+  $DC_BIN -p "$PROJECT" --project-directory "$SRC" -f "$SRC/docker-compose.yml" --env-file "$DIR/.env" config --no-interpolate 2>/dev/null |
+    awk '/^services:/ { s = 1; next } /^[^ ]/ { s = 0 } s && /^  [A-Za-z0-9_.-]+:$/ { n = $1; sub(/:$/, "", n) } s && /^    build:/ { print n }' |
+    awk '!seen[$0]++'
+}
+# progress <what>: the next step of a deploy, for the app's progress bar and the build log.
+progress() {
+  STEP_NO=$((STEP_NO + 1)) STEP=$1
+  write_status updating "$1" "$ACTIONS"
+  printf '\n== %s step %s/%s: %s\n' "$(date -u +%H:%M:%S)" "$STEP_NO" "$STEP_TOTAL" "$1" >>"$BUILD_LOG" 2>/dev/null || true
+}
 
 claude_image() {
   c=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" --filter label=com.docker.compose.service=claude | head -n 1)
@@ -135,6 +147,7 @@ write_status() {
     printf '"deployedSha":%s,' "$(json_str "$DEPLOYED")"
     printf '"deployedAt":%s,' "$(json_str "$DEPLOYED_AT")"
     printf '"at":%s,' "$(json_str "$(date -u +%Y-%m-%dT%H:%M:%SZ)")"
+    printf '"step":%s,"steps":%s,"startedAt":%s,' "${STEP_NO:-0}" "${STEP_TOTAL:-0}" "$(json_str "${STARTED_AT:-}")"
     printf '"branch":%s}\n' "$(json_str "$BRANCH")"
   } | logs_put updater-status.json
 }
@@ -326,6 +339,7 @@ cmd_run() {
 
   # Builds take minutes on a NAS: the app shows "updating" meanwhile, the log says what started, and
   # the build's own output goes to /logs/updater-build.log as it runs (root; else the updater home).
+  ACTIONS=$actions STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) STEP_NO=0 STEP_TOTAL=0
   [ -z "$actions" ] || write_status updating "updating to $short" "$actions"
   flush_log
   mp=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_logs" 2>/dev/null || true)
@@ -382,31 +396,47 @@ deploy() {
       log "docker-compose.yml in the checkout differs from main; refusing to apply it"
       return 1
     fi
-    STEP="build"
-    if [ "$all" = 1 ]; then
+    [ "$all" = 1 ] && builds=$(buildable | tr '\n' ' ')
+  fi
+  # Steps for the progress bar: one per image, then starting, migrating and each restart.
+  n_restarts=0
+  for s in $restarts; do case " $builds " in *" $s "*) ;; *) n_restarts=$((n_restarts + 1)) ;; esac; done
+  # shellcheck disable=SC2086
+  STEP_TOTAL=$(($(set -- $builds; echo $#) + $( [ -n "$builds" ] || [ "$all" = 1 ] && echo 1 || echo 0) + migrate + n_restarts))
+  STEP_NO=0
+
+  if [ "$all" = 1 ] || [ -n "$builds" ]; then
+    for b in $builds; do
+      progress "building $b"
+      dc_build "$b" >>"$BUILD_LOG" 2>&1 || return 1
+    done
+    # Compose too old to list them: every image in one step.
+    if [ "$all" = 1 ] && [ -z "$builds" ]; then
+      STEP_TOTAL=$((STEP_TOTAL + 1))
+      progress "building every image"
       dc_build >>"$BUILD_LOG" 2>&1 || return 1
-      STEP="docker compose up"
-      dc up -d --no-build || return 1
+    fi
+    if [ "$all" = 1 ]; then
+      progress "starting every service"
+      dc up -d --no-build >>"$BUILD_LOG" 2>&1 || return 1
       # Every container was just reconciled with the new config; restarts are still needed for the
       # ones whose code changed but whose config did not.
     else
+      progress "starting$(printf ' %s' $builds)"
       # shellcheck disable=SC2086
-      dc_build $builds >>"$BUILD_LOG" 2>&1 || return 1
-      STEP="docker compose up"
-      # shellcheck disable=SC2086
-      dc up -d --no-build --no-deps $builds || return 1
+      dc up -d --no-build --no-deps $builds >>"$BUILD_LOG" 2>&1 || return 1
       ups=$builds
     fi
   fi
 
   if [ "$migrate" = 1 ]; then
-    STEP="migrate"
-    dc up --no-build --no-deps --exit-code-from migrate migrate >/dev/null || return 1
+    progress "migrating the database roles"
+    dc up --no-build --no-deps --exit-code-from migrate migrate >>"$BUILD_LOG" 2>&1 || return 1
   fi
   for s in $restarts; do
     case " $ups " in *" $s "*) continue ;; esac
-    STEP="restart $s"
-    dc restart "$s" || return 1
+    progress "restarting $s"
+    dc restart "$s" >>"$BUILD_LOG" 2>&1 || return 1
   done
   STEP=""
   return 0

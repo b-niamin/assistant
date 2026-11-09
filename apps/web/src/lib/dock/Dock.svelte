@@ -25,7 +25,7 @@
     remote: { claude: Remote; codex: Remote };
     background: { claude: boolean; codex: boolean };
     outdated: boolean;
-    update: { state: string; sha: string; actions: string } | null;
+    update: { state: string; sha: string; actions: string; step: number; steps: number } | null;
   }
 
   let status = $state<Status | null>(null);
@@ -187,7 +187,7 @@
     </button>
     {#if status?.update?.state === 'updating'}
       <a class="chip" href="/settings#up-h" title="Rebuilding: {status.update.actions}">
-        <span class="status small warning pulse">Updating to {status.update.sha}</span>
+        <span class="status small warning pulse">Updating to {status.update.sha}{status.update.steps ? ` · ${status.update.step}/${status.update.steps}` : ''}</span>
       </a>
     {:else if status?.update?.state === 'available'}
       <a class="chip" href="/settings#up-h" title="A new version is on GitHub: update it from System settings">

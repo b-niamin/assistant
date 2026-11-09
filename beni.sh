@@ -8,7 +8,6 @@
 #   ./beni.sh doctor                checks the install: permissions, git, .env, database password, ...
 #   ./beni.sh logs [service]        follow logs (web, claude, garmin-sync, ...)
 #   ./beni.sh ext <args>            the extension CLI in the claude container: available, install <id>, list, ...
-#   ./beni.sh migrate <old-checkout> [--no-garmin-login]   copy data from an older install (after a backup)
 #   ./beni.sh fix-permissions       owner, Synology ACLs and modes in the checkout
 #   ./beni.sh fix-db-password       the database keeps its data but takes the password in .env
 #   ./beni.sh move <new-folder>     move the install (stopped, data kept), e.g. to /volume1/docker/assistant
@@ -61,7 +60,7 @@ as_owner() {
   else "$@"; fi
 }
 
-usage() { sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # --- the database password ----------------------------------------------------------------------
 # A database volume keeps the password it was created with. A new .env (a fresh clone into the same
@@ -364,7 +363,6 @@ case $cmd in
   fix-db-password) fix_db_password ;;
   logs) dc logs -f --tail 100 "$@" ;;
   ext) dc exec claude node scripts/ext.mjs "$@" ;;
-  migrate) exec sh scripts/import-legacy.sh "$@" ;;
   move) move_to "$@" ;;
   fix-permissions) exec sh scripts/auto-update.sh fix-permissions "$DIR" ;;
   auto-update)

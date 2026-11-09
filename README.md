@@ -89,13 +89,6 @@ extension that brings a background service.
 7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
    `docker compose exec garmin-sync python -m sync backfill`.
 
-Moving from the older single-repo version: install this one next to it, then copy its data (profiles,
-app data, health history, Garmin logins; a backup of the new database is taken first):
-
-```sh
-sudo ./beni.sh migrate /path/to/old/assistant   # the old checkout
-```
-
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
 Scheduler entry). The new install has its own compose project, so fresh volumes, and the old data stays
 until you remove it (`docker compose down -v` in the old folder).
@@ -122,7 +115,6 @@ One command for the host (Synology: `sudo` in front):
 ./beni.sh logs web               # follow a service's log
 ./beni.sh update                 # git pull + installer (keeps .env, extensions, answers)
 ./beni.sh ext available          # extensions: available, install <id>, update <id>, list
-./beni.sh migrate <old-checkout> # copy data from an older install, after a backup
 ./beni.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
 ./beni.sh fix-db-password        # the database keeps its data, takes the password in .env
 ./beni.sh move <new-folder>      # move the install elsewhere, data kept

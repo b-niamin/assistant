@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import Mascot from '#lib/Mascot.svelte';
+  import Dock from '#lib/dock/Dock.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   let { data, children } = $props();
@@ -50,7 +51,9 @@
   </header>
 {/if}
 
-<main>{@render children()}</main>
+<main class:docked={data.authenticated}>{@render children()}</main>
+
+{#if data.authenticated}<Dock />{/if}
 
 <style>
   header {
@@ -138,6 +141,10 @@
     max-width: 1120px;
     margin: 0 auto;
     padding: var(--space-6) var(--space-4) var(--space-7);
+  }
+  /* Room for the dock's bar at the bottom. */
+  main.docked {
+    padding-bottom: calc(var(--space-7) + 48px);
   }
   @media (max-width: 560px) {
     .bar {

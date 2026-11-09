@@ -72,30 +72,6 @@ async function nativeTiles(ext: ExtensionInfo): Promise<ExtTile[]> {
   }
 }
 
-/** Tiles the shell itself contributes (not an extension). */
-function shellTiles(): DashboardTile[] {
-  return [
-    {
-      key: 'shell:terminal',
-      extensionId: 'shell',
-      extensionName: 'System',
-      title: 'Terminal',
-      size: 'sm',
-      href: '/settings/terminal',
-      scope: 'shared',
-      data: Promise.resolve({
-        ok: true,
-        data: {
-          empty: {
-            message: 'Claude, Codex or a shell, inside the app',
-            action: { label: 'Open terminal', href: '/settings/terminal' }
-          }
-        }
-      })
-    }
-  ];
-}
-
 export async function dashboardFor(locals: App.Locals): Promise<DashboardTile[]> {
   const profileId = locals.profileId;
   const exts = (await extensionsFor(profileId)) as ExtensionInfo[];
@@ -147,6 +123,5 @@ export async function dashboardFor(locals: App.Locals): Promise<DashboardTile[]>
       });
     }
   }
-  out.push(...shellTiles());
   return out;
 }

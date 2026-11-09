@@ -90,7 +90,7 @@ by `Mascot.svelte` and `<assistant-beni>`, so every Beni in the app (and in onef
 | `nightcap` | sleep; any asleep Beni with nothing else on |
 
 `accessoryFor(pathname, extensions)` picks it from the page: the dashboard has none, `/settings` the
-wrench, `/settings/terminal` the glasses, `/<id>` the extension's manifest `"accessory"` or, without one, a
+wrench, `/<id>` the extension's manifest `"accessory"` or, without one, a
 guess from its id and name (`guessAccessory`). Every `Mascot` without an `accessory` prop follows the
 page; dashboard tiles dress Beni for the app they come from, "Extend the system" for each catalog entry.
 Pass `accessory="party-hat"` (or `"none"`) to choose yourself.
@@ -124,9 +124,19 @@ fits. The source's own palette, fonts and logo are dropped.
 - Only `transform` and `opacity` (plus SVG dash offset) are animated, so it stays cheap.
 - `prefers-reduced-motion: reduce` turns every animation off, including Beni and the count-up.
 
-## Terminal (System settings → Terminal)
+## Dock and terminal
 
-The in-app terminal is a dark window in both themes, like a code block in an editor.
+Every page ends in the dock (`lib/dock/Dock.svelte`): a 40 px bar fixed to the bottom with the terminal
+toggle on the left and the Remote Control indicators on the right (Claude, Codex: dot plus a word,
+`remote on` / `starting` / `restarting` / `not signed in` / `off`; phones show only the dot and name).
+The indicators come from `GET /dock` every 30 s; the remote sessions themselves run on their own in the
+`claude` container, so the app only shows them. Expanding the dock opens the app's only terminal
+(created on first open, kept connected while collapsed, open or closed remembered per browser). Locked,
+it asks for the app password inline (the System settings unlock). Above the window, shortcuts run
+`claude`, `codex` or a sign-in command, each in a new tmux window; pages hand it work the same way
+(`runInDock`, e.g. "Extend the system" and an extension's "Change it with me").
+
+The terminal is a dark window in both themes, like a code block in an editor.
 
 - Font: JetBrains Mono (variable), bundled in `lib/terminal/fonts` (OFL) because the CSP allows no font
   CDN. ANSI colours are the categorical hues, lifted for a dark background (`lib/terminal/theme.ts`);
@@ -135,9 +145,8 @@ The in-app terminal is a dark window in both themes, like a code block in an edi
   then text size A−/A+ (remembered per device), reconnect and full screen. When the socket is not open
   a veil over the screen says why and offers Reconnect; the page reconnects by itself when a phone
   wakes the tab.
-- Sign-in cards for Claude Code, Codex and GitHub CLI: status from the terminal's `/status` booleans
-  (polled through `GET /settings/terminal/status` after a quick action) and a button that types and
-  runs the command. On phones the button reads "Sign in" / "Run".
+- Shortcuts for Claude Code, Codex and GitHub CLI: a sign-in command until the terminal's `/status`
+  says signed in (polled again after one is run), then the plain `claude` / `codex`.
 - Touch key bar (`lib/terminal/keys.ts`) on coarse pointers and narrow windows: Esc, Tab, Shift+Tab,
   sticky Ctrl, ^C, arrows (application cursor mode aware) and a few symbols phone keyboards hide.
   In full screen the window follows the visual viewport, so the bar stays above the keyboard.

@@ -161,47 +161,9 @@ export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'"'"'`)}'`;
 }
 
-/** The command the terminal types: start Claude Code with the prompt as its first message. */
-export const claudeCommand = (prompt: string): string => `claude ${shellQuote(oneLine(prompt))}`;
-
-/** sessionStorage key: "Extend the system" leaves a task here for the terminal page. */
-export const PENDING_PROMPT_KEY = 'terminal.pendingPrompt';
-
-/** What the terminal runs for "Extend the system": a request to an AI CLI, or a plain command. */
-export interface PendingTask {
-  tool: 'claude' | 'codex' | 'shell';
-  text: string;
-  title: string;
-  /** Claude: continue the last conversation in the repo (`claude -c`) instead of a new one. */
-  resume?: boolean;
-  /** Extensions installed when the task was started: the terminal page links the new one when it appears. */
-  before?: string[];
-}
-
-/** Stored as JSON; a plain string (older pages) is a request for Claude. */
-export function parsePending(raw: string | null): PendingTask | null {
-  if (!raw) return null;
-  try {
-    const t = JSON.parse(raw) as Partial<PendingTask>;
-    if (t && typeof t.text === 'string' && ['claude', 'codex', 'shell'].includes(t.tool ?? ''))
-      return {
-        tool: t.tool as PendingTask['tool'],
-        text: t.text,
-        title: typeof t.title === 'string' ? t.title : 'Ready',
-        ...(t.resume === true ? { resume: true } : {}),
-        ...(Array.isArray(t.before) ? { before: t.before.filter((x) => typeof x === 'string') } : {})
-      };
-  } catch {
-    /* not JSON: an older plain prompt */
-  }
-  return { tool: 'claude', text: raw, title: 'Ready to build your app' };
-}
-
-/** The command line the terminal types for a task. */
-export function pendingCommand(t: PendingTask): string {
-  if (t.tool === 'shell') return oneLine(t.text);
-  return `${t.tool}${t.tool === 'claude' && t.resume ? ' -c' : ''} ${shellQuote(oneLine(t.text))}`;
-}
+/** The command the dock's terminal types: start Claude Code or Codex with the prompt as its first message. */
+export const agentCommand = (tool: 'claude' | 'codex', prompt: string): string => `${tool} ${shellQuote(oneLine(prompt))}`;
+export const claudeCommand = (prompt: string): string => agentCommand('claude', prompt);
 
 /** Install ready-made extensions from the extensions repo (the same CLI Claude uses). */
 export const installCommand = (id: string): string => `node scripts/ext.mjs install ${id}`;

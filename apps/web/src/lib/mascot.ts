@@ -76,10 +76,10 @@ export function accessoryOf(ext: AccessorySource): Accessory {
   return isAccessory(ext.accessory) ? ext.accessory : guessAccessory(ext.id, ext.name);
 }
 
-/** What Beni wears on a page: tools in settings, glasses in the terminal, the app's own in an app. */
+/** What Beni wears on a page: tools in settings, the app's own in an app. */
 export function accessoryFor(pathname: string, extensions: AccessorySource[] = []): Accessory {
-  const [first = '', second = ''] = pathname.split('/').filter(Boolean);
-  if (first === 'settings') return second === 'terminal' ? 'glasses' : 'wrench';
+  const [first = ''] = pathname.split('/').filter(Boolean);
+  if (first === 'settings') return 'wrench';
   const ext = extensions.find((e) => e.id === first);
   return ext ? accessoryOf(ext) : 'none';
 }

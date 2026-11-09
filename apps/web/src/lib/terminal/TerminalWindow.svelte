@@ -73,6 +73,15 @@
     term?.focus();
   }
 
+  /**
+   * Run a command in a new tmux window (prefix C-b, then c), so whatever runs in the current one, such
+   * as a Claude conversation, is left alone. tmux's window bar switches between them.
+   */
+  export function runInNewWindow(cmd: string) {
+    send('\x02c');
+    setTimeout(() => run(cmd), 400);
+  }
+
   /** Say something to the program running in the window (e.g. Claude Code) and press Enter. */
   export function say(text: string) {
     send(text.replace(/\s+/g, ' ').trim());

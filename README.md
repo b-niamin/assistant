@@ -85,7 +85,7 @@ extension that brings a background service.
 5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and
    your profile.
 6. **Claude**: `cd /volume1/docker/assistant && docker compose exec -it claude claude`, then `/login`
-   and `/exit`. Remote Control keeps running from then on (or log in from System settings → Terminal).
+   and `/exit`. Remote Control keeps running from then on (or log in from the terminal in the bar at the bottom of the app; Codex too, which then starts its own Remote Control).
 7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
    `docker compose exec garmin-sync python -m sync backfill`.
 

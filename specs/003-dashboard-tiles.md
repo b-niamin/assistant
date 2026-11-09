@@ -69,7 +69,6 @@ extension shows "Unavailable" in its tile only (the error goes to `/logs/web.log
 | Home (Home Assistant, shared) | placeholder: connect in System settings |
 | Calendar (shared) | placeholder: connect in System settings |
 | Learning (profile) | placeholder: create a deck |
-| Shell | Terminal (`/settings/terminal`) |
 
 The running delta is neutral on purpose: a week in progress is always behind a full week.
 

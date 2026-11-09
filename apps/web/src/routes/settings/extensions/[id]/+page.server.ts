@@ -9,7 +9,6 @@ import { runSourceAction, sourcesOf } from '#lib/extensions/sources.server.ts';
 import { extensionById, saveExtensionSwitches } from '#lib/extensions/registry.server.ts';
 import { deleteSecret, listSecretSlots, secretsAvailable, setSecret } from '#lib/server/extension-secrets.ts';
 import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
-import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 
 async function guard(sid: string | undefined, id?: string) {
   if (!(await isElevated(sid))) throw redirect(303, id ? `/settings?next=extensions/${encodeURIComponent(id)}` : '/settings');
@@ -30,15 +29,13 @@ export const load: PageServerLoad = async ({ params, cookies, locals }) => {
     listProfiles(),
     sourcesOf(ext, { locals })
   ]);
-  const status = await terminalStatus();
   return {
     ext,
     values,
     secrets,
     profiles,
     sources,
-    secretsAvailable: secretsAvailable(),
-    terminal: { configured: sidecarsConfigured(), reachable: status.reachable, claude: status.claude, codex: status.codex }
+    secretsAvailable: secretsAvailable()
   };
 };
 

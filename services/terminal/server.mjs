@@ -7,7 +7,8 @@
  * checkout. No docker socket, no .env, no published port: the web app proxies /settings/terminal/ws
  * here after checking the session; this server checks the single-use ticket again.
  *
- *   GET  /status  -> {"claude": bool, "codex": bool, "gh": bool}   (booleans only, never file contents)
+ *   GET  /status  -> {"claude": bool, "codex": bool, "gh": bool,       (booleans only, never file contents)
+ *                     "remote": {"claude": state, "codex": state}}     (remote-control in the claude container)
  *   GET  /ws?ticket=...  WebSocket. Client -> server text frames: "0<input>" or "1<cols> <rows>".
  *                        Server -> client binary frames: terminal output.
  */
@@ -59,6 +60,22 @@ const mentions = (p, needle) => {
   }
 };
 
+/**
+ * Remote Control state of an agent in the `claude` container, from the file its entrypoint keeps in the
+ * shared home (docker/claude/entrypoint.sh): starting, running, restarting, signed-out, or off when the file is
+ * missing or its heartbeat (every 30 s) stopped.
+ */
+const REMOTE_STATES = new Set(['starting', 'running', 'restarting', 'signed-out']);
+function remoteState(file, now = Date.now()) {
+  try {
+    if (now - statSync(file).mtimeMs > 90_000) return 'off';
+    const { state } = JSON.parse(readFileSync(file, 'utf8'));
+    return REMOTE_STATES.has(state) ? state : 'off';
+  } catch {
+    return 'off';
+  }
+}
+
 const server = createServer((req, res) => {
   if (req.url === '/status') {
     res.setHeader('content-type', 'application/json');
@@ -67,7 +84,11 @@ const server = createServer((req, res) => {
         // .claude.json appears on the first run, before any login: only an oauthAccount in it counts.
         claude: nonEmpty(path.join(HOME, '.claude/.credentials.json')) || mentions(path.join(HOME, '.claude.json'), '"oauthAccount"'),
         codex: nonEmpty(path.join(process.env.CODEX_HOME || path.join(HOME, '.codex'), 'auth.json')),
-        gh: nonEmpty(path.join(HOME, '.config/gh/hosts.yml'))
+        gh: nonEmpty(path.join(HOME, '.config/gh/hosts.yml')),
+        remote: {
+          claude: remoteState(path.join(HOME, '.beni/remote/claude.json')),
+          codex: remoteState(path.join(HOME, '.beni/remote/codex.json'))
+        }
       })
     );
     return;

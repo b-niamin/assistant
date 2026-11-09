@@ -1,7 +1,7 @@
 // Run: node --test services/terminal
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { connect } from 'node:net';
@@ -60,6 +60,18 @@ test('server: rejects without ticket, runs a shell with one', async (t) => {
     spawnSync('tmux', ['kill-server'], { env: { ...process.env, TMUX_TMPDIR } });
   });
   await new Promise((r) => srv.stdout.once('data', r));
+
+  // Remote Control state from the claude container's files: fresh, stale (no heartbeat) or missing.
+  const remote = path.join(TMUX_TMPDIR, '.beni/remote');
+  mkdirSync(remote, { recursive: true });
+  writeFileSync(path.join(remote, 'claude.json'), '{"state":"running","since":1}');
+  writeFileSync(path.join(remote, 'codex.json'), '{"state":"running","since":1}');
+  const old = new Date(Date.now() - 5 * 60_000);
+  utimesSync(path.join(remote, 'codex.json'), old, old);
+  const status = await (await fetch(`http://127.0.0.1:${port}/status`)).json();
+  assert.deepEqual(status.remote, { claude: 'running', codex: 'off' });
+  assert.equal(status.claude, false);
+
   const upgrade = (q) =>
     new Promise((resolve) => {
       const s = connect(port, '127.0.0.1', () =>

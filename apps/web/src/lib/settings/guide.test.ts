@@ -5,8 +5,7 @@ import {
   claudeCommand,
   inspirationPrompt,
   installCommand,
-  parsePending,
-  pendingCommand,
+  agentCommand,
   hueFor,
   IDEAS,
   initials,
@@ -108,17 +107,10 @@ describe('change prompt', () => {
   });
 });
 
-describe('pending tasks for the terminal', () => {
-  it('reads JSON tasks and older plain prompts', () => {
-    expect(parsePending(JSON.stringify({ tool: 'shell', text: 'node scripts/ext.mjs install gym', title: 'Install' })))
-      .toEqual({ tool: 'shell', text: 'node scripts/ext.mjs install gym', title: 'Install' });
-    expect(parsePending('build me a thing')?.tool).toBe('claude');
-    expect(parsePending(null)).toBeNull();
-  });
-  it('quotes AI requests and runs install commands as they are', () => {
-    expect(pendingCommand({ tool: 'codex', text: "it's", title: '' })).toBe(`codex 'it'"'"'s'`);
-    expect(pendingCommand({ tool: 'shell', text: installCommand('gym'), title: '' })).toBe('node scripts/ext.mjs install gym');
-    expect(pendingCommand({ tool: 'claude', text: 'more', title: '', resume: true })).toBe("claude -c 'more'");
+describe('commands for the dock terminal', () => {
+  it('quotes AI requests on one line', () => {
+    expect(agentCommand('codex', "it's\nfine")).toBe(`codex 'it'"'"'s fine'`);
+    expect(installCommand('gym')).toBe('node scripts/ext.mjs install gym');
   });
   it('builds an inspiration request from the catalog', () => {
     const p = inspirationPrompt({ id: 'calendar', idea: 'A family calendar.', scope: 'shared' });

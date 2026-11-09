@@ -1,5 +1,5 @@
 /**
- * Look of the in-app terminal (System settings → Terminal). The terminal is a dark window in both app
+ * Look of the in-app terminal (the dock at the bottom of every page). The terminal is a dark window in both app
  * themes, like a code block: its ANSI colours are the app's categorical hues (specs/001-design.md),
  * lifted where needed so text stays readable on the dark background.
  */

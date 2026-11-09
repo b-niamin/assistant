@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Mascot from '#lib/Mascot.svelte';
-  import AgentConsole from '#lib/settings/AgentConsole.svelte';
-  import { hueFor, inspirationPrompt, installCommand } from '#lib/settings/guide.ts';
+  import { runInDock } from '#lib/dock/dock.svelte.ts';
+  import { agentCommand, claudeCommand, hueFor, inspirationPrompt, installCommand, newAppPrompt } from '#lib/settings/guide.ts';
   import { guessAccessory } from '#lib/mascot.ts';
 
   let { data } = $props();
@@ -11,8 +11,8 @@
   const installed = $derived(polled ?? data.installed);
   const installedIds = $derived(installed.map((e) => e.id));
   const ready = $derived(data.catalog.extensions.filter((e) => !installedIds.includes(e.id)));
-  let agent = $state<AgentConsole>();
-  // Apps that appeared while this page was open (built or installed by the agent below).
+  let idea = $state('');
+  // Apps that appeared while this page was open (built or installed in the dock's terminal).
   let fresh = $state<{ id: string; name: string; href: string }[]>([]);
 
   onMount(() => {
@@ -81,7 +81,7 @@
           <h3>{e.name}</h3>
           <p class="meta grow">{e.description}</p>
           <button type="button" class="btn btn-primary"
-            onclick={() => agent?.say(`Install the ready-made extension ${e.id}: run ${installCommand(e.id)}, then tell me what to set up.`)}>
+            onclick={() => runInDock(claudeCommand(`Install the ready-made extension ${e.id}: run ${installCommand(e.id)}, then tell me what to set up.`))}>
             Install
           </button>
           {#if e.service}<p class="meta small">Then <code>sudo ./install.sh</code> on the host, once.</p>{/if}
@@ -107,7 +107,7 @@
           <span class="mark" aria-hidden="true"><Mascot mood="steady" size={34} accessory={i.accessory ?? guessAccessory(i.id, i.name)} decorative /></span>
           <h3>{i.name}</h3>
           <p class="meta grow">{i.description}</p>
-          <button type="button" class="btn btn-primary" onclick={() => agent?.say(p)}>Build it</button>
+          <button type="button" class="btn btn-primary" onclick={() => runInDock(claudeCommand(p))}>Build it</button>
         </li>
       {/each}
     </ul>
@@ -123,9 +123,15 @@
   </div>
 {/each}
 
-<div class="block">
-  <AgentConsole bind:this={agent} title="Or tell me what to build" session="extend" terminal={data.terminal} />
-</div>
+<section class="block own card" aria-labelledby="own-h">
+  <h2 id="own-h">Or tell me what to build</h2>
+  <textarea bind:value={idea} rows="3" placeholder="A tracker for the kids' chores, with a weekly star chart…"></textarea>
+  <div class="go">
+    <button type="button" class="btn btn-primary" disabled={!idea.trim()} onclick={() => runInDock(claudeCommand(newAppPrompt(idea)))}>Build with Claude</button>
+    <button type="button" class="btn" disabled={!idea.trim()} onclick={() => runInDock(agentCommand('codex', newAppPrompt(idea)))}>Build with Codex</button>
+    <span class="meta">It runs in the terminal at the bottom; answer there if it asks something.</span>
+  </div>
+</section>
 
 <style>
   .hero {
@@ -191,6 +197,24 @@
     height: 8px;
     border-radius: 50%;
     background: var(--hue);
+  }
+  .own {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+  .own h2 {
+    margin: 0;
+  }
+  .own textarea {
+    width: 100%;
+    resize: vertical;
+  }
+  .own .go {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
   }
   .block {
     margin-bottom: var(--space-5);

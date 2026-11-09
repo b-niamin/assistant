@@ -69,7 +69,13 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
   gets a clean environment (the ticket key is not in it). It shares `claude-home` with the `claude`
   container on purpose: `claude` then `/login`, `codex login --device-auth`, `gh auth login` typed here
   are what Claude Remote uses. tmux keeps a half-finished login alive across reconnects. Sessions end
-  after 8 h. Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
+  after 8 h. The terminal lives only in the dock at the bottom of every page; `GET /dock` (any logged-in
+  session) returns sign-in booleans and Remote Control states, never file contents, plus whether the
+  session is unlocked. Opening a shell still needs the unlock and a ticket.
+- **Remote Control**: the `claude` container's entrypoint keeps `claude remote-control` and, once Codex
+  is signed in, `codex remote-control --no-daemon` running in `/workspace`, restarting them with backoff.
+  Each writes its state to `~/.beni/remote/<agent>.json` (heartbeat every 30 s); the terminal's `/status`
+  reports it, and a stale file reads as off. Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
 - **Browser**: Chromium with a persistent profile on a virtual display. x11vnc listens on loopback
   only (no VNC password); websockify (noVNC) accepts only handshakes with `Origin: $PUBLIC_ORIGIN`, which
   the web proxy sends and a page inside this browser cannot; websockify and a CDP bridge listen on the internal `sidecars` network, which only web,
@@ -133,6 +139,6 @@ docker compose up -d --build        # new terminal + browser containers, rebuilt
 After the 2026-11-06 audit: `docker compose up -d --build browser` (noVNC origin check, A3). Migration 009
 and the query functions (A2) are applied by `ext-migrate` on its own.
 
-Then System settings → Terminal: `claude` → `/login`; `codex login --device-auth` for ChatGPT.
+Then the terminal in the dock at the bottom of the app: `claude` → `/login`; `codex login --device-auth` for ChatGPT.
 System settings → Browser: sign in where needed. Without `SIDECAR_TICKET_SECRET` both pages say so and
 every connection is refused.

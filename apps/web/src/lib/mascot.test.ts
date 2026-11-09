@@ -36,7 +36,7 @@ describe('accessories', () => {
     expect(accessoryFor('/learning', exts)).toBe('book');
     expect(accessoryFor('/settings', exts)).toBe('wrench');
     expect(accessoryFor('/settings/extensions/gym', exts)).toBe('wrench');
-    expect(accessoryFor('/settings/terminal', exts)).toBe('glasses');
+    expect(accessoryFor('/settings/profiles', exts)).toBe('wrench');
     expect(accessoryFor('/nowhere', exts)).toBe('none');
   });
   it('ignores unknown manifest values and guesses instead', () => {

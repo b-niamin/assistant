@@ -2,6 +2,7 @@
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
+  import { dock } from '#lib/dock/dock.svelte.ts';
   import { hueFor, initials } from '#lib/settings/guide.ts';
 
   let { data, form } = $props();
@@ -59,11 +60,11 @@
       <strong>Add a person</strong>
       <span class="meta">A profile with their own data</span>
     </a>
-    <a class="card do" href="/settings/terminal" style="--hue: var(--hue-violet)">
+    <button type="button" class="card do" onclick={() => (dock.open = true)} style="--hue: var(--hue-violet)">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 6l4 4-4 4M10 14h6" /></svg></span>
       <strong>Open the terminal</strong>
-      <span class="meta">Claude Code, Codex, a shell</span>
-    </a>
+      <span class="meta">At the bottom of every page: Claude Code, Codex, a shell</span>
+    </button>
   </nav>
 
   <section aria-labelledby="apps-h">
@@ -128,17 +129,17 @@
     <h2 id="sys-h">System</h2>
     <ul class="menu card">
       <li>
-        <a href="/settings/terminal">
+        <button type="button" onclick={() => (dock.open = true)}>
           <span class="mark" style="--hue: var(--hue-violet)" aria-hidden="true">›_</span>
-          <span class="what"><strong>Terminal</strong><span class="meta">Sign in to Claude, Codex and GitHub, and build apps</span></span>
+          <span class="what"><strong>Terminal</strong><span class="meta">In the bar at the bottom: sign in to Claude, Codex and GitHub, run them by hand</span></span>
           <span class="state">
             {#if !data.terminal.configured}<span class="status small warning">Off</span>
             {:else if !data.terminal.reachable}<span class="status small critical">Not answering</span>
-            {:else}{@const signed = [data.terminal.claude && 'Claude', data.terminal.codex && 'Codex'].filter(Boolean)}
-              <span class="status small" class:good={signed.length > 0}>{signed.length ? `${signed.join(', ')} signed in` : 'Not signed in'}</span>{/if}
+            {:else}{@const remote = [data.terminal.remote.claude === 'running' && 'Claude', data.terminal.remote.codex === 'running' && 'Codex'].filter(Boolean)}
+              <span class="status small" class:good={remote.length > 0}>{remote.length ? `Remote: ${remote.join(', ')}` : 'No remote session'}</span>{/if}
           </span>
           <span class="chev" aria-hidden="true">›</span>
-        </a>
+        </button>
       </li>
       <li>
         <a href="/settings/browser">
@@ -241,6 +242,10 @@
   }
   .do {
     display: grid;
+    justify-items: start;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
     gap: 2px;
     padding: var(--space-4);
     color: var(--ink);
@@ -282,15 +287,23 @@
   .menu li + li {
     border-top: 1px solid var(--ring);
   }
-  .menu a {
+  .menu a,
+  .menu button {
     display: flex;
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3) 0;
     color: inherit;
     text-decoration: none;
   }
-  .menu a:hover strong {
+  .menu a:hover strong,
+  .menu button:hover strong {
     color: var(--accent-ink);
   }
   .mark {

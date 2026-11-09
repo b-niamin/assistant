@@ -1,6 +1,6 @@
 # Claude container
 
-Claude Code running inside the stack, reachable from claude.ai through Remote Control.
+Claude Code (and Codex, once signed in) running inside the stack, reachable through Remote Control.
 
 ## First start
 
@@ -12,6 +12,12 @@ docker compose exec -it claude claude     # then type /login and follow the link
 Exit the interactive session after logging in (`/exit`). The entrypoint notices the stored login and
 starts `claude remote-control` in `/workspace`; the session then shows up in claude.ai. Login state
 lives in the `claude-home` volume, so it survives restarts. To log out, run `/logout` the same way.
+
+Or sign in from the terminal in the bar at the bottom of the app (same `claude-home` volume).
+
+Codex works the same way: after `codex login --device-auth` (in that terminal) the entrypoint starts
+`codex remote-control --no-daemon` next to Claude's (experimental in Codex 0.167). The bar shows each
+one's state: it reads `~/.beni/remote/<agent>.json`, which the entrypoint keeps up to date.
 
 Logs: `docker compose logs -f claude`.
 

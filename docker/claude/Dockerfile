@@ -4,7 +4,7 @@ FROM node:26-trixie-slim
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      git openssh-client ca-certificates curl postgresql-client python3 python3-venv python3-pip tmux less jq socat \
+      git openssh-client ca-certificates curl postgresql-client python3 python3-venv python3-pip tmux less jq socat procps bubblewrap \
  && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g @anthropic-ai/claude-code

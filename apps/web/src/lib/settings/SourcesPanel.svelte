@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { onDestroy } from 'svelte';
+  import { dock } from '#lib/dock/dock.svelte.ts';
   import { busy, type SourceState, type SourcesResult } from '#lib/extensions/sources.ts';
   import { hueFor } from './guide.ts';
 
@@ -96,7 +97,7 @@
             <div class="connect">
               {#if s.help}<p class="small">{s.help}</p>{/if}
               {#if s.command}
-                <p class="cmd"><code>{s.command}</code> <a class="small" href="/settings/terminal">Open the terminal</a></p>
+                <p class="cmd"><code>{s.command}</code> <button type="button" class="small linkish" onclick={() => (dock.open = true)}>Open the terminal</button></p>
               {/if}
             </div>
           {/if}
@@ -225,6 +226,14 @@
   .connect {
     display: grid;
     gap: var(--space-2);
+  }
+  .linkish {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: var(--accent-ink);
+    text-decoration: underline;
+    cursor: pointer;
   }
   .cmd {
     display: flex;

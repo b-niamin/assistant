@@ -24,7 +24,8 @@
     REMOTES.map((r) => {
       const state: Remote = status?.reachable ? status.remote[r.id] : 'off';
       const background = !!status?.background?.[r.id];
-      return { ...r, state, background, up: state === 'running' || background, signedIn: !!status?.[r.id] };
+      const reason = status?.reasons?.[r.id] ?? '';
+      return { ...r, state, background, reason, up: state === 'running' || background, signedIn: !!status?.[r.id] };
     })
   );
   const upCount = $derived(agents.filter((a) => a.up).length);
@@ -91,12 +92,14 @@
                 {#if a.state === 'running'}Running in the llm container · open it from {a.where}
                 {:else if a.background}Running in the background (terminal) · open it from {a.where}
                 {:else if !a.signedIn}Not signed in
+                {:else if a.reason === 'mfa'}{LABEL[a.state]}: the account needs multi-factor authentication. Turn it on in ChatGPT (Settings › Security), then sign in again.
+                {:else if a.reason === 'signed-out'}{LABEL[a.state]}: the sign-in expired. Sign in again.
                 {:else}{LABEL[a.state]}{/if}
               </span>
             </span>
             {#if !a.up}
-              {#if !a.signedIn}
-                <button type="button" class="btn small-btn" onclick={() => (runInDock(a.login), (menuOpen = false))}>Sign in</button>
+              {#if !a.signedIn || a.reason}
+                <button type="button" class="btn small-btn" onclick={() => (runInDock(a.reason && a.id === 'codex' ? `codex logout; ${a.login}` : a.login), (menuOpen = false))}>{a.reason ? 'Sign in again' : 'Sign in'}</button>
               {:else if !status?.unlocked}
                 <button type="button" class="btn small-btn" onclick={openTerminal} title="Starting it needs the app password">Unlock to start</button>
               {:else}

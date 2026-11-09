@@ -15,6 +15,8 @@ export type RemoteState = 'starting' | 'running' | 'restarting' | 'signed-out' |
 const REMOTE_STATES: RemoteState[] = ['starting', 'running', 'restarting', 'signed-out', 'off'];
 const remoteOf = (v: unknown): RemoteState => (REMOTE_STATES.includes(v as RemoteState) ? (v as RemoteState) : 'off');
 
+const reasonOf = (v: unknown): string => (v === 'mfa' || v === 'signed-out' ? v : '');
+
 export interface LoginStatus {
   reachable: boolean;
   claude: boolean;
@@ -23,6 +25,8 @@ export interface LoginStatus {
   remote: { claude: RemoteState; codex: RemoteState };
   /** Started from the app, in a detached tmux session of the terminal container. */
   background: { claude: boolean; codex: boolean };
+  /** Why one keeps failing, from the end of its log: 'mfa' (the ChatGPT account needs MFA), 'signed-out', or ''. */
+  reasons: { claude: string; codex: string };
   /** The terminal container still runs code from before Remote Control states (an update is building). */
   outdated: boolean;
 }
@@ -38,6 +42,7 @@ export async function terminalStatus(): Promise<LoginStatus> {
       gh?: unknown;
       remote?: { claude?: unknown; codex?: unknown };
       background?: { claude?: unknown; codex?: unknown };
+      reasons?: { claude?: unknown; codex?: unknown };
     };
     return {
       reachable: true,
@@ -46,10 +51,11 @@ export async function terminalStatus(): Promise<LoginStatus> {
       gh: body.gh === true,
       remote: { claude: remoteOf(body.remote?.claude), codex: remoteOf(body.remote?.codex) },
       background: { claude: body.background?.claude === true, codex: body.background?.codex === true },
+      reasons: { claude: reasonOf(body.reasons?.claude), codex: reasonOf(body.reasons?.codex) },
       outdated: body.remote === undefined || body.background === undefined
     };
   } catch {
-    return { reachable: false, claude: false, codex: false, gh: false, remote: { claude: 'off', codex: 'off' }, background: { claude: false, codex: false }, outdated: false };
+    return { reachable: false, claude: false, codex: false, gh: false, remote: { claude: 'off', codex: 'off' }, background: { claude: false, codex: false }, reasons: { claude: '', codex: '' }, outdated: false };
   }
 }
 

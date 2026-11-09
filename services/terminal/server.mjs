@@ -16,7 +16,7 @@
  *                        Server -> client binary frames: terminal output.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -95,6 +95,35 @@ function startBackground(agent) {
   return r.status === 0;
 }
 
+/**
+ * Why an agent's Remote Control keeps failing, from the end of its log (~/.beni/remote/<agent>.log, written
+ * by the llm container): one known cause as a word, '' when none is recognised. Never the log itself.
+ */
+const REASONS = [
+  ['mfa', /Multi-factor authentication required/i],
+  ['signed-out', /401 Unauthorized|Please try signing in again|not logged in/i]
+];
+function remoteReason(text) {
+  // Only the last attempt counts: an earlier failure may have been fixed since.
+  const last = text.slice(Math.max(0, text.lastIndexOf('Starting app-server')));
+  return REASONS.find(([, re]) => re.test(last))?.[0] ?? '';
+}
+function logTail(file, bytes = 16384) {
+  try {
+    const fd = openSync(file, 'r');
+    try {
+      const size = statSync(file).size;
+      const buf = Buffer.alloc(Math.min(bytes, size));
+      readSync(fd, buf, 0, buf.length, size - buf.length);
+      return buf.toString('utf8');
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return '';
+  }
+}
+
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://terminal');
   if (req.method === 'POST' && url.pathname === '/remote') {
@@ -123,7 +152,11 @@ const server = createServer((req, res) => {
           claude: remoteState(path.join(HOME, '.beni/remote/claude.json')),
           codex: remoteState(path.join(HOME, '.beni/remote/codex.json'))
         },
-        background: { claude: backgroundRuns('claude'), codex: backgroundRuns('codex') }
+        background: { claude: backgroundRuns('claude'), codex: backgroundRuns('codex') },
+        reasons: {
+          claude: remoteReason(logTail(path.join(HOME, '.beni/remote/claude.log'))),
+          codex: remoteReason(logTail(path.join(HOME, '.beni/remote/codex.log')))
+        }
       })
     );
     return;

@@ -66,12 +66,16 @@ test('server: rejects without ticket, runs a shell with one', async (t) => {
   mkdirSync(remote, { recursive: true });
   writeFileSync(path.join(remote, 'claude.json'), '{"state":"running","since":1}');
   writeFileSync(path.join(remote, 'codex.json'), '{"state":"running","since":1}');
+  // The last attempt's known failure, as a word: an older one that was fixed since does not count.
+  writeFileSync(path.join(remote, 'codex.log'), 'Starting app-server\n401 Unauthorized\nStarting app-server\nbody: {"detail":"Multi-factor authentication required"}\n');
+  writeFileSync(path.join(remote, 'claude.log'), 'Starting app-server\n401 Unauthorized\nStarting app-server\nconnected\n');
   const old = new Date(Date.now() - 5 * 60_000);
   utimesSync(path.join(remote, 'codex.json'), old, old);
   const status = await (await fetch(`http://127.0.0.1:${port}/status`)).json();
   assert.deepEqual(status.remote, { claude: 'running', codex: 'off' });
   assert.equal(status.claude, false);
   assert.deepEqual(status.background, { claude: false, codex: false });
+  assert.deepEqual(status.reasons, { claude: '', codex: 'mfa' });
   // Starting a background Remote Control needs a ticket and a known agent.
   const post = (q) => fetch(`http://127.0.0.1:${port}/remote?${q}`, { method: 'POST' }).then((r) => r.status);
   assert.equal(await post('agent=claude'), 403);

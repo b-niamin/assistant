@@ -12,6 +12,7 @@ export interface DockStatus {
   claude: boolean;
   codex: boolean;
   gh: boolean;
+  reasons?: { claude: string; codex: string };
   remote: { claude: Remote; codex: Remote };
   background: { claude: boolean; codex: boolean };
   outdated: boolean;

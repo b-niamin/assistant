@@ -25,6 +25,10 @@ export interface UpdaterStatus {
   attempt: number;
   /** The app's last request the updater took ('' when none, or an older updater). */
   request: string;
+  /** Services that still run the previous version until a confirmed restart ("claude terminal"), '' when none. */
+  pendingRestart: string;
+  /** The app's last "Restart now" the updater took. */
+  restartRequest: string;
 }
 
 const STATUSES = new Set(['ok', 'failed', 'blocked', 'updating', 'available']);
@@ -56,7 +60,9 @@ export function parseUpdaterStatus(raw: string): UpdaterStatus | null {
     steps: count(j.steps),
     startedAt: text(j.startedAt, 40),
     attempt: count(j.attempt),
-    request: text(j.request, 64)
+    request: text(j.request, 64),
+    pendingRestart: text(j.pendingRestart, 200),
+    restartRequest: text(j.restartRequest, 64)
   };
 }
 
@@ -80,15 +86,20 @@ export type UpdateState = 'stale' | 'interrupted' | 'updating' | 'available' | '
  * heartbeat came for STALLED_MS (a reboot, or the process was killed): the updater's next run resumes it.
  * `pending`: "Update now" was clicked and the updater has not taken it yet.
  */
-export function updateView(s: UpdaterStatus, c: UpdaterControl, now = Date.now()): { state: UpdateState; pending: boolean; unanswered: boolean } {
+export function updateView(
+  s: UpdaterStatus,
+  c: UpdaterControl,
+  now = Date.now()
+): { state: UpdateState; pending: boolean; unanswered: boolean; restartPending: boolean } {
   let state: UpdateState = s.status;
   if (s.status === 'updating') {
     if (now - lastSeen(s) > STALLED_MS) state = 'interrupted';
   } else if (isStale(s, now)) state = 'stale';
   // The updater echoes the request it took; older ones did not, so compare times for them.
   const pending = !!c.request && c.request !== s.request && (!!s.request || Date.parse(c.request) > Date.parse(s.at));
-  const unanswered = pending && now - Date.parse(c.request) > UNANSWERED_MS;
-  return { state, pending, unanswered };
+  const restartPending = !!c.restart && c.restart !== s.restartRequest;
+  const unanswered = (pending && now - Date.parse(c.request) > UNANSWERED_MS) || (restartPending && now - Date.parse(c.restart ?? '') > UNANSWERED_MS);
+  return { state, pending, unanswered, restartPending };
 }
 
 export async function updaterStatus(file = process.env.UPDATER_STATUS_FILE ?? '/logs/updater-status.json'): Promise<UpdaterStatus | null> {
@@ -111,6 +122,10 @@ export interface UpdaterControl {
   request: string;
   /** When "Cancel" was last clicked during an update (ISO), '' if never. */
   cancel?: string;
+  /** Restarts of claude and terminal (they end the sessions in them): asked for first (default) or automatic. */
+  restarts?: 'ask' | 'auto';
+  /** When "Restart now" was last clicked (ISO), '' if never. */
+  restart?: string;
 }
 
 const controlFile = (statusFile: string) => path.join(path.dirname(statusFile), 'updater-control');
@@ -119,7 +134,13 @@ const STATUS_FILE = () => process.env.UPDATER_STATUS_FILE ?? '/logs/updater-stat
 export function parseControl(raw: string): UpdaterControl {
   const get = (k: string) => raw.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1]?.trim() ?? '';
   const id = (v: string) => (/^[A-Za-z0-9:._-]{1,64}$/.test(v) ? v : '');
-  return { mode: get('mode') === 'manual' ? 'manual' : 'auto', request: id(get('request')), cancel: id(get('cancel')) };
+  return {
+    mode: get('mode') === 'manual' ? 'manual' : 'auto',
+    request: id(get('request')),
+    cancel: id(get('cancel')),
+    restarts: get('restarts') === 'auto' ? 'auto' : 'ask',
+    restart: id(get('restart'))
+  };
 }
 
 export async function updaterControl(file = STATUS_FILE()): Promise<UpdaterControl> {
@@ -128,7 +149,13 @@ export async function updaterControl(file = STATUS_FILE()): Promise<UpdaterContr
 
 export async function setUpdaterControl(c: UpdaterControl, file = STATUS_FILE()): Promise<void> {
   const target = controlFile(file);
-  const lines = [`mode=${c.mode}`, c.request && `request=${c.request}`, c.cancel && `cancel=${c.cancel}`].filter(Boolean);
+  const lines = [
+    `mode=${c.mode}`,
+    `restarts=${c.restarts ?? 'ask'}`,
+    c.request && `request=${c.request}`,
+    c.cancel && `cancel=${c.cancel}`,
+    c.restart && `restart=${c.restart}`
+  ].filter(Boolean);
   await writeFile(`${target}.tmp`, `${lines.join('\n')}\n`, { mode: 0o644 });
   await rename(`${target}.tmp`, target);
 }

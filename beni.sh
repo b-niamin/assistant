@@ -4,7 +4,8 @@
 #   ./beni.sh install [ext...]      install or re-run the installer (asks in a terminal; see install.sh)
 #   ./beni.sh update                update to GitHub main now, with a progress bar (the same command the
 #                                   schedule runs: <folder>-updater/update.sh); a running update is followed
-#   ./beni.sh update --status       what the updater does or did; --cancel stops a running update
+#   ./beni.sh update --status       what the updater does or did; --cancel stops a running update;
+#                                   --restart also restarts claude and terminal when they wait for it
 #   ./beni.sh start | stop | restart [service]
 #   ./beni.sh status                containers and the app's health
 #   ./beni.sh doctor                checks the install: permissions, git, .env, database password, ...
@@ -365,7 +366,8 @@ case $cmd in
       --status) exec sh "$home/update.sh" status "$DIR" ;;
       --cancel) exec sh "$home/update.sh" cancel "$DIR" ;;
       "") exec sh "$home/update.sh" run --now "$DIR" ;;
-      *) die "update [--status | --cancel]" ;;
+      --restart) exec sh "$home/update.sh" run --restart "$DIR" ;;
+      *) die "update [--status | --cancel | --restart]" ;;
     esac ;;
   start) dc up -d "$@" && ok "started" ;;
   stop) dc stop "$@" && ok "stopped (data kept)" ;;

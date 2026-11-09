@@ -66,6 +66,8 @@ LOGS=$(docker volume inspect -f '{{.Mountpoint}}' "${P}_logs")
 
 export ASSISTANT_UPDATER_HOME=$UH ASSISTANT_COMPOSE_PROJECT=$P ASSISTANT_REPO=$T/origin.git
 export ASSISTANT_FETCH_EVERY=0 ASSISTANT_VERIFY_WAIT=2
+# claude is restarted at once unless a test sets restarts=ask (the app's default) in the control file.
+export ASSISTANT_RESTARTS=auto
 sh "$CO/scripts/update.sh" install "$CO" > "$T/out" 2>&1 || fail "install"
 # The scheduled run: no terminal, explicit `run` like the cron line's default.
 run() { sh "$UH/update.sh" run "$CO" "$@" < /dev/null > "$T/out" 2>&1 && RC=0 || RC=$?; }
@@ -179,11 +181,33 @@ run; [ "$RC" = 0 ] && [ "$(st status)" = ok ] && [ "$(st request)" = r1 ] || fai
 run; [ ! -s "$T/out" ] || fail "request handled twice"
 ok "manual mode: available, then Update now deploys and is echoed back"
 
-# A terminal: the bare command updates now, with a progress bar.
+# Restarts asked first: claude (where the Claude sessions run) keeps the previous version until
+# "Restart now" in the app or `--restart` on the host; everything else is updated.
+printf 'mode=auto\nrestarts=ask\n' > "$LOGS/updater-control"
+imgA=$(claude_img)
+asown sh -c "echo v4b > '$T/work/apps/web/page.txt'"; dockerfile 'LABEL v=4b'; commit I2
+run; [ "$RC" = 0 ] && grep -q 'claude wait for a restart' "$T/out" || fail "held restart not reported"
+[ "$(claude_img)" = "$imgA" ] && [ "$(cat "$CO/apps/web/page.txt")" = v4b ] || fail "claude recreated, or the code not updated"
+[ "$(st pendingRestart)" = claude ] && [ "$(st status)" = ok ] || fail "status has no pending restart"
+run; [ ! -s "$T/out" ] || fail "held restart said twice"
+printf 'mode=auto\nrestarts=ask\nrestart=x1\n' > "$LOGS/updater-control"
+run; [ "$RC" = 0 ] && grep -q 'restarted claude' "$T/out" || fail "Restart now not done"
+imgB=$(claude_img); [ "$imgB" != "$imgA" ] && [ -z "$(st pendingRestart)" ] && [ "$(st restartRequest)" = x1 ] || fail "claude not recreated by the restart"
+run; [ ! -s "$T/out" ] || fail "restart request handled twice"
+dockerfile 'LABEL v=4c'; commit I3
+run; [ "$(claude_img)" = "$imgB" ] || fail "held again: claude recreated"
+sh "$UH/update.sh" run --restart "$CO" < /dev/null > "$T/out" 2>&1 || fail "--restart"
+[ "$(claude_img)" != "$imgB" ] && [ -z "$(st pendingRestart)" ] || fail "--restart did not restart claude"
+ok "restarts asked first: claude waits for Restart now (app) or --restart (host), the rest is updated"
+
+# A terminal: the bare command updates now, with a progress bar, and asks before restarting claude.
 asown sh -c "echo v5 > '$T/work/apps/web/page.txt'"; dockerfile 'LABEL v=5'; commit J
-script -qec "sh $UH/update.sh $CO" /dev/null > "$T/out" 2>&1 || fail "terminal run"
-grep -q '\[#*\.*\] [0-9]/4 ' "$T/out" && grep -q 'done: ' "$T/out" || fail "no progress bar in a terminal"
-ok "terminal: the plain command updates now with a progress bar"
+imgC=$(claude_img)
+(while sleep 2; do echo y; done) | ASSISTANT_PROMPT_TIMEOUT=60 script -qec "sh $UH/update.sh $CO" /dev/null > "$T/out" 2>&1 || fail "terminal run"
+grep -q '\[#*\.*\] [0-9]/2 ' "$T/out" && grep -q 'done: ' "$T/out" || fail "no progress bar in a terminal"
+grep -q 'Restart now?' "$T/out" && [ "$(claude_img)" != "$imgC" ] || fail "terminal did not ask, or did not restart on yes"
+printf 'mode=auto\n' > "$LOGS/updater-control"
+ok "terminal: the plain command updates now with a progress bar and asks before restarting claude"
 
 # Claude edits docker-compose.yml in the checkout to mount the host root: refused, nothing started.
 asown sed -i 's#\[logs:/logs\]#[logs:/logs, /:/host]#' "$CO/docker-compose.yml"

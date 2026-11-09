@@ -25,7 +25,7 @@
     remote: { claude: Remote; codex: Remote };
     background: { claude: boolean; codex: boolean };
     outdated: boolean;
-    update: { state: string; sha: string; actions: string; step: number; steps: number } | null;
+    update: { state: string; sha: string; actions: string; step: number; steps: number; pendingRestart: string } | null;
   }
 
   let status = $state<Status | null>(null);
@@ -192,6 +192,10 @@
     {:else if status?.update?.state === 'available'}
       <a class="chip" href="/settings#up-h" title="A new version is on GitHub: update it from System settings">
         <span class="status small available">Update available</span>
+      </a>
+    {:else if status?.update?.pendingRestart}
+      <a class="chip" href="/settings#up-h" title="{status.update.pendingRestart} run the previous version: restart them from System settings">
+        <span class="status small warning">Restart needed</span>
       </a>
     {:else if status?.update?.state === 'interrupted'}
       <a class="chip" href="/settings#up-h" title="The update's process stopped; the updater resumes it, or resume it from System settings">

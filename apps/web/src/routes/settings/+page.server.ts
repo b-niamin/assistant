@@ -76,6 +76,22 @@ export const actions: Actions = {
     return { ok: 'Update requested: it starts within a minute.' };
   },
 
+  /** Restarts of claude and terminal: asked for first, or automatic (spec 006). */
+  updateRestarts: async ({ request, cookies }) => {
+    if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
+    const restarts = str(await request.formData(), 'restarts') === 'auto' ? 'auto' : 'ask';
+    await setUpdaterControl({ ...(await updaterControl()), restarts });
+    return { ok: restarts === 'auto' ? 'Updates restart claude and terminal by themselves.' : 'Updates ask before restarting claude and terminal.' };
+  },
+
+  /** "Restart now": the updater recreates the services that wait for it, within a minute. */
+  updateRestart: async ({ cookies }) => {
+    if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
+    await setUpdaterControl({ ...(await updaterControl()), restart: new Date().toISOString() });
+    console.log(`[settings] ${new Date().toISOString()} restart of the held services requested`);
+    return { ok: 'Restart requested: it starts within a minute.' };
+  },
+
   /** "Cancel" during an update: the updater's next run stops the running one (old containers stay). */
   updateCancel: async ({ cookies }) => {
     if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });

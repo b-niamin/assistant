@@ -17,7 +17,14 @@ export const GET: RequestHandler = async ({ cookies, locals }) => {
   const [status, unlocked, u, c] = await Promise.all([terminalStatus(), isElevated(cookies.get(SESSION_COOKIE)), updaterStatus(), updaterControl()]);
   // The host's updater: shown in the dock while it updates, when an update was interrupted, or when it has stopped.
   const update = u
-    ? { state: updateView(u, c).state, sha: u.sha.slice(0, 7), actions: u.status === 'updating' ? u.actions : '', step: u.step, steps: u.steps }
+    ? {
+        state: updateView(u, c).state,
+        sha: u.sha.slice(0, 7),
+        actions: u.status === 'updating' ? u.actions : '',
+        step: u.step,
+        steps: u.steps,
+        pendingRestart: u.pendingRestart
+      }
     : null;
   return json({ ...status, configured: sidecarsConfigured(), unlocked, update }, { headers: { 'cache-control': 'no-store' } });
 };

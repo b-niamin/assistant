@@ -16,7 +16,7 @@ const sample = {
 };
 
 it('reads what update.sh writes', () => {
-  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '', step: 0, steps: 0, startedAt: '', attempt: 0, request: '' });
+  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '', step: 0, steps: 0, startedAt: '', attempt: 0, request: '', pendingRestart: '', restartRequest: '' });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, attempt: 2, request: 'r1', pid: 5 }))).toMatchObject({ attempt: 2, request: 'r1' });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, status: 'updating', step: 2, steps: 5, startedAt: 'x' }))).toMatchObject({ step: 2, steps: 5 });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, step: -1, steps: '9' }))).toMatchObject({ step: 0, steps: 0 });
@@ -52,10 +52,11 @@ it('reads the heartbeat next to the status and tells a stopped updater', async (
 it('keeps the manual mode and the update request for the host', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'upd-'));
   const file = path.join(dir, 'updater-status.json');
-  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '', cancel: '' });
-  await setUpdaterControl({ mode: 'manual', request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z' }, file);
-  expect(await updaterControl(file)).toEqual({ mode: 'manual', request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z' });
-  expect(parseControl('mode=manual\nrequest=$(reboot)\n')).toEqual({ mode: 'manual', request: '', cancel: '' });
+  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '', cancel: '', restarts: 'ask', restart: '' });
+  const c = { mode: 'manual' as const, request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z', restarts: 'auto' as const, restart: '2026-11-09T15:50:00.000Z' };
+  await setUpdaterControl(c, file);
+  expect(await updaterControl(file)).toEqual(c);
+  expect(parseControl('mode=manual\nrequest=$(reboot)\nrestart=;rm\n')).toEqual({ mode: 'manual', request: '', cancel: '', restarts: 'ask', restart: '' });
 });
 
 it('tells a running update from one whose process died, and a request not taken yet', () => {
@@ -76,4 +77,13 @@ it('tells a running update from one whose process died, and a request not taken 
   expect(updateView({ ...ok, request: asked.request }, asked, t('2026-11-06T20:13:00Z')).pending).toBe(false);
   // An older updater (no request echo): taken when its status is newer than the click.
   expect(updateView({ ...ok, at: '2026-11-06T20:09:30Z' }, asked, t('2026-11-06T20:10:00Z')).pending).toBe(false);
+});
+
+it('tells a restart asked for and not taken yet', () => {
+  const s = { ...parseUpdaterStatus(JSON.stringify({ ...sample, pendingRestart: 'claude terminal' }))!, checkedAt: '2026-11-06T20:00:00Z' };
+  const c = { mode: 'auto' as const, request: '', restart: '2026-11-06T20:01:00.000Z' };
+  expect(s.pendingRestart).toBe('claude terminal');
+  expect(updateView(s, c, Date.parse('2026-11-06T20:01:30Z'))).toMatchObject({ restartPending: true, unanswered: false });
+  expect(updateView(s, c, Date.parse('2026-11-06T20:05:00Z'))).toMatchObject({ restartPending: true, unanswered: true });
+  expect(updateView({ ...s, restartRequest: c.restart }, c, Date.parse('2026-11-06T20:05:00Z')).restartPending).toBe(false);
 });

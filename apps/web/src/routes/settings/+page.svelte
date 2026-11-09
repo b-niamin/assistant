@@ -36,7 +36,7 @@
 
   // While an update runs or is asked for, follow it: the page reloads its data every 5 seconds.
   $effect(() => {
-    if (data.locked || !(data.updates?.status === 'updating' || data.updateView?.pending)) return;
+    if (data.locked || !(data.updates?.status === 'updating' || data.updateView?.pending || data.updateView?.restartPending)) return;
     const t = setInterval(() => invalidateAll(), 5000);
     return () => clearInterval(t);
   });
@@ -288,6 +288,17 @@
             </details>
           {/if}
         {/if}
+        {#if u.pendingRestart && state !== 'updating'}
+          <div class="restart">
+            <p class="meta">
+              <strong>{u.pendingRestart.split(' ').join(' and ')}</strong> still run the previous version. Restarting them ends the Claude
+              and Codex sessions and the terminal running there{v.restartPending ? '' : ', so it waits for you'}.
+            </p>
+            <form method="POST" action="?/updateRestart" use:enhance>
+              <button class="btn btn-primary" disabled={v.restartPending}>{v.restartPending ? 'Restarting…' : 'Restart now'}</button>
+            </form>
+          </div>
+        {/if}
         <dl class="facts">
           {#if u.deployedSha}<dt>Running</dt><dd><code>{short(u.deployedSha)}</code>{u.deployedAt ? `, deployed ${when(u.deployedAt)}` : ''}</dd>{/if}
           <dt>Last change</dt><dd>{u.message}{u.at ? ` · ${when(u.at)}` : ''}</dd>
@@ -297,6 +308,11 @@
         <form method="POST" action="?/updateMode" use:enhance class="mode" aria-label="Update mode">
           <label><input type="radio" name="mode" value="auto" checked={data.updateControl.mode === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Automatic</label>
           <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Manual: show new versions, update when I click</label>
+          <noscript><button class="btn">Save</button></noscript>
+        </form>
+        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label="Restarts of claude and terminal">
+          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Ask before restarting claude and terminal</label>
+          <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Restart them by themselves</label>
           <noscript><button class="btn">Save</button></noscript>
         </form>
         <p class="meta">
@@ -586,6 +602,18 @@
     border-radius: inherit;
     background: var(--accent);
     transition: width 400ms ease;
+  }
+  .restart {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-left: 3px solid var(--warning);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+  }
+  .restart p {
+    flex: 1;
   }
   .progress.halted span {
     background: var(--warning);

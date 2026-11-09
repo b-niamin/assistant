@@ -6,12 +6,13 @@
 #                                     update when automatic updates are on or the app asked for one, and
 #                                     finish an update that was interrupted
 #   sh <home>/update.sh --now         update now, also without a terminal (and retry a failed update)
+#   sh <home>/update.sh --restart     the same, and restart claude/terminal if they wait for it (see HELD)
 #   sh <home>/update.sh status        what it does or did (--json: the raw status)
 #   sh <home>/update.sh cancel        stop a running update; the containers that ran before keep running
 #   sh scripts/update.sh install      once: <home> with a mirror of GitHub and this script, and the schedule
 #   sh scripts/update.sh fix-permissions | plan | acl-paths
 #
-# <home> is <checkout>-updater, next to the checkout. `sudo ./beni.sh update [--status | --cancel]` runs it.
+# <home> is <checkout>-updater, next to the checkout. `sudo ./beni.sh update [--status|--cancel|--restart]` runs it.
 #
 # It runs on the HOST, never in a container: no container gets the Docker socket (spec 004). What it
 # runs comes only from a private mirror of GitHub main in <home>, which no container can see: this script
@@ -37,6 +38,9 @@ FETCH_EVERY=${ASSISTANT_FETCH_EVERY:-240}         # seconds between GitHub check
 BUILD_TIMEOUT=${ASSISTANT_BUILD_TIMEOUT:-5400}    # one image build (NAS builds are slow)
 STEP_TIMEOUT=${ASSISTANT_STEP_TIMEOUT:-900}       # any other step
 MAX_ATTEMPTS=3                                    # an interrupted or failed update is tried this often
+# Recreating or restarting these ends what runs in them (Claude and Codex sessions, the terminal): with
+# restarts=ask (the default, System settings -> Updates) the update leaves them to a confirmed restart.
+HELD=${ASSISTANT_HELD_SERVICES:-claude terminal}
 
 say() { printf '[update] %s\n' "$*"; }
 # An error also lands in <home>/last-error and the app's updater.log: a scheduled task's output is
@@ -194,13 +198,14 @@ write_status() {
     printf '{"status":%s,"message":%s,"actions":%s,' "$(json_str "$1")" "$(json_str "$2")" "$(json_str "$ACTIONS")"
     printf '"sha":%s,"deployedSha":%s,"deployedAt":%s,' "$(json_str "$SHA")" "$(json_str "$DEPLOYED")" "$(json_str "$DEPLOYED_AT")"
     printf '"at":%s,"step":%s,"steps":%s,"startedAt":%s,' "$(json_str "$(iso)")" "$STEP_NO" "$STEP_TOTAL" "$(json_str "$STARTED_AT")"
-    printf '"attempt":%s,"request":%s,"pid":%s,"branch":%s}\n' "$ATTEMPT" "$(json_str "${HANDLED:-}")" "$$" "$(json_str "$BRANCH")"
+    printf '"attempt":%s,"request":%s,"pid":%s,"branch":%s,' "$ATTEMPT" "$(json_str "${HANDLED:-}")" "$$" "$(json_str "$BRANCH")"
+    printf '"pendingRestart":%s,"restartRequest":%s}\n' "$(json_str "$(pending_services)")" "$(json_str "${S_restarted:-}")"
   } > "$HOME_DIR/status.json.tmp" && mv "$HOME_DIR/status.json.tmp" "$HOME_DIR/status.json"
   logs_put updater-status.json < "$HOME_DIR/status.json"
 }
 
 # --- state: what is deployed, what failed, and the journal of the update in progress ---------------
-STATE_KEYS="deployed deployed_at failed fail_count failed_at note handled cancelled target base done attempt last_fetch"
+STATE_KEYS="deployed deployed_at failed fail_count failed_at note handled cancelled target base done attempt last_fetch pending restarted"
 state_load() {
   for k in $STATE_KEYS; do
     v=$(sed -n "s/^$k=//p" "$STATE" 2>/dev/null | head -n 1)
@@ -214,17 +219,25 @@ state_save() {
   for k in $STATE_KEYS; do eval "printf '%s=%s\n' $k \"\$S_$k\""; done > "$STATE.tmp" && mv "$STATE.tmp" "$STATE"
 }
 
-# The app's choice (System settings -> Updates), in the logs volume: `mode=auto|manual`, `request=<id>`
-# when "Update now" (or "Resume") was clicked, `cancel=<id>` for "Cancel". Read as data, never run.
+# The app's choice (System settings -> Updates), in the logs volume: `mode=auto|manual`,
+# `restarts=ask|auto`, and the clicks: `request=<id>` ("Update now", "Resume"), `cancel=<id>` ("Cancel"),
+# `restart=<id>` ("Restart now"). Read as data, never run.
 read_control() {
-  MODE=auto REQUEST="" CANCEL=""
+  MODE=auto REQUEST="" CANCEL="" RESTARTS="" RESTART_REQ=""
   f=$LOGS_MP/updater-control
-  [ -n "$LOGS_MP" ] && [ -r "$f" ] || return 0
-  MODE=$(sed -n 's/^mode=//p' "$f" | grep -x -e auto -e manual | tail -n 1)
-  REQUEST=$(sed -n 's/^request=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
-  CANCEL=$(sed -n 's/^cancel=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
+  if [ -n "$LOGS_MP" ] && [ -r "$f" ]; then
+    MODE=$(sed -n 's/^mode=//p' "$f" | grep -x -e auto -e manual | tail -n 1)
+    RESTARTS=$(sed -n 's/^restarts=//p' "$f" | grep -x -e auto -e ask | tail -n 1)
+    REQUEST=$(sed -n 's/^request=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
+    CANCEL=$(sed -n 's/^cancel=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
+    RESTART_REQ=$(sed -n 's/^restart=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
+  fi
   [ -n "$MODE" ] || MODE=auto
+  [ -n "$RESTARTS" ] || RESTARTS=${ASSISTANT_RESTARTS:-ask}
 }
+
+# The held services waiting for a restart (from $S_pending: up:<svc> and restart:<svc>), one line.
+pending_services() { for p in ${S_pending:-}; do echo "${p#*:}"; done | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//'; }
 
 # --- the lock --------------------------------------------------------------------------------------
 # <home>/lock is a directory (mkdir is atomic) holding the pid, that process's start time and the boot it
@@ -450,8 +463,67 @@ steps_for() {
   [ "$migrate" = 0 ] || STEPS="$STEPS migrate"
   # `up:all` recreates what changed, not what only needs a restart for its code.
   for s in $restarts; do case " $builds " in *" $s "*) ;; *) STEPS="$STEPS restart:$s" ;; esac; done
+  [ "$RESTARTS" = auto ] || [ "$RESTART_NOW" = 1 ] || hold_steps
   # Something was started or restarted: check it runs.
   case $STEPS in *" up:"* | *" restart:"* | *" migrate"*) STEPS="$STEPS verify" ;; esac
+}
+
+# Takes the held services out of STEPS: what they would get (up:<svc> or restart:<svc>) goes to HOLD_NEW,
+# for a restart the user confirms.
+hold_steps() {
+  HOLD_NEW="" out=""
+  for st in $STEPS; do
+    case $st in
+      up:*)
+        if [ "$st" = up:all ]; then list=$(dc_src config --services 2>/dev/null | tr '\n' ' ')
+        else list=$(echo "${st#up:}" | tr , ' '); fi
+        keep=""
+        for v in $list; do
+          case " $HELD " in *" $v "*) HOLD_NEW="$HOLD_NEW up:$v" ;; *) keep="$keep $v" ;; esac
+        done
+        if [ "$st" = up:all ] && [ -z "$HOLD_NEW" ]; then out="$out $st"
+        elif [ -n "$keep" ]; then out="$out up:$(echo $keep | tr ' ' ,)"; fi ;;
+      restart:*) case " $HELD " in *" ${st#restart:} "*) HOLD_NEW="$HOLD_NEW $st" ;; *) out="$out $st" ;; esac ;;
+      *) out="$out $st" ;;
+    esac
+  done
+  STEPS=$out
+}
+
+# apply_restarts <who>: recreates (up:) or restarts the held services that wait for it, from the deployed
+# commit's compose file (checked against the checkout like any `up`), then checks they run.
+apply_restarts() {
+  ups="" rs=""
+  for p in $S_pending; do case $p in up:*) ups="$ups ${p#up:}" ;; restart:*) rs="$rs ${p#restart:}" ;; esac; done
+  STEPS=""
+  [ -z "$ups" ] || STEPS="up:$(echo $ups | tr ' ' '\n' | awk '!seen[$0]++' | tr '\n' ',' | sed 's/,$//')"
+  for v in $rs; do case " $ups " in *" $v "*) ;; *) STEPS="$STEPS restart:$v" ;; esac; done
+  STEPS="$STEPS verify" TOUCHED=$(pending_services)
+  SHA=$DEPLOYED ACTIONS=$S_pending STEP_TOTAL=$(set -- $STEPS; echo $#) STEP_NO=0 STARTED_AT=$(iso) ATTEMPT=1
+  BUILD_LOG=$(build_log_path)
+  printf '%s restart of %s (%s)\n' "$(iso)" "$TOUCHED" "$1" > "$BUILD_LOG" 2>/dev/null || BUILD_LOG=/dev/null
+  log "restarting $TOUCHED ($1)"
+  export_src || { FAIL_MSG="cannot export docker/ from $(short "$SHA")"; return 1; }
+  start_ticker
+  for st in $STEPS; do
+    progress "$st"
+    FAIL_MSG=""
+    run_step "$st" < /dev/null || { [ -n "$FAIL_MSG" ] || FAIL_MSG="$(step_name "$st") failed"; return 1; }
+  done
+  S_pending=""
+  return 0
+}
+
+# restart_now <who>: apply_restarts with its status, log and state.
+restart_now() {
+  if apply_restarts "$1"; then
+    log "restarted $TOUCHED"; write_status ok "restarted $TOUCHED at $(short "$DEPLOYED")"
+  else
+    log "restart of $TOUCHED FAILED: $FAIL_MSG"; write_status failed "$FAIL_MSG"
+  fi
+  state_save; flush_log
+  [ -z "$TICKER" ] || { kill "$TICKER" 2>/dev/null; wait "$TICKER" 2>/dev/null; TICKER=""; }
+  [ "$TTY" != 1 ] || printf '\r\033[K'
 }
 
 # docker/ and docker-compose.yml of $SHA, from the mirror: the only build contexts and compose file used.
@@ -525,7 +597,7 @@ deploy() {
     esac
     progress "$s"
     FAIL_MSG=""
-    run_step "$s"; rc=$?
+    run_step "$s" < /dev/null; rc=$? # a terminal's keystrokes are for the prompt, not for docker
     if [ "$rc" != 0 ]; then
       [ -n "$FAIL_MSG" ] || FAIL_MSG="$(step_name "$s") failed$( [ "$rc" != 124 ] || echo " (no end after its time limit)")"
       return 1
@@ -565,6 +637,18 @@ cmd_run() {
     lock_take || die "the lock is still taken"
     state_load
     [ -z "$why" ] || HANDLED=${REQUEST:-$S_handled}
+  fi
+
+  # "Restart now" in the app, `beni.sh update --restart`, or restarts set to automatic: the held
+  # services that wait get their restart (before any update, which may hold more).
+  if [ -n "$RESTART_REQ" ] && [ "$RESTART_REQ" != "$S_restarted" ]; then
+    S_restarted=$RESTART_REQ; restart_why="asked in the app"
+  elif [ "$RESTART_NOW" = 1 ]; then restart_why="asked from the host"
+  elif [ "$RESTARTS" = auto ] && [ -n "$S_pending" ]; then restart_why="restarts are automatic"
+  else restart_why=""; fi
+  if [ -n "$restart_why" ]; then
+    if [ -n "$S_pending" ]; then restart_now "$restart_why"
+    else state_save; write_status ok "nothing waits for a restart"; fi
   fi
 
   # A journal without a live lock: the update before this one died (reboot, killed, crash).
@@ -635,7 +719,7 @@ cmd_run() {
     [ "$requested" = 0 ] || S_fail_count=0
 
     # Before any build: can the checkout take main at all?
-    out=$(git_checkout check)
+    out=$(git_checkout check < /dev/null)
     r=$(printf '%s\n' "$out" | sed -n 's/^result://p')
     head=$(printf '%s\n' "$out" | sed -n 's/^head://p')
     case $r in
@@ -672,11 +756,14 @@ cmd_run() {
   [ "$TTY" != 1 ] || printf '\033[?25l'
   start_ticker
 
+  HOLD_NEW=""
   if deploy; then
     DEPLOYED=$SHA DEPLOYED_AT=$(iso)
     S_failed="" S_fail_count=0 S_note="" S_target="" S_done="" S_attempt=0 STEP_NO=$STEP_TOTAL
-    log "updated to $(short "$SHA") (${CHANGED_COUNT:-0} file(s) changed; ${ACTIONS:-no container touched})"
-    write_status ok "updated to $(short "$SHA")"
+    S_pending=$(echo $S_pending $HOLD_NEW | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' ' | sed 's/ $//')
+    held=""; [ -z "$S_pending" ] || held="; $(pending_services) wait for a restart"
+    log "updated to $(short "$SHA") (${CHANGED_COUNT:-0} file(s) changed; ${ACTIONS:-no container touched})$held"
+    write_status ok "updated to $(short "$SHA")$held"
     rc=0
   else
     S_failed=$SHA S_failed_at=$(now) S_fail_count=$((S_fail_count + 1)) S_note=failed
@@ -689,7 +776,24 @@ cmd_run() {
   flush_log
   [ -z "$TICKER" ] || { kill "$TICKER" 2>/dev/null; wait "$TICKER" 2>/dev/null; TICKER=""; }
   [ "$TTY" != 1 ] || { printf '\r\033[K'; [ "$rc" = 0 ] && say "done: $(short "$SHA") runs" || say "failed: $FAIL_MSG (log: $BUILD_LOG)"; }
+  [ "$rc" = 0 ] && [ -n "$S_pending" ] && ask_restart
   exit $rc
+}
+
+# In a terminal: offer the restart of the held services right away.
+ask_restart() {
+  [ "$TTY" = 1 ] && [ -r /dev/tty ] || { say "$(pending_services) wait for a restart: System settings > Updates, or sudo ./beni.sh update --restart"; return 0; }
+  printf '[update] %s run the previous version. Restart now? It ends the Claude and Codex sessions and the terminal in them. [y/N] ' "$(pending_services)"
+  # No answer in 10 minutes counts as no (someone walked away from the terminal).
+  # (--foreground: a command in the background process group cannot read the terminal.)
+  if timeout --foreground 1 true 2>/dev/null; then
+    a=$(timeout --foreground "${ASSISTANT_PROMPT_TIMEOUT:-600}" sh -c 'read -r a < /dev/tty && echo "$a"' || true)
+  else read -r a < /dev/tty || a=""; fi
+  echo
+  case $a in
+    [yY]*) restart_now "asked from the host"; [ -n "$S_pending" ] || say "restarted" ;;
+    *) say "left for later: System settings > Updates, or sudo ./beni.sh update --restart" ;;
+  esac
 }
 
 # follow: shows someone else's update until its lock is free.
@@ -746,6 +850,7 @@ cmd_status() {
     [ -z "$S_target" ] || say "an update to $(short "$S_target") was interrupted (step(s) done:${S_done:- none}); the next run resumes it"
   fi
   say "running commit: $(short "$DEPLOYED") since ${DEPLOYED_AT:-?}"
+  [ -z "$S_pending" ] || say "waiting for a restart: $(pending_services) (sudo ./beni.sh update --restart)"
   say "last run: $(cat "$HOME_DIR/last-run" 2>/dev/null || echo never) (the schedule should run it every minute)"
   [ ! -f "$HOME_DIR/last-error" ] || say "last error: $(cat "$HOME_DIR/last-error")"
   [ -z "$LOGS_MP" ] || [ ! -r "$LOGS_MP/updater-control" ] || say "mode: $(sed -n 's/^mode=//p' "$LOGS_MP/updater-control" | tail -n 1)"
@@ -840,14 +945,15 @@ SYNO
 }
 
 # --- arguments: [command] [--now] [--json] [--manual] [checkout] -------------------------------------
-CMD="" NOW=0 JSON=0 MANUAL=0 ARG=""
+CMD="" NOW=0 JSON=0 MANUAL=0 RESTART_NOW=0 ARG=""
 for a in "$@"; do
   case $a in
     --now) NOW=1 ;;
     --json) JSON=1 ;;
     --manual) MANUAL=1 ;;
+    --restart) RESTART_NOW=1 NOW=1 ;;
     run | status | cancel | install | fix-permissions | plan | acl-paths) [ -n "$CMD" ] || CMD=$a ;;
-    -h | --help | help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h | --help | help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) die "unknown option $a" ;;
     *) ARG=$a ;;
   esac

@@ -65,6 +65,14 @@ GitHub main ──git fetch (checkout owner's credentials)──► <checkout>-u
  6. verify        the touched services run (no crash loop, no failed exit) 15 s later
 ```
 
+**claude and terminal wait for a confirmed restart** (System settings → Updates: "Ask before restarting
+claude and terminal", the default; or "Restart them by themselves", `restarts=auto`). Recreating or
+restarting them ends the Claude and Codex sessions and the terminal running there. With "ask", an update
+builds their images and does everything else, then leaves their `up`/`restart` in `<home>/state`
+(`pending`); the status carries `pendingRestart`, the panel and the dock say "Restart needed", and
+"Restart now" (`restart=<id>` in the control file), `sudo ./beni.sh update --restart`, or "y" at the
+prompt of `sudo ./beni.sh update` in a terminal recreates them from the deployed commit's compose file.
+
 Before step 1 the same throwaway container checks that the checkout can take main at all (on `main`, no
 local commits, no local changes in files the update changes); otherwise the update is paused ("blocked")
 and nothing is built. Every step runs under a time limit (90 minutes for a build, 15 for the rest): a hung

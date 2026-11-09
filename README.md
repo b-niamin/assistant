@@ -2,29 +2,41 @@
   <img src="apps/web/static/beni.svg" alt="Beni, the assistant's mascot: an orange jelly-bean runner in a sweatband" width="160" />
 </p>
 
-# Beni Assistant
+<h1 align="center">Beni Assistant</h1>
 
-A private, self-hosted assistant you run at home: a small **core shell** (password, profiles, dashboard,
-System settings, an in-app terminal and browser) plus **extensions**, the apps. Claude runs inside the
-stack, reached through Remote Control, talks to every extension and builds new ones on request.
+<p align="center">
+  <b>Your private assistant, self-hosted at home.</b><br />
+  A small core app plus extensions, with Claude inside to run them and build new ones.
+</p>
 
-Meet **Beni**, the mascot: a jelly-bean runner in a sweatband who greets you on the dashboard and keeps
-every empty screen company.
+## At a glance
 
-- Extensions: ready to install (Training & Health from Garmin, a gym tracker) and inspirations to build
-  new ones from (Home Assistant, calendar, learning):
-  [assistant-extensions](https://github.com/b-niamin/assistant-extensions)
-- Architecture: [specs/000-architecture.md](specs/000-architecture.md), extensions:
-  [specs/002-extensions.md](specs/002-extensions.md), security: [specs/004-security.md](specs/004-security.md)
-- Rules for working in this repo (people and AI agents): [AGENTS.md](AGENTS.md); skills in [.ai/](.ai)
+- **What it is**: a web app you run with Docker on your own NAS or Linux machine. The core is a shell:
+  app password, profiles, a dashboard, System settings, an in-app terminal and browser.
+- **Extensions are the apps**: Training & Health, a gym tracker, a finance tracker, or whatever you ask Claude to
+  build. Ready ones and inspirations live in [assistant-extensions](https://github.com/b-niamin/assistant-extensions).
+- **Claude inside**: it runs in the stack, you reach it through Remote Control, and it talks to every extension.
+- **Private**: your data stays on your hardware; you open the app over your Tailscale tailnet with HTTPS.
+- **Beni** is the mascot: a jelly-bean runner in a sweatband who greets you on the dashboard and keeps every
+  empty screen company.
 
-## Install (one command)
+## Install
 
-On any Linux machine or NAS with Docker and Compose (Tailscale optional but recommended):
+On a Synology NAS or any Linux machine with Docker and Compose (Tailscale optional but recommended):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh | sudo sh
 ```
+
+Answer the questions with Enter, then open the printed address + `/setup`, type the setup code and choose
+your password and profile. Check the install any time with `sudo ./beni.sh doctor`.
+On a Synology, follow [Step by step on a Synology NAS](#step-by-step-on-a-synology-nas).
+
+More to read: [architecture](specs/000-architecture.md), [extensions](specs/002-extensions.md),
+[security](specs/004-security.md), and the rules for working in this repo, for people and AI agents:
+[AGENTS.md](AGENTS.md) (skills in [.ai/](.ai)).
+
+### What the installer does
 
 It asks a few questions, each with a suggestion you take with Enter: the folder
 (`/volume1/docker/assistant-core` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS

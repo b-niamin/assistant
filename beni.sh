@@ -5,10 +5,12 @@
 #   ./beni.sh update                git pull, then the installer again (keeps .env, extensions, answers)
 #   ./beni.sh start | stop | restart [service]
 #   ./beni.sh status                containers and the app's health
+#   ./beni.sh doctor                checks the install: permissions, git, .env, database password, ...
 #   ./beni.sh logs [service]        follow logs (web, claude, garmin-sync, ...)
 #   ./beni.sh ext <args>            the extension CLI in the claude container: available, install <id>, list, ...
 #   ./beni.sh migrate <old-checkout> [--no-garmin-login]   copy data from an older install (after a backup)
 #   ./beni.sh fix-permissions       owner, Synology ACLs and modes in the checkout
+#   ./beni.sh fix-db-password       the database keeps its data but takes the password in .env
 #   ./beni.sh auto-update [install | status]
 #
 # Docker on Synology needs root: put sudo in front (sudo ./beni.sh status).
@@ -19,6 +21,8 @@ cd "$DIR"
 
 say() { printf '  \033[2m·\033[0m %s\n' "$*"; }
 ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
+warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
+bad() { printf '  \033[31m✗\033[0m %s\n' "$*"; }
 die() { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 
 if docker compose version >/dev/null 2>&1; then DC="docker compose"
@@ -28,20 +32,266 @@ else DC=""; fi
 dc() {
   [ -n "$DC" ] || die "Docker Compose is missing."
   [ -f .env ] || die "not installed yet: ./beni.sh install"
+  [ -r .env ] || die "cannot read .env (it belongs to root): put sudo in front"
   set -- --project-directory "$DIR" --env-file "$DIR/.env" \
     $(sed -n 's/^COMPOSE_FILE=//p' .env | tr ':' '\n' | sed 's/^/-f /') "$@"
   $DC "$@"
 }
 envv() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n 1; }
+# The compose project name (volumes are prefixed with it): the folder name, as Compose normalizes it.
+project() { basename "$DIR" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_-'; }
 
-usage() { sed -n '3,14p' "$0" | sed 's/^# \{0,1\}//'; }
+# The containers write the checkout as HOST_UID (from .env, else the folder's owner).
+owner_uid() {
+  u=$(envv HOST_UID | tr -cd 0-9)
+  echo "${u:-$(stat -c %u "$DIR")}"
+}
+# Runs a command as the checkout owner. git run as root writes root-owned objects, which the claude
+# container (and a later `git pull` by the owner) cannot replace, and newer git refuses a repo that is
+# not root's ("dubious ownership").
+as_owner() {
+  u=$(owner_uid)
+  if [ "$(id -u)" = "$u" ]; then "$@"
+  elif [ "$(id -u)" = 0 ] && command -v sudo >/dev/null 2>&1; then sudo -n -H -u "#$u" "$@"
+  else "$@"; fi
+}
+
+usage() { sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; }
+
+# --- the database password ----------------------------------------------------------------------
+# A database volume keeps the password it was created with. A new .env (a fresh clone into the same
+# folder name, a lost .env) has another one, and migrate then fails with "password authentication failed".
+db_running() { [ -n "$(dc ps -q --status running db 2>/dev/null)" ]; }
+db_wait() {
+  n=0
+  until dc exec -T db pg_isready -q >/dev/null 2>&1; do
+    n=$((n + 1)); [ "$n" -le 60 ] || return 1; sleep 1
+  done
+}
+# 0 = POSTGRES_PASSWORD opens the database, 1 = it does not, 2 = could not tell. The password goes in
+# on stdin, never on a command line. It connects over the network (host "db"): Postgres trusts the
+# local socket and 127.0.0.1 without a password, so only there would a wrong password show.
+db_check() {
+  db_running || return 2
+  db_wait || return 2
+  out=$(envv POSTGRES_PASSWORD | dc exec -T db sh -c \
+    'IFS= read -r PGPASSWORD; export PGPASSWORD; psql -h db -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1" 2>&1' 2>&1) || true
+  case $out in
+    1) return 0 ;;
+    *"password authentication failed"*) return 1 ;;
+    *) return 2 ;;
+  esac
+}
+db_mismatch_help() {
+  cat >&2 <<HELP
+    The database (volume $(project)_db-data) was created with another POSTGRES_PASSWORD than the one in .env.
+    Either:
+      - put back the .env of the install that made this database, then: sudo ./beni.sh start
+      - or keep the data and give the database the password in .env:   sudo ./beni.sh fix-db-password
+        (extension secrets and Garmin logins were encrypted with the old .env: enter them again)
+      - or start with an empty database (deletes all data; dumps stay in volume $(project)_backups):
+          sudo ./beni.sh stop && sudo docker compose -p $(project) rm -f db && sudo docker volume rm $(project)_db-data
+HELP
+}
+
+fix_db_password() {
+  dc up -d --no-deps db >/dev/null 2>&1 || die "cannot start the db container"
+  db_wait || die "the database does not answer (./beni.sh logs db)"
+  if db_check; then ok "the database already takes the password in .env"; return 0; fi
+  if [ -t 0 ] && [ "${ASSISTANT_YES:-0}" != 1 ]; then
+    printf '  The database keeps its data and its password becomes the one in .env. Go on? (y/n) '
+    read -r a; case $a in [yY]*) ;; *) die "nothing changed" ;; esac
+  fi
+  # The container's own socket trusts its superuser, so no old password is needed. migrate then
+  # sets the other roles' passwords from .env as it always does.
+  envv POSTGRES_PASSWORD | dc exec -T db sh -c '
+    IFS= read -r pw
+    printf "%s\n" "SELECT format('"'"'ALTER ROLE %I PASSWORD %L'"'"', current_user, :'"'"'pw'"'"') \\gexec" |
+      psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v pw="$pw" >/dev/null' ||
+    die "could not change the password"
+  db_check || die "changed it, but .env still does not open the database"
+  ok "the database takes the password in .env now; starting the rest"
+  dc up -d
+}
+
+# --- doctor -------------------------------------------------------------------------------------
+doctor() {
+  fails=0 warns=0
+  f() { bad "$*"; fails=$((fails + 1)); }
+  w() { warn "$*"; warns=$((warns + 1)); }
+  printf '\n\033[1mChecking %s\033[0m\n' "$DIR"
+  is_root=no; [ "$(id -u)" = 0 ] && is_root=yes
+
+  # Docker
+  docker_ok=no
+  if [ -z "$DC" ]; then f "Docker Compose is missing"
+  elif docker info >/dev/null 2>&1; then docker_ok=yes; ok "Docker and Compose answer"
+  else f "cannot talk to Docker: put sudo in front (Synology), or join the docker group"; fi
+
+  # .env
+  env_ok=no
+  if [ ! -f .env ]; then f ".env is missing: not installed yet (./beni.sh install)"
+  elif [ ! -r .env ]; then f "cannot read .env (it belongs to $(stat -c %U .env)): put sudo in front"
+  else
+    env_ok=yes
+    missing=""
+    for k in POSTGRES_PASSWORD APP_DB_PASSWORD CLAUDE_DB_PASSWORD SERVICES_DB_PASSWORD TOKEN_ENCRYPTION_KEY \
+      SECRETS_KEY SIDECAR_TICKET_SECRET CLAUDE_TOOLS_TOKEN PUBLIC_ORIGIN HOST_UID; do
+      [ -n "$(envv "$k")" ] || missing="$missing $k"
+    done
+    if [ -n "$missing" ]; then f ".env has no value for:$missing (re-run ./beni.sh install, it adds missing secrets)"
+    else ok ".env has every secret"; fi
+    grep -q '^INSTALLED_AT=' .env || w "the installer did not finish last time: sudo ./beni.sh install"
+    case $(stat -c %a .env) in 600 | 400) ;; *) w ".env is readable by others (mode $(stat -c %a .env)): chmod 600 .env" ;; esac
+  fi
+
+  # Files: the containers (web, claude, terminal) write the checkout as HOST_UID.
+  uid=$(owner_uid)
+  [ "$uid" != 0 ] || f "HOST_UID is 0: the containers would run as root; set it to the owner's uid (id -u)"
+  [ "$(stat -c %u "$DIR")" = "$uid" ] || w "the folder belongs to uid $(stat -c %u "$DIR"), the containers run as $uid (HOST_UID)"
+  if [ "$is_root" = yes ] || [ "$(id -u)" = "$uid" ]; then
+    f0=$fails
+    n=$(find "$DIR" -xdev ! -user "$uid" ! -path "$DIR/.env" 2>/dev/null | grep -c . || true)
+    [ "$n" = 0 ] || f "$n file(s) do not belong to uid $uid (left by a run as root?): sudo ./beni.sh fix-permissions"
+    n=$(find "$DIR" -xdev ! -path "$DIR/.env" ! -path "$DIR/.git/objects/*" ! -type l \
+      \( ! -perm -u+rw -o -type d ! -perm -u+x \) 2>/dev/null | grep -c . || true)
+    m=$(find "$DIR/.git/objects" -xdev \( -type d ! -perm -u+rwx \) -o \( -type f ! -perm -u+r \) 2>/dev/null | grep -c . || true)
+    [ "$((n + m))" = 0 ] || f "$((n + m)) path(s) the owner cannot write (git pull and Claude would fail): sudo ./beni.sh fix-permissions"
+    if command -v synoacltool >/dev/null 2>&1; then
+      n=$(find "$DIR" -xdev ! -path "$DIR/.env" -exec ls -dln {} + 2>/dev/null | sh scripts/auto-update.sh acl-paths | grep -c . || true)
+      [ "$n" = 0 ] || f "$n path(s) carry a Synology ACL (they deny writes): sudo ./beni.sh fix-permissions"
+    fi
+    [ "$fails" != "$f0" ] || ok "the checkout belongs to uid $uid and it can write all of it"
+  else
+    say "file checks skipped: run as uid $uid or with sudo"
+  fi
+
+  # git, as the owner
+  if ! as_owner git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    f "git does not work in the checkout: $(as_owner git -C "$DIR" status 2>&1 | head -n 1)"
+  else
+    br=$(as_owner git -C "$DIR" symbolic-ref --short -q HEAD || echo detached)
+    [ "$br" = main ] || w "the checkout is on $br, not main: auto-update pauses"
+    ch=$(as_owner git -C "$DIR" status --porcelain --untracked-files=no | grep -c . || true)
+    [ "$ch" = 0 ] || w "$ch tracked file(s) changed locally (git status): updates stop if they clash"
+    if as_owner git -C "$DIR" fetch -q origin main 2>/dev/null; then
+      ahead=$(as_owner git -C "$DIR" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
+      behind=$(as_owner git -C "$DIR" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+      [ "$ahead" = 0 ] || w "$ahead local commit(s) are not on GitHub: auto-update pauses until they are pushed"
+      if [ "$behind" = 0 ]; then ok "git works and the checkout is up to date with GitHub main"
+      else w "$behind commit(s) behind GitHub main: sudo ./beni.sh update"; fi
+    else
+      w "git fetch failed (network, or the remote): $(as_owner git -C "$DIR" remote get-url origin 2>/dev/null)"
+    fi
+  fi
+
+  [ "$env_ok" = yes ] || { doctor_end; return; }
+
+  # Compose files
+  cf_ok=yes
+  for p in $(envv COMPOSE_FILE | tr ':' ' '); do
+    case $p in /*) ;; *) w "COMPOSE_FILE has a relative path ($p); re-run ./beni.sh install" ;; esac
+    [ -f "$p" ] || { f "COMPOSE_FILE lists $p, which is missing: re-run ./beni.sh install"; cf_ok=no; }
+  done
+  if [ -f extensions/installed.json ]; then
+    for id in $(grep -oE '"id"[[:space:]]*:[[:space:]]*"[a-z][a-z0-9-]*"' extensions/installed.json | sed -E 's/.*"([a-z0-9-]+)"$/\1/'); do
+      [ ! -f "extensions/$id/compose.yml" ] || envv COMPOSE_FILE | grep -q "extensions/$id/compose.yml" ||
+        { w "extension $id brings a service that is not in the stack: sudo ./beni.sh install"; cf_ok=no; }
+    done
+  fi
+  if [ "$docker_ok" = yes ]; then
+    if err=$(dc config -q 2>&1); then [ "$cf_ok" = no ] || ok "the compose files are valid"
+    else f "docker compose config fails: $(printf '%s' "$err" | tail -n 1)"; fi
+  fi
+
+  # Started by Container Manager & co. from stack/
+  if [ "$(envv START_MODE)" = manual ]; then
+    if [ ! -f stack/docker-compose.yml ]; then f "stack/docker-compose.yml is missing: sudo ./beni.sh install"
+    else
+      for src in $(envv COMPOSE_FILE | tr ':' ' '); do
+        if [ "$src" -nt stack/docker-compose.yml ]; then
+          w "stack/docker-compose.yml is older than $src: sudo ./beni.sh install, then rebuild the project in Container Manager"
+          break
+        fi
+      done
+      if [ -d /volume1 ]; then
+        for s in stack stack/docker-compose.yml stack/.env; do
+          [ -e "$s" ] && [ "$(($(stat -c %a "$s" | tail -c 2) & 4))" -ne 0 ] ||
+            f "$s is not readable by Container Manager: sudo ./beni.sh install"
+        done
+      fi
+    fi
+  fi
+
+  # Containers and the database
+  if [ "$docker_ok" = yes ]; then
+    p=$(project)
+    if docker volume inspect "${p}_db-data" >/dev/null 2>&1; then
+      db_check && rc=0 || rc=$?
+      case $rc in
+        0)
+          ok "POSTGRES_PASSWORD in .env opens the database"
+          # Extensions whose data is in the database but whose folder is not here (a fresh clone).
+          lost=""
+          for id in $(dc exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT DISTINCT split_part(name, '"'"'/'"'"', 1) FROM core.schema_migrations WHERE name LIKE '"'"'%/%'"'"'"' 2>/dev/null); do
+            [ -f "extensions/$id/extension.json" ] || lost="$lost $id"
+          done
+          [ -z "$lost" ] || w "the database has data of extensions that are not installed here:$lost (sudo ./beni.sh install$lost)" ;;
+        1) f "the database was made with another password than the one in .env"; db_mismatch_help 2>&1; helped=yes ;;
+        2) say "database password not checked (db not running: sudo ./beni.sh start)" ;;
+      esac
+    else
+      say "no database yet (volume ${p}_db-data): it is made on the first start"
+    fi
+    mig=$(docker ps -a -q --filter "label=com.docker.compose.project=$p" --filter label=com.docker.compose.service=migrate | head -n 1)
+    if [ -n "$mig" ]; then
+      code=$(docker inspect -f '{{.State.Status}} {{.State.ExitCode}}' "$mig")
+      case $code in
+        "exited 0") ok "migrate finished" ;;
+        running*) say "migrate is running" ;;
+        *)
+          if docker logs "$mig" 2>&1 | grep -q "password authentication failed"; then
+            f "migrate failed: password authentication failed"; [ "${helped:-}" = yes ] || db_mismatch_help 2>&1
+          else f "migrate failed ($code): sudo ./beni.sh logs migrate"; fi ;;
+      esac
+    fi
+    down=$(dc ps -a --format '{{.Service}} {{.State}}' 2>/dev/null | awk '$1 != "migrate" && $2 != "running" { print $1 "(" $2 ")" }' | xargs)
+    if [ -z "$(dc ps -a -q 2>/dev/null)" ]; then w "no containers: sudo ./beni.sh start"
+    elif [ -n "$down" ]; then f "not running: $down (sudo ./beni.sh logs <service>)"
+    else ok "every service runs"; fi
+    port=$(envv WEB_PORT)
+    if curl -fs -o /dev/null "http://127.0.0.1:${port:-3000}/healthz" 2>/dev/null; then ok "the app answers on port ${port:-3000}"
+    else w "the app does not answer on port ${port:-3000} (still building? sudo ./beni.sh logs web)"; fi
+  fi
+
+  # Auto-update
+  home=${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}
+  if [ ! -f "$home/auto-update.sh" ]; then say "auto-update is not set up (sudo ./beni.sh auto-update install)"
+  else
+    st=$(sh scripts/auto-update.sh status "$DIR" 2>/dev/null | sed -n 's/.*"status":"\([^"]*\)".*"message":"\([^"]*\)".*/\1: \2/p' | head -n 1)
+    case $st in
+      ok:*) ok "auto-update: ${st#ok: }" ;;
+      "") ok "auto-update is set up ($home)" ;;
+      *) w "auto-update $st" ;;
+    esac
+  fi
+  doctor_end
+}
+doctor_end() {
+  printf '\n'
+  if [ "$fails" -gt 0 ]; then bad "$fails problem(s), $warns warning(s)"; return 1; fi
+  if [ "$warns" -gt 0 ]; then warn "no problems, $warns warning(s)"; else ok "all good"; fi
+}
 
 cmd=${1:-help}
 [ $# -gt 0 ] && shift
 case $cmd in
   install) exec sh ./install.sh "$@" ;;
   update)
-    git pull --ff-only || die "git pull failed (local changes? run: git status)"
+    # Root: first repair what an earlier `sudo git ...` left root-owned, then pull as the owner.
+    [ "$(id -u)" != 0 ] || sh scripts/auto-update.sh fix-permissions "$DIR" >/dev/null || true
+    as_owner git pull --ff-only ||
+      die "git pull failed (local changes? run: git status; permissions? sudo ./beni.sh doctor)"
     exec sh ./install.sh ;;
   start) dc up -d "$@" && ok "started" ;;
   stop) dc stop "$@" && ok "stopped (data kept)" ;;
@@ -51,6 +301,13 @@ case $cmd in
     port=$(envv WEB_PORT)
     if curl -fs -o /dev/null "http://127.0.0.1:${port:-3000}/healthz" 2>/dev/null; then ok "app answers on port ${port:-3000}: $(envv PUBLIC_ORIGIN)"
     else say "app not answering on port ${port:-3000} yet (building? ./beni.sh logs web)"; fi ;;
+  doctor) doctor ;;
+  # For install.sh: does .env open the existing database? (exit 1 = it does not)
+  check-db)
+    db_check && rc=0 || rc=$?
+    [ "$rc" != 1 ] || { db_mismatch_help; exit 1; }
+    exit 0 ;;
+  fix-db-password) fix_db_password ;;
   logs) dc logs -f --tail 100 "$@" ;;
   ext) dc exec claude node scripts/ext.mjs "$@" ;;
   migrate) exec sh scripts/import-legacy.sh "$@" ;;

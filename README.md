@@ -89,13 +89,24 @@ One command for the host (Synology: `sudo` in front):
 
 ```sh
 ./beni.sh status                 # containers and whether the app answers
+./beni.sh doctor                 # checks permissions, git, .env, the database password; says what to run
 ./beni.sh start | stop | restart # the whole stack, or one service
 ./beni.sh logs web               # follow a service's log
 ./beni.sh update                 # git pull + installer (keeps .env, extensions, answers)
 ./beni.sh ext available          # extensions: available, install <id>, update <id>, list
 ./beni.sh migrate <old-checkout> # copy data from an older install, after a backup
 ./beni.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
+./beni.sh fix-db-password        # the database keeps its data, takes the password in .env
 ```
+
+Run `git` in the checkout as yourself, not with sudo: files git writes as root stop the containers
+and your next `git pull`. `sudo ./beni.sh update` pulls as the checkout's owner and repairs what an
+earlier `sudo git pull` left behind.
+
+A database volume keeps the password it was created with. A new `.env` next to an old volume (a fresh
+clone into the same folder name) makes the installer stop instead of failing later with "password
+authentication failed": put the old `.env` back, run `sudo ./beni.sh fix-db-password`, or remove the
+`<folder>_db-data` volume to start empty.
 
 `install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
 Its tool output goes to `install.log`; only the tail is shown when a step fails.

@@ -135,6 +135,10 @@ pick_extensions() {
 if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant-core; else default_dir=$HOME/assistant; fi
 in_checkout=no
 [ -f docker-compose.yml ] && [ -f scripts/ext.mjs ] && [ -f install.sh ] && in_checkout=yes
+# ASSISTANT_DIR, when given, wins over the folder this runs in (curl ... | sudo sh from inside another checkout).
+if [ -n "${ASSISTANT_DIR:-}" ] && [ "$in_checkout" = yes ] && [ "$(cd "$ASSISTANT_DIR" 2>/dev/null && pwd)" != "$(pwd)" ]; then
+  in_checkout=no
+fi
 if [ "$in_checkout" = yes ]; then DIR=$(pwd); else DIR=${ASSISTANT_DIR:-}; fi
 interactive=no
 [ "${ASSISTANT_YES:-0}" != 1 ] && (exec < /dev/tty) 2>/dev/null && interactive=yes
@@ -206,16 +210,32 @@ else
   say "cloning $REPO into $DIR"
   mkdir -p "$(dirname "$DIR")"
   git clone --quiet "$REPO" "$DIR"
-  # Cloned as root through sudo: the checkout belongs to the user who ran sudo, so the containers run as them.
-  if [ "$(id -u)" = 0 ] && [ -n "${SUDO_UID:-}" ] && [ "$SUDO_UID" != 0 ]; then
-    chown -R "$SUDO_UID:${SUDO_GID:-$SUDO_UID}" "$DIR"
-  fi
 fi
 cd "$DIR"
+# The containers run as the checkout's owner (HOST_UID), never root. Run as root (through sudo) on a new
+# install, the checkout goes to the user who ran sudo (or ASSISTANT_UID).
+if [ "$(id -u)" = 0 ] && [ ! -f .env ] && [ "$(stat -c %u .)" = 0 ]; then
+  owner=${ASSISTANT_UID:-${SUDO_UID:-}}
+  [ -n "$owner" ] && [ "$owner" != 0 ] ||
+    die "The checkout would belong to root. Run this with sudo from your own account, or set ASSISTANT_UID=<your uid> (id -u)."
+  group=$(awk -F: -v u="$owner" '$3 == u { print $4; exit }' /etc/passwd 2>/dev/null)
+  chown -R "$owner:${group:-${SUDO_GID:-$owner}}" "$DIR"
+fi
 LOG=$DIR/install.log
 git config core.hooksPath scripts/hooks 2>/dev/null || true
+# Synology ACLs show every file as r-xr-xr-x+; with them removed (below) the x bits stay, and git would
+# count each file as changed, which stops `git pull` and auto-update. Modes are not worth tracking here.
+[ -d /volume1 ] && git config core.fileMode false 2>/dev/null || true
 # Run as root (sudo -i on Synology), git rewrites .git/config as root: give it back to the checkout owner.
 [ "$(id -u)" = 0 ] && chown "$(stat -c %u:%g .)" .git/config 2>/dev/null || true
+# The containers write the checkout as HOST_UID: files a root run (sudo) left behind, or Synology ACLs
+# on a shared folder (DSM puts them on every new file, and they deny writes), would stop them and a
+# later `git pull` (spec 006). Fixed right away, so even a run that stops below leaves a usable checkout.
+if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers (owner, Synology ACLs)" sh scripts/auto-update.sh fix-permissions "$DIR"; fi
+# The compose project name, as Compose makes it from the folder name: volumes are prefixed with it.
+PROJECT=$(basename "$DIR" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_-')
+had_db=no
+docker volume inspect "${PROJECT}_db-data" >/dev/null 2>&1 && had_db=yes
 
 # 2. secrets
 phase "Writing the configuration (.env with fresh random secrets)"
@@ -236,9 +256,12 @@ if [ -f .env ]; then
 else
   # New secrets cannot open a database made with older ones (a re-clone into the same folder name):
   # stop rather than leave migrate failing with "password authentication failed".
-  if docker volume inspect "$(basename "$DIR")_db-data" >/dev/null 2>&1; then
-    die "A database from an earlier install exists (volume $(basename "$DIR")_db-data), but .env is new.
-    Put back the old .env, or start empty: sudo docker compose -p $(basename "$DIR") down -v  (deletes that data)"
+  if [ "$had_db" = yes ]; then
+    die "A database from an earlier install exists (volume ${PROJECT}_db-data), but there is no .env here.
+    Its password is in the .env of that install: put that .env back in $DIR and run this again.
+    Or start with an empty database (deletes that data; daily dumps stay in volume ${PROJECT}_backups):
+      sudo docker compose -p $PROJECT down && sudo docker volume rm ${PROJECT}_db-data
+    then run this again."
   fi
   say "writing .env with new random secrets"
   umask 077
@@ -303,9 +326,6 @@ compose_files
 
 # 3. extensions: copied from the extensions repo by the same `ext` CLI Claude uses, in the claude image
 # (node + git, runs as the checkout owner).
-# The containers write the checkout as HOST_UID: files a root run (sudo) left behind, or Synology ACLs
-# on a shared folder, would stop them (spec 006). Fixed before anything runs in a container.
-if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers (owner, Synology ACLs)" sh scripts/auto-update.sh fix-permissions "$DIR"; fi
 mkdir -p extensions
 
 if [ -n "$EXTENSIONS" ]; then
@@ -331,6 +351,13 @@ if [ "$START" = manual ]; then
   [ "$(id -u)" = 0 ] && chown -R "$(stat -c %u:%g .)" stack 2>/dev/null || true
 else
   phase "Building and starting (the first run takes 10-20 minutes on a small NAS)"
+  # An existing database keeps the password it was made with: check .env opens it before migrate
+  # would fail on it with "password authentication failed".
+  if [ "$had_db" = yes ]; then
+    quietly "Starting the database" dc up -d --no-deps db
+    sh ./beni.sh check-db || die "Stopped: .env does not match the existing database (see above)."
+    ok "The database takes the password in .env"
+  fi
   quietly "Building images and starting the containers" dc up -d --build --remove-orphans
 fi
 
@@ -390,7 +417,7 @@ $( [ "$origin" = "http://localhost:$PORT" ] && echo "  (No Tailscale found: from
     $DC exec -it claude claude                        # /login once, Remote Control starts by itself
 $( [ -f extensions/health/compose.yml ] && echo "    $DC exec -it garmin-sync python -m sync login     # health: connect Garmin (password never stored)")
 
-  Later:  ./beni.sh status | logs | ext available | update   (./beni.sh help)
+  Later:  ./beni.sh status | doctor | logs | ext available | update   (./beni.sh help)
 
 NEXT
 

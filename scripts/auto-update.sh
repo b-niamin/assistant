@@ -4,6 +4,7 @@
 #   sudo sh scripts/auto-update.sh install [checkout]   # once: mirror, root-owned copy, schedule
 #   sh <updater-home>/auto-update.sh run <checkout>     # every 5 minutes (Task Scheduler / cron)
 #   sh scripts/auto-update.sh status [checkout]         # last result
+#   sudo ./beni.sh update                               # a tick now, deploying even in manual mode
 #   sudo sh scripts/auto-update.sh fix-permissions      # owner, Synology ACLs, u+rw in the checkout
 #   sh scripts/auto-update.sh plan < changed-paths      # which services a change touches (for tests)
 #
@@ -90,6 +91,7 @@ buildable() {
 progress() {
   STEP_NO=$((STEP_NO + 1)) STEP=$1
   write_status updating "$1" "$ACTIONS"
+  say "step $STEP_NO/$STEP_TOTAL: $1"
   printf '\n== %s step %s/%s: %s\n' "$(date -u +%H:%M:%S)" "$STEP_NO" "$STEP_TOTAL" "$1" >>"$BUILD_LOG" 2>/dev/null || true
 }
 
@@ -240,7 +242,10 @@ cmd_run() {
   LOCK=$HOME_DIR/lock
   if ! mkdir "$LOCK" 2>/dev/null; then
     # A crashed tick leaves the lock behind: take it over after an hour.
-    [ -n "$(find "$LOCK" -maxdepth 0 -mmin +60 2>/dev/null)" ] || exit 0
+    if [ -z "$(find "$LOCK" -maxdepth 0 -mmin +60 2>/dev/null)" ]; then
+      [ "${ASSISTANT_UPDATE_NOW:-0}" != 1 ] || say "an update is already running: follow it in System settings > Updates"
+      exit 0
+    fi
     rm -rf "$LOCK"; mkdir "$LOCK" || exit 0
   fi
   SRC=""
@@ -253,6 +258,8 @@ cmd_run() {
   # A click on "Update now" counts once, and retries a commit that failed before.
   requested=0
   if [ -n "$REQUEST" ] && [ "$REQUEST" != "$HANDLED" ]; then requested=1 HANDLED=$REQUEST FORCE=1; fi
+  # `beni.sh update` asks the same way, from the host.
+  if [ "${ASSISTANT_UPDATE_NOW:-0}" = 1 ]; then requested=1 FORCE=1; fi
 
   if ! mirror_git fetch -q --prune origin 2>"$HOME_DIR/fetch.err"; then
     msg="fetch failed: $(tail -n 1 "$HOME_DIR/fetch.err")"
@@ -356,6 +363,7 @@ cmd_run() {
   fi
   state_save
   flush_log
+  [ "$FAILED" != "$SHA" ] || exit 1
 }
 
 # Replaces the installed copy with main's scripts/auto-update.sh when it changed (next tick runs it).

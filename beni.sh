@@ -371,7 +371,16 @@ cmd=${1:-help}
 case $cmd in
   install) exec sh ./install.sh "$@" ;;
   update)
-    # Root: first repair what an earlier `sudo git ...` left root-owned, then pull as the owner.
+    # With auto-update installed, an update is one of its ticks, run now: the same safe path (pull into
+    # the private mirror, fast-forward the checkout in a throwaway container, build from main's copy),
+    # the same status and progress in the app. Then the installer refreshes the configuration.
+    home=${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}
+    if [ "$(id -u)" = 0 ] && [ -f "$home/auto-update.sh" ]; then
+      sh scripts/auto-update.sh install "$DIR" >/dev/null || die "could not refresh the updater (sudo sh scripts/auto-update.sh install)"
+      ASSISTANT_UPDATE_NOW=1 sh "$home/auto-update.sh" run "$DIR" || die "update failed: Settings > Logs > updater-build, or sudo ./beni.sh logs"
+      exec sh ./install.sh
+    fi
+    # No auto-update (or not root): pull as the owner and rebuild what the change touches.
     [ "$(id -u)" != 0 ] || sh scripts/auto-update.sh fix-permissions "$DIR" >/dev/null || true
     before=$(as_owner git rev-parse HEAD)
     as_owner git pull --ff-only ||

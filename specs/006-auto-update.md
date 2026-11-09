@@ -144,3 +144,11 @@ then starting them, the migration, and each restart. Before each, the updater wr
 `step`, `steps`, `startedAt` and the step as the message, and a `== step n/m` line to
 `/logs/updater-build.log`. Updates shows a progress bar, the step, how long ago it started and the last lines
 of the build output, reloading every 5 seconds; the dock shows "Updating to <sha> · n/m".
+
+## One update path
+
+`sudo ./beni.sh update` is a tick run now: it refreshes the updater's copy (`auto-update.sh install`) and runs
+it with `ASSISTANT_UPDATE_NOW=1`, which deploys even in manual mode and prints each step; then the installer
+refreshes the configuration. Same safety (mirror, throwaway container, build from main), same status and
+progress in the app. Only without an installed updater (or not as root) does it fall back to `git pull` as the
+owner plus the same plan of rebuilds and restarts.

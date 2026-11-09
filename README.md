@@ -80,8 +80,10 @@ extension that brings a background service.
 3. **Install**: the command above, answering with Enter. Next to another app it suggests a free port
    and another tailnet port, and its own compose project name keeps its containers and volumes separate. The checkout
    belongs to you (the user who ran `sudo`); the first build takes 10-20 minutes on a small NAS.
-4. **Auto-update**: the installer prints a Task Scheduler entry. Control Panel → Task Scheduler → Create
-   → Scheduled Task → User-defined script, user `root`, daily, every 5 minutes, with the printed command.
+4. **Updates**: the installer prints a Task Scheduler entry. Control Panel → Task Scheduler → Create
+   → Scheduled Task → User-defined script, user `root`, daily, every minute, with the printed command
+   (`sh /volume1/docker/assistant-updater/update.sh`). It updates by itself, or only when you click
+   Update in System settings if you chose manual updates.
 5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and
    your profile.
 6. **Claude**: `cd /volume1/docker/assistant && docker compose exec -it claude claude`, then `/login`
@@ -102,7 +104,7 @@ cd /volume1/docker/assistant-core && sudo ./beni.sh move /volume1/docker/assista
 ```
 
 It stops the stack, moves the folder and the updater next to it, and runs the installer there. Then change
-the auto-update task's command in DSM Task Scheduler to the one it prints.
+the update task's command in DSM Task Scheduler to the one it prints.
 
 ## Everyday: `beni.sh`
 
@@ -113,7 +115,7 @@ One command for the host (Synology: `sudo` in front):
 ./beni.sh doctor                 # checks permissions, git, .env, the database password; says what to run
 ./beni.sh start | stop | restart # the whole stack, or one service
 ./beni.sh logs web               # follow a service's log
-./beni.sh update                 # git pull + installer (keeps .env, extensions, answers)
+./beni.sh update                 # update to GitHub main now, with a progress bar (--status, --cancel)
 ./beni.sh ext available          # extensions: available, install <id>, update <id>, list
 ./beni.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
 ./beni.sh fix-db-password        # the database keeps its data, takes the password in .env
@@ -121,8 +123,9 @@ One command for the host (Synology: `sudo` in front):
 ```
 
 Run `git` in the checkout as yourself, not with sudo: files git writes as root stop the containers
-and your next `git pull`. `sudo ./beni.sh update` pulls as the checkout's owner and repairs what an
-earlier `sudo git pull` left behind.
+and your next `git pull`. `sudo ./beni.sh update` updates as the checkout's owner and repairs what an
+earlier `sudo git pull` left behind. It is the same update the scheduled task runs (and System settings
+→ Updates shows): run it again, or click Resume, if one was interrupted ([spec 006](specs/006-auto-update.md)).
 
 A database volume keeps the password it was created with. A new `.env` next to an old volume (a fresh
 clone into the same folder name) makes the installer stop instead of failing later with "password

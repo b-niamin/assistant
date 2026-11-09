@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, it } from 'vitest';
-import { isStale, parseControl, parseUpdaterStatus, setUpdaterControl, updaterControl, updaterStatus } from './updater';
+import { isStale, parseControl, parseUpdaterStatus, setUpdaterControl, updateView, updaterControl, updaterStatus } from './updater';
 
 const sample = {
   status: 'ok',
@@ -15,8 +15,9 @@ const sample = {
   branch: 'main'
 };
 
-it('reads what auto-update.sh writes', () => {
-  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '', step: 0, steps: 0, startedAt: '' });
+it('reads what update.sh writes', () => {
+  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '', step: 0, steps: 0, startedAt: '', attempt: 0, request: '' });
+  expect(parseUpdaterStatus(JSON.stringify({ ...sample, attempt: 2, request: 'r1', pid: 5 }))).toMatchObject({ attempt: 2, request: 'r1' });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, status: 'updating', step: 2, steps: 5, startedAt: 'x' }))).toMatchObject({ step: 2, steps: 5 });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, step: -1, steps: '9' }))).toMatchObject({ step: 0, steps: 0 });
 });
@@ -55,4 +56,24 @@ it('keeps the manual mode and the update request for the host', async () => {
   await setUpdaterControl({ mode: 'manual', request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z' }, file);
   expect(await updaterControl(file)).toEqual({ mode: 'manual', request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z' });
   expect(parseControl('mode=manual\nrequest=$(reboot)\n')).toEqual({ mode: 'manual', request: '', cancel: '' });
+});
+
+it('tells a running update from one whose process died, and a request not taken yet', () => {
+  const t = (iso: string) => Date.parse(iso);
+  const u = { ...parseUpdaterStatus(JSON.stringify({ ...sample, status: 'updating', step: 2, steps: 5 }))!, checkedAt: '2026-11-06T20:01:00Z' };
+  const auto = { mode: 'auto' as const, request: '' };
+  expect(updateView(u, auto, t('2026-11-06T20:02:00Z')).state).toBe('updating');
+  // A long build beats every 15 s: still updating after an hour as long as the beats come.
+  expect(updateView({ ...u, checkedAt: '2026-11-06T21:00:00Z' }, auto, t('2026-11-06T21:00:30Z')).state).toBe('updating');
+  expect(updateView(u, auto, t('2026-11-06T20:05:00Z')).state).toBe('interrupted');
+  expect(updateView({ ...u, status: 'ok' }, auto, t('2026-11-06T20:05:00Z')).state).toBe('ok');
+  expect(updateView({ ...u, status: 'ok' }, auto, t('2026-11-06T21:00:00Z')).state).toBe('stale');
+
+  const ok = { ...u, status: 'ok' as const, at: '2026-11-06T20:00:00Z', checkedAt: '2026-11-06T20:10:00Z' };
+  const asked = { mode: 'manual' as const, request: '2026-11-06T20:09:00.000Z' };
+  expect(updateView(ok, asked, t('2026-11-06T20:10:00Z'))).toMatchObject({ pending: true, unanswered: false });
+  expect(updateView(ok, asked, t('2026-11-06T20:13:00Z'))).toMatchObject({ pending: true, unanswered: true });
+  expect(updateView({ ...ok, request: asked.request }, asked, t('2026-11-06T20:13:00Z')).pending).toBe(false);
+  // An older updater (no request echo): taken when its status is newer than the click.
+  expect(updateView({ ...ok, at: '2026-11-06T20:09:30Z' }, asked, t('2026-11-06T20:10:00Z')).pending).toBe(false);
 });

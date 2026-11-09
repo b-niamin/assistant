@@ -1,6 +1,6 @@
 # Spec 006: Auto-update from GitHub main
 
-Status: **Implemented** · 2026-11-06
+Status: **Implemented** · 2026-11-06, rewritten 2026-11-09 (one command, resumable steps)
 
 ## Goal
 
@@ -14,24 +14,61 @@ the running version down, and System settings shows the last result.
 |---|---|---|
 | Updater container with the Docker socket | everything in compose | the socket is root on the host, inside a container that sits next to the checkout Claude edits; breaks spec 004 ("no Docker socket in any container") |
 | GitHub webhook over Tailscale | instant | needs a public endpoint (Funnel) or a relay, plus a listener that still needs Docker; more moving parts |
-| **Host schedule (Synology Task Scheduler / cron), every 5 min** | no new container, no socket anywhere, survives a broken stack, nothing exposed | up to 5 minutes of delay; one manual step in DSM |
+| **Host schedule (Synology Task Scheduler / cron), every minute** | no new container, no socket anywhere, survives a broken stack, nothing exposed | a click in the app waits up to a minute; one manual step in DSM |
 
-We use the host schedule. Polling a private mirror every 5 minutes is one `git fetch`; idle ticks write
+We use the host schedule. Polling a private mirror every 4 minutes is one `git fetch`; idle runs write
 nothing.
 
-## How a tick works (`scripts/auto-update.sh run <checkout>`)
+## One command
+
+```
+sh <checkout>-updater/update.sh        the scheduled task (root, every minute) and, in a terminal, "update now"
+sudo ./beni.sh update                  the same from the checkout (sets the updater up on first use)
+     ... --status | --cancel           what it does or did | stop a running update
+```
+
+The scheduled run (no terminal) checks GitHub every few minutes, updates when automatic updates are on,
+takes the app's requests ("Update now", "Resume", "Cancel" in System settings → Updates, at most a minute
+later) and finishes an update that was interrupted. Run in a terminal, the same command updates now and
+draws a progress bar; when an update already runs, it follows that one instead.
+
+Why not `beni.sh` in the schedule: the checkout is writable by the containers (Claude edits it), so root
+must never run code from it on its own. The scheduled copy lives in `<checkout>-updater/` and replaces
+itself only from the private mirror of GitHub main.
+
+### What other self-hosted apps do, and what we took
+
+Researched before the rewrite (2026-11-09): Coolify (host script, `STEP|MESSAGE|time` status file, a stale
+status after 10 minutes, images pulled before anything stops), Home Assistant Supervisor (jobs with stage and
+progress polled by the UI, one job at a time, health check after the update, rollback), Umbrel (one status
+object `{running, progress, description, error}`, 409 when one runs, the failure kept in the status),
+Watchtower (one code path for the schedule and the HTTP trigger), CasaOS (fire and forget `curl | bash` with
+no lock or progress: updates that hang). Taken: a request file the host polls (no socket in a container), one
+entry point for the schedule, the CLI and the app, slow work (builds) while the old containers run, a status
+file with steps, a heartbeat so the app tells a dead update from a slow one, a time limit per step, a journal
+of done steps so a rerun resumes, a lock that knows a dead holder (pid, its start time, the boot), a health
+check at the end. Not taken (yet): rollback to the previous images; a failed update leaves the old
+containers running where it had not replaced them.
+
+## An update
 
 ```
 GitHub main ──git fetch (checkout owner's credentials)──► <checkout>-updater/mirror.git   (host only)
                                                                │
-          throwaway container: --network none, checkout + mirror(ro) mounted, hooks off
-          git fetch /mirror && git merge --ff-only <sha>  ──────►  <checkout>  (bind-mounted, live)
+     changed = git diff --name-only <deployed> <main>  (from the mirror)  ──►  plan  ──►  steps
                                                                │
-     changed = git diff --name-only <deployed> <sha>  (from the mirror)  ──►  plan
-                                                               │
-     images: built from docker/ + docker-compose.yml exported from the mirror, then `up -d --no-deps`
-     restarts: `docker compose restart <svc>` for long-lived code that changed
+ 1. build:<svc>   images from docker/ + docker-compose.yml exported from the mirror; the old containers run on
+ 2. checkout      throwaway container (--network none, checkout + mirror(ro), hooks off): git merge --ff-only
+ 3. up:<svcs>     `up -d --no-deps` what was rebuilt (`up:all` when docker-compose.yml changed)
+ 4. migrate       the one-shot migrate service, when roles changed
+ 5. restart:<svc> long-lived code that changed
+ 6. verify        the touched services run (no crash loop, no failed exit) 15 s later
 ```
+
+Before step 1 the same throwaway container checks that the checkout can take main at all (on `main`, no
+local commits, no local changes in files the update changes); otherwise the update is paused ("blocked")
+and nothing is built. Every step runs under a time limit (90 minutes for a build, 15 for the rest): a hung
+`docker compose build` fails instead of holding the lock forever.
 
 | Changed path | Action |
 |---|---|
@@ -53,19 +90,26 @@ stored in `node_modules/.lock-sha256` and runs `npm ci` in `.deps-next/` first, 
 `node_modules` in only after it succeeded (so a failed install, or an old tree owned by another uid,
 never leaves the server without its packages).
 
-The mapping is `auto-update.sh plan`, tested by `scripts/auto-update.test.sh` (pre-commit). Add a row
+The mapping is `update.sh plan`, tested by `scripts/update.test.sh` (pre-commit). Add a row
 there when a new long-lived service or build context appears.
 
-- **Failure**: the build runs before any container is touched; a failed build or `up` leaves the old
-  containers running, is logged and shown, and that commit is not retried until `main` moves again
-  (`FORCE=1` retries). The next good commit deploys everything since the last good one.
-- **Blocked**: the checkout is not on `main`, has local commits that are not on GitHub, or uncommitted
-  changes are in the way of the fast-forward. Nothing is deployed; the status says why, once.
-- **Self-update**: the scheduled copy (`<checkout>-updater/auto-update.sh`) replaces itself with main's
-  `scripts/auto-update.sh` when that changes; the new version runs from the next tick.
-- **Output**: `/logs/updater.log` and `/logs/updater-status.json` in the `logs` volume (`web` reads the
-  status for System settings, `claude` can read the log). State (last deployed and failed commit) is in
-  `<checkout>-updater/state`.
+- **Failure**: a failed step stops the update; whatever it had not replaced keeps running (a failed build
+  changes nothing, not even the code). Automatic mode tries the same commit again after 30 minutes and
+  2 hours, then waits for main to move or for "Update now" / `beni.sh update`.
+- **Interrupted** (reboot, kill, power): the lock's process is gone but `<home>/state` still holds the
+  journal (`target`, `base`, `done`, `attempt`). The next run takes the lock over and resumes, skipping the
+  done steps (builds are cached anyway), up to 3 attempts. The app shows "interrupted" when the status says
+  updating but no heartbeat came for 3 minutes, with Resume and Cancel.
+- **Blocked**: the checkout is not on `main`, has local commits that are not on GitHub, or local changes
+  are in the way. Nothing is built; the status says why, once; every run checks again, so fixing it is
+  enough.
+- **Self-update**: every run compares `<home>/update.sh` with main's `scripts/update.sh` (from the mirror)
+  and, when it changed, replaces it and runs the new copy right away. An older install's task
+  (`<home>/auto-update.sh run <checkout>`) keeps working: `scripts/auto-update.sh` hands over to update.sh.
+- **Output**: `<home>/status.json` and, for the app, `/logs/updater-status.json` (status, message, step,
+  steps, startedAt, attempt, the app request it took), `/logs/updater.log`, `/logs/updater-build.log` (the
+  steps and the build output, as they run) and `/logs/updater-heartbeat` (every run, and every 15 s while
+  an update runs).
 
 - **Permissions**: web, claude and terminal run as `HOST_UID` and must be able to write the checkout.
   `install`, every deploy and `install.sh` (as root) run `fix-permissions`: files not owned by
@@ -75,7 +119,7 @@ there when a new long-lived service or build context appears.
   alone. Removing the ACLs leaves x bits on every file, so the checkout gets `core.fileMode false` (git
   would otherwise count every file as changed and stop the fast-forward). `install` also strips the ACL
   from the updater home, so the mirror is cloned as (and stays owned by) the checkout owner; a mirror an
-  older version cloned as root is given back. By hand: `sudo sh scripts/auto-update.sh fix-permissions`;
+  older version cloned as root is given back. By hand: `sudo ./beni.sh fix-permissions`;
   `./beni.sh doctor` reports what is wrong.
 
 ## Security (spec 004)
@@ -96,67 +140,30 @@ trusted by it**.
   it directly. A narrow race remains between the compose file check and `up`; exploiting it needs code
   already running in a container and an update that touches compose or images at that moment.
 
-`scripts/auto-update.e2e.sh` (root + Docker) checks these on a throwaway project: idle tick, web-only
-change, image change, broken build, tampered compose file, planted hook and fsmonitor, diverged
-checkout, self-update.
+`scripts/update.e2e.sh` (root + Docker; on this project's test box it runs inside the Synology stand-in)
+checks these and the rest on a throwaway project: idle run, each kind of change, a broken build (and its
+retry), a hung build, an update killed halfway and resumed, two runs at once, cancel from the host and
+from the app, manual mode, a terminal run with its bar, a tampered compose file, a planted hook and
+fsmonitor, local changes and commits, stale and live locks, self-update, the older task handing over.
 
 ## Install
 
-`install.sh` runs `scripts/auto-update.sh install` at the end. By hand, on an existing install:
+`install.sh` runs `scripts/update.sh install` at the end (`--manual` when automatic updates were
+declined). By hand, `sudo ./beni.sh update` sets it up the first time. It clones the mirror next to the
+checkout (`<checkout>-updater/`), copies the script there, records the running commit as deployed, and on
+a Linux box adds a cron line (`* * * * * sh <home>/update.sh`). On Synology it prints the Task Scheduler
+entry: Control Panel → Task Scheduler → Create → Scheduled Task → User-defined script, user `root`, daily
+every minute, command `sh <checkout>-updater/update.sh`. An idle run costs a heartbeat and, every 4
+minutes, one `git fetch`.
 
-```sh
-sudo -i
-cd ~/assistant && git pull       # your checkout, e.g. /volume1/docker/assistant on Synology
-sh scripts/auto-update.sh install
-```
+## In the app
 
-It clones the mirror next to the checkout (`<checkout>-updater/`), copies the
-script there, records the running commit as deployed, and on a Linux box adds a cron line. On Synology it
-prints the Task Scheduler entry: Control Panel → Task Scheduler → Create → Scheduled Task →
-User-defined script, user `root`, daily every 5 minutes, command
-`sh <checkout>-updater/auto-update.sh run <checkout>` (the installer prints it with your paths).
-
-Status by hand: `sh scripts/auto-update.sh status`. Turn it off: disable the scheduled task.
-
-## Signs of life in the app
-
-Every tick writes a timestamp to `/logs/updater-heartbeat` (root writes the volume directly; anyone else at
-most every 10 minutes through a container). System settings → Updates shows the running commit, the last
-change and the last check; with no sign of life for 20 minutes it says the updater is not running, and so
-does the dock ("Updates stopped"). While a deploy builds, the status is `updating` (with its actions):
-Updates and the dock show "Updating to <sha>". `./beni.sh doctor` warns when no tick ran for 15 minutes.
-All logs in `/logs` are readable in System settings → Logs (each file, or all merged by time).
-
-## Manual mode ("Update now")
-
-System settings → Updates switches between Automatic and Manual. The app writes `/logs/updater-control`
-(`mode=auto|manual`, and `request=<time>` when "Update now" is clicked); the updater reads it as root on its
-next tick and never runs anything from it. In manual mode a tick only fetches and, when main moved, writes
-status `available` (Updates and the dock show "Update available"); a request deploys main (retrying a commit
-that failed) and is handled once (`handled=` in the state). Set the scheduled task to every minute so a
-click starts within a minute. Builds write their output to `/logs/updater-build.log` while they run, and the
-updater log gets the "main at …" line before the build starts.
-
-## Progress
-
-A deploy is a list of steps: one build per image (`build:` services of main's compose file, one at a time),
-then starting them, the migration, and each restart. Before each, the updater writes status `updating` with
-`step`, `steps`, `startedAt` and the step as the message, and a `== step n/m` line to
-`/logs/updater-build.log`. Updates shows a progress bar, the step, how long ago it started and the last lines
-of the build output, reloading every 5 seconds; the dock shows "Updating to <sha> · n/m".
-
-## One update path
-
-`sudo ./beni.sh update` is a tick run now: it refreshes the updater's copy (`auto-update.sh install`) and runs
-it with `ASSISTANT_UPDATE_NOW=1`, which deploys even in manual mode and prints each step; then the installer
-refreshes the configuration. Same safety (mirror, throwaway container, build from main), same status and
-progress in the app. Only without an installed updater (or not as root) does it fall back to `git pull` as the
-owner plus the same plan of rebuilds and restarts.
-
-## Cancelling
-
-"Cancel" in Updates (while updating) writes `cancel=<time>` to `/logs/updater-control`; the next tick stops the
-tick that holds the lock (its pid in `lock/pid`, or older ticks by command line, with their children such as
-`docker compose build`), frees the lock and marks main's commit failed (status "update cancelled"), so it is
-not retried until main moves or "Update now". From the host: `sudo ./beni.sh update --cancel`. A lock whose
-pid is gone is taken over at once.
+System settings → Updates: Automatic or Manual (`/logs/updater-control`: `mode=auto|manual`, plus
+`request=<id>` for "Update now" / "Try again" / "Resume" and `cancel=<id>` for "Cancel"; the updater reads
+them as root and never runs anything from them, and echoes the request it took in its status). While an
+update runs: a progress bar (step n of m, what runs, since when, attempt), the last lines of the build
+output, reloading every 5 seconds. A request not taken within 3 minutes means the scheduled task does not
+run: the panel says so and names `sudo ./beni.sh update`. With no heartbeat for 20 minutes the updater
+counts as stopped; the dock shows "Updating to <sha> · n/m", "Update interrupted", "Update available" or
+"Updates stopped". `./beni.sh doctor` warns when no run happened for 15 minutes. All logs in `/logs` are
+readable in System settings → Logs.

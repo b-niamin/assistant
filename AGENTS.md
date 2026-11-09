@@ -63,8 +63,8 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AG
 4. Edits to `apps/web` and `extensions/` are rebuilt within seconds; a failed build leaves the previous build serving, so check
    `/logs/web.log` for `build ok` after a change. Before committing web changes run
    `cd apps/web && npm test && npm run check`. Edits to
-   `docker-compose.yml` or Dockerfiles go live once they are on GitHub `main`: the host's auto-update
-   (spec 006, `scripts/auto-update.sh`) pulls main every 5 minutes and rebuilds or restarts only the
+   `docker-compose.yml` or Dockerfiles go live once they are on GitHub `main`: the host's updater
+   (spec 006, `scripts/update.sh`) checks main every few minutes and rebuilds or restarts only the
    services whose files changed. It deploys only what is on GitHub, so local commits must be pushed (and
    the checkout must stay on `main` with nothing unpushed, or updates pause). Status: `/logs/updater.log`.
 

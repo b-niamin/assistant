@@ -193,8 +193,12 @@
       <a class="chip" href="/settings#up-h" title="A new version is on GitHub: update it from System settings">
         <span class="status small available">Update available</span>
       </a>
+    {:else if status?.update?.state === 'interrupted'}
+      <a class="chip" href="/settings#up-h" title="The update's process stopped; the updater resumes it, or resume it from System settings">
+        <span class="status small warning">Update interrupted</span>
+      </a>
     {:else if status?.update?.state === 'stale'}
-      <a class="chip" href="/settings#up-h" title="The auto-update has not run for a while: new commits are not deployed">
+      <a class="chip" href="/settings#up-h" title="The updater has not run for a while: new commits are not deployed">
         <span class="status small critical">Updates stopped</span>
       </a>
     {/if}

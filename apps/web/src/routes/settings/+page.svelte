@@ -34,9 +34,9 @@
     off: 'Remote Control not running'
   };
 
-  // While an update runs, follow it: the page reloads its data every 5 seconds.
+  // While an update runs or is asked for, follow it: the page reloads its data every 5 seconds.
   $effect(() => {
-    if (data.locked || data.updates?.status !== 'updating') return;
+    if (data.locked || !(data.updates?.status === 'updating' || data.updateView?.pending)) return;
     const t = setInterval(() => invalidateAll(), 5000);
     return () => clearInterval(t);
   });
@@ -210,52 +210,83 @@
 
   <section aria-labelledby="up-h">
     <h2 id="up-h">Updates</h2>
-    {#if data.updates}
+    {#if data.updates && data.updateView}
       {@const u = data.updates}
-      {@const state = data.updatesStale ? 'stale' : u.status}
-      <!-- Clicked after the last status: the updater has not picked it up yet. -->
-      {@const pending = !!data.updateControl.request && Date.parse(data.updateControl.request) > Date.parse(u.at)}
+      {@const v = data.updateView}
+      {@const state = v.state}
       {@const cancelling = !!data.updateControl.cancel && Date.parse(data.updateControl.cancel) > Date.parse(u.startedAt || u.at)}
+      {@const title = {
+        stale: 'The updater is not running',
+        interrupted: `Update to ${short(u.sha)} interrupted`,
+        updating: `Updating to ${short(u.sha)}`,
+        available: `Update available: ${short(u.sha)}`,
+        ok: 'Up to date',
+        failed: 'Last update failed',
+        blocked: 'Updates paused'
+      }[state]}
       <div class="card updates">
         <div class="upstate">
-          <span class="dot {state}" class:pulse={state === 'updating'} aria-hidden="true"></span>
-          <strong>
-            {state === 'stale' ? 'The updater is not running' : state === 'updating' ? `Updating to ${short(u.sha)}` : state === 'available' ? `Update available: ${short(u.sha)}` : state === 'ok' ? 'Up to date' : state === 'failed' ? 'Last update failed' : 'Updates paused'}
-          </strong>
-          {#if state === 'updating'}
-            <form method="POST" action="?/updateCancel" use:enhance class="now">
-              <button class="btn" disabled={cancelling} title="Stops the build; the containers that run now keep running">
+          <span class="dot {state}" class:pulse={state === 'updating' || v.pending} aria-hidden="true"></span>
+          <strong>{v.unanswered ? 'Waiting for the updater' : v.pending && state !== 'updating' ? 'Starting the update…' : title}</strong>
+          {#if state === 'updating' || state === 'interrupted'}
+            {#if state === 'interrupted'}
+              <form method="POST" action="?/updateNow" use:enhance class="now">
+                <button class="btn btn-primary" disabled={v.pending}>{v.pending ? 'Resuming…' : 'Resume'}</button>
+              </form>
+            {/if}
+            <form method="POST" action="?/updateCancel" use:enhance class:now={state === 'updating'}>
+              <button class="btn" disabled={cancelling} title="Stops the update; the containers that run now keep running">
                 {cancelling ? 'Cancelling…' : 'Cancel'}
               </button>
             </form>
           {:else if state !== 'stale'}
             <form method="POST" action="?/updateNow" use:enhance class="now">
-              <button class="btn" class:btn-primary={state === 'available' || state === 'failed'} disabled={pending}>
-                {pending ? 'Requested…' : 'Update now'}
+              <button class="btn" class:btn-primary={state === 'available' || state === 'failed'} disabled={v.pending}>
+                {v.pending ? 'Requested…' : state === 'failed' ? 'Try again' : state === 'ok' ? 'Check now' : 'Update now'}
               </button>
             </form>
           {/if}
         </div>
-        {#if pending}<p class="meta">Requested {when(data.updateControl.request)}: it starts at the updater's next run (every minute or five, as its task is set).</p>{/if}
+        {#if v.unanswered}
+          <p class="meta bad">
+            Requested {when(data.updateControl.request)}, but the updater has not taken it: is its scheduled task running every minute?
+            On the host, <code>sudo ./beni.sh update</code> updates right away.
+          </p>
+        {:else if v.pending}
+          <p class="meta">Requested {when(data.updateControl.request)}: the updater takes it within a minute.</p>
+        {/if}
         {#if state === 'stale'}
           <p class="meta">
             No sign of it since {when(u.checkedAt || u.at)}, so new commits on {u.branch} are not deployed. Its scheduled task must run
-            <code>sh &lt;folder&gt;-updater/auto-update.sh run &lt;folder&gt;</code> as root every 5 minutes; <code>sudo ./beni.sh doctor</code>
-            checks it, and <code>sudo ./beni.sh auto-update install</code> prints the exact command.
+            <code>sh &lt;folder&gt;-updater/update.sh</code> as root every minute; <code>sudo ./beni.sh doctor</code> checks it, and
+            <code>sudo ./beni.sh auto-update install</code> prints the exact command. <code>sudo ./beni.sh update</code> updates by hand.
           </p>
-        {:else if state === 'updating'}
-          <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax={u.steps || 1} aria-valuenow={u.step} aria-label="Update progress">
-            <span style="width: {u.steps ? Math.max(4, ((u.step - 0.5) / u.steps) * 100) : 4}%" class:indeterminate={!u.steps}></span>
+        {:else if state === 'updating' || state === 'interrupted'}
+          <div class="progress" class:halted={state === 'interrupted'} role="progressbar" aria-valuemin="0" aria-valuemax={u.steps || 1} aria-valuenow={u.step} aria-label="Update progress">
+            <span style="width: {u.steps ? Math.max(4, ((u.step - 0.5) / u.steps) * 100) : 4}%" class:indeterminate={!u.steps && state === 'updating'}></span>
           </div>
           <p class="meta">
             {#if u.steps}Step {u.step} of {u.steps}: <strong>{u.message}</strong>{:else}{u.message}{/if}
-            {#if u.startedAt} · started {when(u.startedAt)}{/if}. A build takes minutes on a NAS; the old containers keep running until then.
+            {#if u.startedAt} · started {when(u.startedAt)}{/if}{#if u.attempt > 1} · attempt {u.attempt}{/if}.
+            {#if state === 'updating'}
+              A build takes minutes on a NAS; the old containers keep running until then.
+            {:else}
+              Its process stopped (no sign of it since {when(u.checkedAt || u.at)}: a restart of the host, or it was killed). The
+              updater's next run picks it up where it stopped; Resume asks for that now, and so does <code>sudo ./beni.sh update</code>
+              on the host.
+            {/if}
           </p>
           {#if data.buildTail.length}
             <pre class="tail" aria-label="Build output">{data.buildTail.join('\n')}</pre>
           {/if}
         {:else if u.status !== 'ok'}
           <p class="meta">{u.message}</p>
+          {#if state === 'failed' && data.buildTail.length}
+            <details>
+              <summary>Build output</summary>
+              <pre class="tail">{data.buildTail.join('\n')}</pre>
+            </details>
+          {/if}
         {/if}
         <dl class="facts">
           {#if u.deployedSha}<dt>Running</dt><dd><code>{short(u.deployedSha)}</code>{u.deployedAt ? `, deployed ${when(u.deployedAt)}` : ''}</dd>{/if}
@@ -269,14 +300,15 @@
           <noscript><button class="btn">Save</button></noscript>
         </form>
         <p class="meta">
-          The host checks {u.branch} on GitHub at every run of its scheduled task and rebuilds only what changed.
+          The host's updater runs every minute, checks {u.branch} on GitHub every few minutes and rebuilds only what changed.
+          On the host the same update is <code>sudo ./beni.sh update</code>.
           <a href="/settings/logs?file=updater.log">Updater log</a>
         </p>
       </div>
     {:else}
       <p class="muted">
-        Automatic updates are off. To turn them on, run <code>sudo sh scripts/auto-update.sh install</code> on the host
-        (spec 006).
+        The updater is not set up. On the host, <code>sudo ./beni.sh update</code> sets it up and updates; it prints the
+        scheduled task to add (spec 006).
       </p>
     {/if}
   </section>
@@ -555,6 +587,12 @@
     background: var(--accent);
     transition: width 400ms ease;
   }
+  .progress.halted span {
+    background: var(--warning);
+  }
+  .meta.bad {
+    color: var(--critical);
+  }
   .tail {
     margin: 0;
     max-height: 13em;
@@ -599,7 +637,8 @@
     background: var(--accent);
   }
   .dot.blocked,
-  .dot.updating {
+  .dot.updating,
+  .dot.interrupted {
     background: var(--warning);
   }
   .dot.stale {

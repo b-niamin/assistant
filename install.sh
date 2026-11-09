@@ -16,7 +16,7 @@
 #   3. installs the extensions named as arguments (or in ASSISTANT_EXTENSIONS) from the extensions repo,
 #   4. lists the installed extensions' compose.yml in COMPOSE_FILE, builds and starts the stack,
 #   5. publishes it on your tailnet with `tailscale serve` if Tailscale is installed,
-#   6. sets up auto-update from GitHub main (scripts/auto-update.sh, spec 006; ASSISTANT_AUTO_UPDATE=0 skips),
+#   6. sets up the updater (scripts/update.sh, spec 006; ASSISTANT_AUTO_UPDATE=0 = manual updates, from the app),
 #   7. prints the address and the one-time setup code for the web wizard (/setup).
 # Re-running it is safe: it keeps .env and the installed extensions, and only (re)starts the stack.
 # Run it again after Claude installs an extension that brings a background service.
@@ -179,7 +179,7 @@ else
       pick_extensions
     fi
     if [ -z "${ASSISTANT_AUTO_UPDATE:-}" ]; then
-      ask a_upd "Update by itself from GitHub main every 5 minutes? (y/n)" y
+      ask a_upd "Update by itself from GitHub main? (n = only when you click Update in the app) (y/n)" y
       case $a_upd in [nN]*) AUTO=0 ;; *) AUTO=1 ;; esac
     fi
     if [ -z "${ASSISTANT_START:-}" ]; then
@@ -233,7 +233,7 @@ git config core.hooksPath scripts/hooks 2>/dev/null || true
 # The containers write the checkout as HOST_UID: files a root run (sudo) left behind, or Synology ACLs
 # on a shared folder (DSM puts them on every new file, and they deny writes), would stop them and a
 # later `git pull` (spec 006). Fixed right away, so even a run that stops below leaves a usable checkout.
-if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers (owner, Synology ACLs)" sh scripts/auto-update.sh fix-permissions "$DIR"; fi
+if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers (owner, Synology ACLs)" sh scripts/update.sh fix-permissions "$DIR"; fi
 # The compose project name: volumes and containers are prefixed with it. It is pinned in .env
 # (COMPOSE_PROJECT_NAME), so the folder can move or be renamed later and keep its data. A new install takes
 # ASSISTANT_PROJECT, else the folder name; when containers of another folder already use that name (an
@@ -385,7 +385,7 @@ else
 fi
 
 # 5. tailnet
-phase "Publishing on your tailnet and setting up auto-update"
+phase "Publishing on your tailnet and setting up updates"
 if command -v tailscale >/dev/null 2>&1; then
   if tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1 ||
     sudo tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1; then
@@ -396,20 +396,20 @@ if command -v tailscale >/dev/null 2>&1; then
 fi
 
 # Root-owned files or Synology ACLs in the checkout stop web/claude from writing it (spec 006).
-if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers" sh scripts/auto-update.sh fix-permissions "$DIR"; fi
+if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers" sh scripts/update.sh fix-permissions "$DIR"; fi
 
-# 6. auto-update (spec 006): a mirror outside the checkout plus a 5-minute schedule. On Synology the
-# schedule is a Task Scheduler entry; the installer prints what to paste.
-if [ "${ASSISTANT_AUTO_UPDATE:-1}" != 0 ]; then
-  if (quietly "Auto-update from GitHub main" sh scripts/auto-update.sh install "$DIR"); then
-    updater="${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}/auto-update.sh run $DIR"
-    if [ -f /etc/synoinfo.conf ]; then
-      say "Add it once in DSM: Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script,"
-      say "user root, daily every 5 minutes, command:  sh $updater"
-    fi
-  else
-    say "Auto-update not set up; later: sudo sh scripts/auto-update.sh install"
+# 6. the updater (spec 006): a mirror outside the checkout plus a schedule every minute, which updates by
+# itself or, with manual updates, when the app asks. On Synology the schedule is a Task Scheduler entry;
+# the installer prints what to paste.
+manual=""; [ "${ASSISTANT_AUTO_UPDATE:-1}" != 0 ] || manual=--manual
+if (quietly "Updates from GitHub main" sh scripts/update.sh install $manual "$DIR"); then
+  updater="${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}/update.sh"
+  if [ -f /etc/synoinfo.conf ]; then
+    say "Add it once in DSM: Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script,"
+    say "user root, daily every minute, command:  sh $updater"
   fi
+else
+  say "Updater not set up; later: sudo ./beni.sh update"
 fi
 
 # 7. next steps
@@ -472,10 +472,10 @@ printf '  Open   %s/setup\n  Code   %s\n  Choose the app password and your profi
   "$(sed -n 's/^PUBLIC_ORIGIN=//p' .env)" "$token" > /dev/tty
 ask _ "Press Enter when the setup page says you are done" ""
 
-if [ "${ASSISTANT_AUTO_UPDATE:-1}" != 0 ] && [ -d /volume1 ]; then
-  step "auto-update schedule (Synology)"
+if [ -d /volume1 ]; then
+  step "update schedule (Synology)"
   printf '  DSM: Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script.\n' > /dev/tty
-  printf '  User root, daily, every 5 minutes, and the command printed above by [auto-update].\n' > /dev/tty
+  printf '  User root, daily, every minute, and the command printed above by [update].\n' > /dev/tty
   ask _ "Press Enter when the task is saved" ""
 fi
 

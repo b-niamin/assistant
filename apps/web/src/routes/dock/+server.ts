@@ -10,14 +10,14 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
 import { sidecarsConfigured, startBackgroundRemote, terminalStatus } from '#lib/server/sidecars.ts';
-import { isStale, updaterStatus } from '#lib/server/updater.ts';
+import { updateView, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 
 export const GET: RequestHandler = async ({ cookies, locals }) => {
   if (!locals.authenticated) return json({ error: 'Log in first.' }, { status: 401 });
-  const [status, unlocked, u] = await Promise.all([terminalStatus(), isElevated(cookies.get(SESSION_COOKIE)), updaterStatus()]);
-  // The host's auto-update: shown in the dock while it deploys, or when it has stopped.
+  const [status, unlocked, u, c] = await Promise.all([terminalStatus(), isElevated(cookies.get(SESSION_COOKIE)), updaterStatus(), updaterControl()]);
+  // The host's updater: shown in the dock while it updates, when an update was interrupted, or when it has stopped.
   const update = u
-    ? { state: isStale(u) ? 'stale' : u.status, sha: u.sha.slice(0, 7), actions: u.status === 'updating' ? u.actions : '', step: u.step, steps: u.steps }
+    ? { state: updateView(u, c).state, sha: u.sha.slice(0, 7), actions: u.status === 'updating' ? u.actions : '', step: u.step, steps: u.steps }
     : null;
   return json({ ...status, configured: sidecarsConfigured(), unlocked, update }, { headers: { 'cache-control': 'no-store' } });
 };

@@ -29,9 +29,9 @@ if git diff --cached --name-only | grep -qE '^services/terminal/'; then
   (cd "$root" && node --test services/terminal/*.test.mjs)
 fi
 
-# auto-update: which services a change touches.
-if git diff --cached --name-only | grep -qE '^scripts/auto-update'; then
-  sh "$root/scripts/auto-update.test.sh"
+# updater: which services a change touches, the lock, the journal.
+if git diff --cached --name-only | grep -qE '^scripts/(update|auto-update)'; then
+  sh "$root/scripts/update.test.sh"
 fi
 
 # web: tests + typecheck, only when the commit touches it.

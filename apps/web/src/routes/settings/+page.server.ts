@@ -11,7 +11,7 @@ import { passwordFromEnv, passwordHash, passwordProblem, setPassword } from '#li
 import { verifyPassword } from '#lib/server/password.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
-import { buildTail, isStale, setUpdaterControl, updaterControl, updaterStatus } from '#lib/server/updater.ts';
+import { buildTail, setUpdaterControl, updateView, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 import { deleteOtherSessions, dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
 
 const limiter = createLimiter(5, 15 * 60 * 1000);
@@ -26,9 +26,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
     extensions,
     profiles,
     updates,
-    updatesStale: updates ? isStale(updates) : false,
+    updateView: updates ? updateView(updates, updateControl) : null,
     updateControl,
-    buildTail: updates?.status === 'updating' ? await buildTail() : [],
+    buildTail: updates?.status === 'updating' || updates?.status === 'failed' ? await buildTail() : [],
     terminal: { ...terminal, configured: sidecarsConfigured() },
     passwordFromEnv: passwordFromEnv()
   };
@@ -59,7 +59,7 @@ export const actions: Actions = {
     return { ok: 'Locked.' };
   },
 
-  /** Automatic or manual updates; the host's updater reads it on its next tick (spec 006). */
+  /** Automatic or manual updates; the host's updater reads it on its next run (spec 006). */
   updateMode: async ({ request, cookies }) => {
     if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
     const mode = str(await request.formData(), 'mode') === 'manual' ? 'manual' : 'auto';
@@ -67,20 +67,21 @@ export const actions: Actions = {
     return { ok: mode === 'manual' ? 'Manual updates: the app shows new versions and waits for "Update now".' : 'Automatic updates.' };
   },
 
-  /** "Update now": a request the updater acts on at its next tick (it deploys GitHub main, nothing else). */
+  /** "Update now" (also "Retry" and "Resume"): a request the updater takes at its next run, within a minute
+   * (it deploys GitHub main, nothing else). */
   updateNow: async ({ cookies }) => {
     if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
     await setUpdaterControl({ ...(await updaterControl()), request: new Date().toISOString() });
     console.log(`[settings] ${new Date().toISOString()} update requested`);
-    return { ok: 'Update requested: it starts at the updater\'s next run.' };
+    return { ok: 'Update requested: it starts within a minute.' };
   },
 
-  /** "Cancel" during an update: the updater's next tick stops the running one (old containers stay). */
+  /** "Cancel" during an update: the updater's next run stops the running one (old containers stay). */
   updateCancel: async ({ cookies }) => {
     if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
     await setUpdaterControl({ ...(await updaterControl()), cancel: new Date().toISOString() });
     console.log(`[settings] ${new Date().toISOString()} update cancel requested`);
-    return { ok: 'Cancelling: the updater stops the running update at its next run.' };
+    return { ok: 'Cancelling: the updater stops the update within a minute.' };
   },
 
   password: async ({ request, cookies }) => {

@@ -1,7 +1,7 @@
 /**
- * Last result of the host's auto-update (scripts/auto-update.sh, spec 006). The updater writes
- * /logs/updater-status.json in the shared `logs` volume, and a timestamp on every tick to
- * /logs/updater-heartbeat; this only reads them.
+ * The host's updater (scripts/update.sh, spec 006). It writes /logs/updater-status.json in the shared
+ * `logs` volume, and a timestamp to /logs/updater-heartbeat on every run and every 15 s while an update
+ * runs; this reads them, and writes the app's requests to /logs/updater-control.
  */
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -21,6 +21,10 @@ export interface UpdaterStatus {
   step: number;
   steps: number;
   startedAt: string;
+  /** Which try of this update (2+ = resumed after an interruption). */
+  attempt: number;
+  /** The app's last request the updater took ('' when none, or an older updater). */
+  request: string;
 }
 
 const STATUSES = new Set(['ok', 'failed', 'blocked', 'updating', 'available']);
@@ -50,7 +54,9 @@ export function parseUpdaterStatus(raw: string): UpdaterStatus | null {
     checkedAt: '',
     step: count(j.step),
     steps: count(j.steps),
-    startedAt: text(j.startedAt, 40)
+    startedAt: text(j.startedAt, 40),
+    attempt: count(j.attempt),
+    request: text(j.request, 64)
   };
 }
 
@@ -61,6 +67,29 @@ export function lastSeen(s: UpdaterStatus): number {
 
 /** True when the updater has not shown a sign of life for STALE_MS (a long build counts as alive). */
 export const isStale = (s: UpdaterStatus, now = Date.now()): boolean => s.status !== 'updating' && now - lastSeen(s) > STALE_MS;
+
+/** A running update beats every 15 s (a minute without root): this long without one, its process died. */
+export const STALLED_MS = 3 * 60_000;
+/** A request the updater has not taken this long after the click: its schedule probably does not run. */
+export const UNANSWERED_MS = 3 * 60_000;
+
+export type UpdateState = 'stale' | 'interrupted' | 'updating' | 'available' | 'ok' | 'failed' | 'blocked';
+
+/**
+ * What the Updates panel and the dock show. `interrupted`: the status still says updating, but no
+ * heartbeat came for STALLED_MS (a reboot, or the process was killed): the updater's next run resumes it.
+ * `pending`: "Update now" was clicked and the updater has not taken it yet.
+ */
+export function updateView(s: UpdaterStatus, c: UpdaterControl, now = Date.now()): { state: UpdateState; pending: boolean; unanswered: boolean } {
+  let state: UpdateState = s.status;
+  if (s.status === 'updating') {
+    if (now - lastSeen(s) > STALLED_MS) state = 'interrupted';
+  } else if (isStale(s, now)) state = 'stale';
+  // The updater echoes the request it took; older ones did not, so compare times for them.
+  const pending = !!c.request && c.request !== s.request && (!!s.request || Date.parse(c.request) > Date.parse(s.at));
+  const unanswered = pending && now - Date.parse(c.request) > UNANSWERED_MS;
+  return { state, pending, unanswered };
+}
 
 export async function updaterStatus(file = process.env.UPDATER_STATUS_FILE ?? '/logs/updater-status.json'): Promise<UpdaterStatus | null> {
   try {

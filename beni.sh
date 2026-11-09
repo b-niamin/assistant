@@ -2,8 +2,9 @@
 # beni: one command for everything you do with the assistant on the host. Run it in the checkout.
 #
 #   ./beni.sh install [ext...]      install or re-run the installer (asks in a terminal; see install.sh)
-#   ./beni.sh update [--cancel]     an auto-update tick now (or git pull), then the installer again;
-#                                   --cancel stops a running update (the old containers keep running)
+#   ./beni.sh update                update to GitHub main now, with a progress bar (the same command the
+#                                   schedule runs: <folder>-updater/update.sh); a running update is followed
+#   ./beni.sh update --status       what the updater does or did; --cancel stops a running update
 #   ./beni.sh start | stop | restart [service]
 #   ./beni.sh status                containers and the app's health
 #   ./beni.sh doctor                checks the install: permissions, git, .env, database password, ...
@@ -12,7 +13,7 @@
 #   ./beni.sh fix-permissions       owner, Synology ACLs and modes in the checkout
 #   ./beni.sh fix-db-password       the database keeps its data but takes the password in .env
 #   ./beni.sh move <new-folder>     move the install (stopped, data kept), e.g. to /volume1/docker/assistant
-#   ./beni.sh auto-update [install | status]
+#   ./beni.sh auto-update [install | status]   set up the updater and its schedule (once) | status
 #
 # Docker on Synology needs root: put sudo in front (sudo ./beni.sh status).
 set -eu
@@ -167,7 +168,7 @@ doctor() {
     m=$(find "$DIR/.git/objects" -xdev \( -type d ! -perm -u+rwx \) -o \( -type f ! -perm -u+r \) 2>/dev/null | grep -c . || true)
     [ "$((n + m))" = 0 ] || f "$((n + m)) path(s) the owner cannot write (git pull and Claude would fail): sudo ./beni.sh fix-permissions"
     if command -v synoacltool >/dev/null 2>&1; then
-      n=$(find "$DIR" -xdev ! -path "$DIR/.env" -exec ls -dln {} + 2>/dev/null | sh scripts/auto-update.sh acl-paths | grep -c . || true)
+      n=$(find "$DIR" -xdev ! -path "$DIR/.env" -exec ls -dln {} + 2>/dev/null | sh scripts/update.sh acl-paths | grep -c . || true)
       [ "$n" = 0 ] || f "$n path(s) carry a Synology ACL (they deny writes): sudo ./beni.sh fix-permissions"
     fi
     [ "$fails" != "$f0" ] || ok "the checkout belongs to uid $uid and it can write all of it"
@@ -276,22 +277,22 @@ doctor() {
     else w "the app does not answer on port ${port:-3000} (still building? sudo ./beni.sh logs web)"; fi
   fi
 
-  # Auto-update
-  home=${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}
-  if [ ! -f "$home/auto-update.sh" ]; then say "auto-update is not set up (sudo ./beni.sh auto-update install)"
+  # Updater
+  home=$(updater_home)
+  if [ ! -f "$home/update.sh" ] && [ ! -f "$home/auto-update.sh" ]; then say "the updater is not set up (sudo ./beni.sh auto-update install)"
   else
-    st=$(sh scripts/auto-update.sh status "$DIR" 2>/dev/null | sed -n 's/.*"status":"\([^"]*\)".*"message":"\([^"]*\)".*/\1: \2/p' | head -n 1)
+    st=$(sed -n 's/.*"status":"\([^"]*\)".*"message":"\([^"]*\)".*/\1: \2/p' "$home/status.json" 2>/dev/null | head -n 1)
     case $st in
-      ok:* | updating:* | available:*) ok "auto-update: ${st#*: }" ;;
-      "") ok "auto-update is set up ($home)" ;;
-      *) w "auto-update $st" ;;
+      ok:* | updating:* | available:*) ok "updater: ${st#*: }" ;;
+      "") ok "the updater is set up ($home)" ;;
+      *) w "updater $st (sudo ./beni.sh update --status)" ;;
     esac
-    # Each tick leaves a timestamp; none for 15 minutes means the schedule does not run it.
+    # Each run leaves a timestamp; none for 15 minutes means the schedule does not run it.
     mp=$(docker volume inspect -f '{{.Mountpoint}}' "$(project)_logs" 2>/dev/null || true)
     if [ -n "$mp" ] && [ -f "$mp/updater-heartbeat" ] && [ -n "$(find "$mp/updater-heartbeat" -mmin -15 2>/dev/null)" ]; then
-      ok "auto-update ran in the last 15 minutes"
+      ok "the updater ran in the last 15 minutes"
     elif [ -n "$mp" ]; then
-      w "auto-update has not run in the last 15 minutes: the schedule must run  sh $home/auto-update.sh run $DIR"
+      w "the updater has not run in the last 15 minutes: the schedule must run  sh $home/update.sh  (as root, every minute)"
     fi
   fi
   doctor_end
@@ -323,15 +324,16 @@ move_to() {
     new_home=$parent/$(basename "$new")-updater
     if [ -d "$old_home" ] && [ ! -e "$new_home" ]; then
       mv "$old_home" "$new_home" && ok "updater home: $new_home"
-      if command -v crontab >/dev/null 2>&1 && crontab -l 2>/dev/null | grep -qF "$old_home/auto-update.sh"; then
-        crontab -l 2>/dev/null | grep -vF "$old_home/auto-update.sh" | crontab - && say "removed the old cron entry"
+      if command -v crontab >/dev/null 2>&1 && crontab -l 2>/dev/null | grep -qF "$old_home/"; then
+        crontab -l 2>/dev/null | grep -vF "$old_home/" | crontab - && say "removed the old cron entry"
       fi
+      rm -f "$new_home/checkout" # install.sh writes the new one
     fi
   fi
   mv "$DIR" "$new" && ok "moved to $new"
   cd "$new"
-  if [ -f /etc/synoinfo.conf ] && [ -n "$new_home" ] && [ -f "$new_home/auto-update.sh" ]; then
-    warn "DSM Task Scheduler: change the auto-update task's command to the one the installer prints below"
+  if [ -f /etc/synoinfo.conf ] && [ -n "$new_home" ] && [ -d "$new_home/mirror.git" ]; then
+    warn "DSM Task Scheduler: change the update task's command to the one the installer prints below"
   fi
   [ "$(envv START_MODE)" != manual ] ||
     warn "Container Manager: delete the project $p (keep its data) and create it again from $new/stack"
@@ -344,60 +346,27 @@ doctor_end() {
   if [ "$warns" -gt 0 ]; then warn "no problems, $warns warning(s)"; else ok "all good"; fi
 }
 
-# deploy_changes <actions from auto-update.sh plan>: the same rebuilds and restarts as auto-update.
-deploy_changes() {
-  acts=$1
-  [ -n "$acts" ] || { ok "no container needs a rebuild or restart"; return 0; }
-  if printf '%s\n' "$acts" | grep -qx all; then
-    say "docker-compose.yml changed: building and starting everything (minutes on a NAS)"
-    dc up -d --build || die "docker compose up --build failed"
-    return 0
-  fi
-  builds=$(printf '%s\n' "$acts" | sed -n 's/^build://p' | tr '\n' ' ')
-  if [ -n "$builds" ]; then
-    say "rebuilding:$(printf ' %s' $builds) (minutes on a NAS)"
-    # shellcheck disable=SC2086
-    dc up -d --build --no-deps $builds || die "rebuild failed: $builds"
-  fi
-  if printf '%s\n' "$acts" | grep -qx migrate; then dc up --no-deps migrate >/dev/null || die "migrate failed"; fi
-  for s in $(printf '%s\n' "$acts" | sed -n 's/^restart://p'); do
-    case " $builds " in *" $s "*) continue ;; esac
-    dc restart "$s" >/dev/null && ok "restarted $s"
-  done
-  ok "containers up to date"
-}
+# The updater's home: next to the checkout, outside it (spec 006).
+updater_home() { echo "${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}"; }
 
 cmd=${1:-help}
 [ $# -gt 0 ] && shift
 case $cmd in
   install) exec sh ./install.sh "$@" ;;
   update)
-    # --cancel: stop an update that is running (or stuck), keep the containers that ran before.
-    if [ "${1:-}" = --cancel ]; then
-      [ "$(id -u)" = 0 ] || die "put sudo in front"
-      exec sh scripts/auto-update.sh cancel "$DIR"
+    # One update path for everyone: the updater in <folder>-updater, the same one the schedule runs
+    # (never this checkout's copy, which the containers can change). Set up on first use.
+    home=$(updater_home)
+    if [ ! -f "$home/update.sh" ]; then
+      [ "${1:-}" != --status ] && [ "${1:-}" != --cancel ] || die "the updater is not set up: sudo ./beni.sh update"
+      sh scripts/update.sh install "$DIR" || die "could not set up the updater"
     fi
-    # With auto-update installed, an update is one of its ticks, run now: the same safe path (pull into
-    # the private mirror, fast-forward the checkout in a throwaway container, build from main's copy),
-    # the same status and progress in the app. Then the installer refreshes the configuration.
-    home=${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}
-    if [ "$(id -u)" = 0 ] && [ -f "$home/auto-update.sh" ]; then
-      sh scripts/auto-update.sh install "$DIR" >/dev/null || die "could not refresh the updater (sudo sh scripts/auto-update.sh install)"
-      ASSISTANT_UPDATE_NOW=1 sh "$home/auto-update.sh" run "$DIR" || die "update failed: Settings > Logs > updater-build, or sudo ./beni.sh logs"
-      exec sh ./install.sh
-    fi
-    # No auto-update (or not root): pull as the owner and rebuild what the change touches.
-    [ "$(id -u)" != 0 ] || sh scripts/auto-update.sh fix-permissions "$DIR" >/dev/null || true
-    before=$(as_owner git rev-parse HEAD)
-    as_owner git pull --ff-only ||
-      die "git pull failed (local changes? run: git status; permissions? sudo ./beni.sh doctor)"
-    sh ./install.sh || exit 1
-    after=$(as_owner git rev-parse HEAD)
-    # A running stack gets what auto-update would do for this change: rebuild or restart only the
-    # services whose files changed (whatever the start mode: install.sh itself never touches containers).
-    if [ "$before" != "$after" ] && [ -n "$(dc ps -a -q 2>/dev/null)" ]; then
-      deploy_changes "$(as_owner git diff --name-only "$before" "$after" | sh scripts/auto-update.sh plan)"
-    fi ;;
+    case ${1:-} in
+      --status) exec sh "$home/update.sh" status "$DIR" ;;
+      --cancel) exec sh "$home/update.sh" cancel "$DIR" ;;
+      "") exec sh "$home/update.sh" run --now "$DIR" ;;
+      *) die "update [--status | --cancel]" ;;
+    esac ;;
   start) dc up -d "$@" && ok "started" ;;
   stop) dc stop "$@" && ok "stopped (data kept)" ;;
   restart) dc restart "$@" && ok "restarted" ;;
@@ -416,11 +385,11 @@ case $cmd in
   logs) dc logs -f --tail 100 "$@" ;;
   ext) dc exec claude node scripts/ext.mjs "$@" ;;
   move) move_to "$@" ;;
-  fix-permissions) exec sh scripts/auto-update.sh fix-permissions "$DIR" ;;
+  fix-permissions) exec sh scripts/update.sh fix-permissions "$DIR" ;;
   auto-update)
     case ${1:-status} in
-      install) exec sh scripts/auto-update.sh install "$DIR" ;;
-      status) exec sh scripts/auto-update.sh status "$DIR" ;;
+      install) exec sh scripts/update.sh install "$DIR" ;;
+      status) exec sh scripts/update.sh status "$DIR" ;;
       *) die "auto-update install | status" ;;
     esac ;;
   help | -h | --help) usage ;;

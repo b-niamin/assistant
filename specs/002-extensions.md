@@ -56,7 +56,7 @@ Takeaways for a single-owner self-hosted app that Claude edits live:
 ### Two repos
 
 ```
-assistant-core                      the shell (this repo)
+assistant                           the shell (this repo)
   extensions/                       git-ignored: this instance's installed extensions
     installed.json                  which extensions are on, nav order, default visibility, origin
     <id>/                           one extension, copied from the extensions repo or built here

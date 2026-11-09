@@ -35,7 +35,7 @@ with write access (GitHub: repo Settings -> Deploy keys). It can then push this 
 docker compose exec claude sh -c 'mkdir -p ~/.ssh && ssh-keygen -t ed25519 -N "" -C claude-assistant -f ~/.ssh/id_ed25519 && ssh-keyscan github.com >> ~/.ssh/known_hosts && cat ~/.ssh/id_ed25519.pub'
 ```
 
-The checkout's `origin` must be the SSH URL (`git@github.com:<you>/assistant-core.git`, your fork).
+The checkout's `origin` must be the SSH URL (`git@github.com:<you>/assistant.git`, your fork).
 `CLAUDE_GITHUB_TOKEN` (HTTPS) still works as an alternative.
 
 ## File ownership

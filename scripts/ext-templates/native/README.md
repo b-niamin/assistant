@@ -1,6 +1,6 @@
 # {{name}}
 
-An extension for the assistant shell (assistant-core, spec 002). Kind: native, scope: {{scope}}.
+An extension for the assistant shell (assistant, spec 002). Kind: native, scope: {{scope}}.
 
 - `web/routes/` SvelteKit route files, mounted at `/{{id}}`
 - `web/lib/` components and helpers

@@ -1,7 +1,7 @@
 #!/bin/sh
 # One-command install of the assistant on a NAS or any Linux box with Docker (spec 002, "Install").
 #
-#   curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/install.sh | sudo sh
+#   curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh | sudo sh
 #   # or, from a checkout:  ./install.sh [extension ...]
 #
 # In a terminal it asks a few questions (folder, port, tailnet port, extensions, auto-update), each with a
@@ -23,7 +23,7 @@ set -eu
 # sudo's PATH may miss the Synology packages' binaries (docker, tailscale).
 PATH=$PATH:/usr/local/bin:/var/packages/ContainerManager/target/usr/bin:/var/packages/Tailscale/target/bin
 
-REPO=${ASSISTANT_REPO:-https://github.com/b-niamin/assistant-core.git}
+REPO=${ASSISTANT_REPO:-https://github.com/b-niamin/assistant.git}
 EXTENSIONS=${*:-${ASSISTANT_EXTENSIONS-health gym}}
 
 # Output: a numbered line per phase, "  ·" for news, "  ✓"/"  ✗" for steps. Tool output (docker builds,

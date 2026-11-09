@@ -2,7 +2,7 @@
   <img src="apps/web/static/beni.svg" alt="Beni, the assistant's mascot: an orange jelly-bean runner in a sweatband" width="160" />
 </p>
 
-# assistant-core
+# Beni Assistant
 
 A private, self-hosted assistant you run at home: a small **core shell** (password, profiles, dashboard,
 System settings, an in-app terminal and browser) plus **extensions**, the apps. Claude runs inside the
@@ -23,7 +23,7 @@ every empty screen company.
 On any Linux machine or NAS with Docker and Compose (Tailscale optional but recommended):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant-core/main/install.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh | sudo sh
 ```
 
 It asks a few questions, each with a suggestion you take with Enter: the folder

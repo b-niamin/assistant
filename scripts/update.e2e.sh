@@ -243,6 +243,19 @@ sh "$UH/auto-update.sh" run "$CO" < /dev/null > "$T/out" 2>&1 || fail "legacy ta
 [ -f "$UH/update.sh" ] && [ "$(cat "$CO/apps/web/page.txt")" = v11 ] || fail "legacy task did not hand over"
 ok "an older scheduled task (auto-update.sh run) hands over to update.sh"
 
+# A home the older updater handed over has no checkout file; the schedule runs update.sh bare: it finds
+# the checkout by the home's name (<checkout>-updater) and writes the file back.
+rm -f "$UH/checkout"
+ASSISTANT_UPDATER_HOME= sh "$UH/update.sh" status > "$T/out" 2>&1 && grep -q 'running commit' "$T/out" || fail "bare run did not find the checkout"
+[ "$(cat "$UH/checkout")" = "$CO" ] || fail "checkout file not written back"
+grep -q 'last run: 20' "$T/out" || fail "status shows no last run"
+# A run that cannot start says why where someone will see it (the schedule's output goes nowhere).
+echo /nonexistent > "$UH/checkout"
+ASSISTANT_UPDATER_HOME= sh "$UH/update.sh" < /dev/null > "$T/out" 2>&1 && fail "ran without a checkout"
+grep -q 'not an assistant checkout' "$UH/last-error" || fail "error of a bare run not kept"
+echo "$CO" > "$UH/checkout"
+ok "a bare run finds its checkout (file, or the home's name) and keeps its errors"
+
 sh "$UH/update.sh" status "$CO" > "$T/out" 2>&1; grep -q 'ok: updated to' "$T/out" || fail "status"
 grep -q 'updated to' "$LOGS/updater.log" || fail "no log"
 ok "status and log"

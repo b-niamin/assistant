@@ -39,7 +39,15 @@ STEP_TIMEOUT=${ASSISTANT_STEP_TIMEOUT:-900}       # any other step
 MAX_ATTEMPTS=3                                    # an interrupted or failed update is tried this often
 
 say() { printf '[update] %s\n' "$*"; }
-die() { printf '[update] %s\n' "$*" >&2; exit 1; }
+# An error also lands in <home>/last-error and the app's updater.log: a scheduled task's output is
+# seen by nobody.
+die() {
+  printf '[update] %s\n' "$*" >&2
+  h=${HOME_DIR:-$(cd "$(dirname "$0")" 2>/dev/null && pwd)}
+  case $h in *-updater) printf '%s %s\n' "$(iso)" "$*" > "$h/last-error" 2>/dev/null || true ;; esac
+  [ -z "${LOGS_MP:-}" ] || printf '%s %s\n' "$(iso)" "$*" | logs_put updater.log append
+  exit 1
+}
 now() { date -u +%s; }
 iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 short() { printf '%.7s' "$1"; }
@@ -71,11 +79,13 @@ plan() {
 acl_paths() { awk '$1 ~ /\+$/ { for (i = 0; i < 8; i++) sub(/^[^ ]+ +/, ""); print }'; }
 
 # --- paths -----------------------------------------------------------------------------------------
-# The checkout: the argument, else the one this home serves (<home>/checkout), else the one around scripts/.
+# The checkout: the argument, else the one this home serves (<home>/checkout, or <checkout>-updater's
+# name), else the one around scripts/.
 setup_paths() {
   d=${1:-}
   here=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
   [ -n "$d" ] || [ ! -f "$here/checkout" ] || d=$(cat "$here/checkout")
+  case $here in *-updater) [ -n "$d" ] || [ ! -d "$here/mirror.git" ] || d=${here%-updater} ;; esac
   [ -n "$d" ] || d=$(cd "$here/.." 2>/dev/null && pwd)
   [ -f "$d/docker-compose.yml" ] && [ -d "$d/.git" ] || die "not an assistant checkout: $d"
   DIR=$(cd "$d" && pwd -P)
@@ -92,6 +102,8 @@ setup_paths() {
   case "$HOME_DIR/" in "$DIR"/*) die "the updater home must be outside the checkout" ;; esac
   MIRROR=$HOME_DIR/mirror.git
   STATE=$HOME_DIR/state
+  # The schedule runs `update.sh` without arguments: remember which checkout this home serves.
+  [ ! -d "$MIRROR" ] || [ "$(cat "$HOME_DIR/checkout" 2>/dev/null)" = "$DIR" ] || echo "$DIR" > "$HOME_DIR/checkout" 2>/dev/null || true
   LOCK=$HOME_DIR/lock
   LOGS_MP=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_logs" 2>/dev/null || true)
   # Root writes the `logs` volume directly; anyone else through a throwaway container (slower).
@@ -531,6 +543,7 @@ cmd_run() {
   [ -n "$DC_BIN" ] || die "Docker Compose is missing"
   [ -d "$MIRROR" ] || die "no mirror at $MIRROR: run 'sudo ./beni.sh update' or 'sh scripts/update.sh install' first"
   heartbeat
+  iso > "$HOME_DIR/last-run" 2>/dev/null; rm -f "$HOME_DIR/last-error"
   read_control
   state_load
 
@@ -733,6 +746,8 @@ cmd_status() {
     [ -z "$S_target" ] || say "an update to $(short "$S_target") was interrupted (step(s) done:${S_done:- none}); the next run resumes it"
   fi
   say "running commit: $(short "$DEPLOYED") since ${DEPLOYED_AT:-?}"
+  say "last run: $(cat "$HOME_DIR/last-run" 2>/dev/null || echo never) (the schedule should run it every minute)"
+  [ ! -f "$HOME_DIR/last-error" ] || say "last error: $(cat "$HOME_DIR/last-error")"
   [ -z "$LOGS_MP" ] || [ ! -r "$LOGS_MP/updater-control" ] || say "mode: $(sed -n 's/^mode=//p' "$LOGS_MP/updater-control" | tail -n 1)"
 }
 

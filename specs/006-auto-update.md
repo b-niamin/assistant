@@ -109,7 +109,10 @@ there when a new long-lived service or build context appears.
 - **Output**: `<home>/status.json` and, for the app, `/logs/updater-status.json` (status, message, step,
   steps, startedAt, attempt, the app request it took), `/logs/updater.log`, `/logs/updater-build.log` (the
   steps and the build output, as they run) and `/logs/updater-heartbeat` (every run, and every 15 s while
-  an update runs).
+  an update runs). On the host, `<home>/last-run` and `<home>/last-error` (an error that stops a run also goes to
+  `updater.log`: the scheduled task's own output is seen by nobody); `beni.sh update --status` shows both.
+  The schedule runs `update.sh` without arguments: it finds its checkout in `<home>/checkout`, else by the
+  home's name (`<checkout>-updater`), and writes the file on every run.
 
 - **Permissions**: web, claude and terminal run as `HOST_UID` and must be able to write the checkout.
   `install`, every deploy and `install.sh` (as root) run `fix-permissions`: files not owned by

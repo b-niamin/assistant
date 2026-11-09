@@ -19,7 +19,7 @@ Codex works the same way: after `codex login --device-auth` (in that terminal) t
 `codex remote-control --no-daemon` next to Claude's (experimental in Codex 0.167). The bar shows each
 one's state: it reads `~/.beni/remote/<agent>.json`, which the entrypoint keeps up to date.
 
-Both show up under the host's name (`ASSISTANT_HOSTNAME` in `.env`, which `install.sh` sets from the host),
+Both show up as `beni-assistant` (`ASSISTANT_HOSTNAME` in `.env` changes it),
 not under a random container id. Both run in detached tmux sessions (`remote-claude`, `remote-codex`): Codex stops without a terminal, and
 Claude's first-run question "Enable Remote Control? (y/n)" is answered y by the entrypoint. Output: the
 container log and `~/.beni/remote/<agent>.log`; live with `docker compose exec llm tmux attach -t remote-claude`.

@@ -325,13 +325,6 @@ done
 # Older installs went by the folder name: pin it, so moving the folder keeps the same containers and volumes.
 sed -i '/^COMPOSE_PROJECT_NAME=$/d' .env
 grep -q '^COMPOSE_PROJECT_NAME=' .env || printf 'COMPOSE_PROJECT_NAME=%s\n' "$PROJECT" >> .env
-# The name Remote Control shows for the llm container (Claude's session list, Codex's device): this
-# host's name, instead of a random container id.
-if ! grep -q '^ASSISTANT_HOSTNAME=.' .env; then
-  sed -i '/^ASSISTANT_HOSTNAME=$/d' .env
-  hn=$(hostname 2>/dev/null | cut -d. -f1 | tr -cd 'A-Za-z0-9-' | cut -c1-40)
-  printf 'ASSISTANT_HOSTNAME=%s\n' "${hn:-beni-assistant}" >> .env
-fi
 
 # Which installed extensions bring a service: their compose.yml joins the stack through COMPOSE_FILE.
 compose_files() {

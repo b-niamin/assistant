@@ -123,7 +123,7 @@ services:
   # The AI agents: Claude Code and Codex (once signed in), reachable through Remote Control. See docker/llm/README.md.
   # NO docker socket and NO .env: it can edit code and read data, not touch containers or secrets.
   llm:
-    # What Remote Control calls this machine (claude.ai/code, the Codex apps); install.sh sets the host's name.
+    # What Remote Control calls this machine (claude.ai/code, the Codex apps); ASSISTANT_HOSTNAME in .env changes it.
     hostname: ${ASSISTANT_HOSTNAME:-beni-assistant}
     build:
       context: ./docker/llm

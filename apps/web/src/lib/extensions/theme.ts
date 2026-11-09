@@ -52,14 +52,14 @@ ${ACCESSORY_IDS.map((a) => `:host([accessory='${a}']) .acc-${a}`).join(', ')} { 
 :host([mood='asleep'][accessory='none']) .acc-nightcap { display: inline; }
 .tail { transform-box: fill-box; transform-origin: 0 50%; animation: flutter 1.6s ease-in-out infinite; }
 .tail-2 { animation-delay: -0.4s; }
-.cover { opacity: 0; transform: translateY(14px); transition: transform 260ms cubic-bezier(0.3, 1.3, 0.5, 1), opacity 160ms ease-out; }
-.hand-l { transition: transform 260ms cubic-bezier(0.3, 1.3, 0.5, 1); }
+.cover { opacity: 0; transform: translateY(-14px); transition: transform 260ms cubic-bezier(0.3, 1.3, 0.5, 1), opacity 160ms ease-out; }
+.mask { transform-box: fill-box; transform-origin: center; transition: transform 260ms cubic-bezier(0.3, 1.3, 0.5, 1); }
 :host([shy]) .cover, :host([covering]) .cover { opacity: 1; transform: none; }
-:host([shy='peek']) .hand-l, :host([covering='peek']) .hand-l { transform: translate(-3px, 8px); }
-@media (prefers-reduced-motion: reduce) { .body, .tail { animation: none !important; } .cover, .hand-l { transition: none; } }
+:host([shy='peek']) .mask, :host([covering='peek']) .mask { transform: translateY(-6px) rotate(14deg); }
+@media (prefers-reduced-motion: reduce) { .body, .tail { animation: none !important; } .cover, .mask { transform-box: fill-box; transform-origin: center; transition: none; } }
 `;
 
-/** Every accessory, hidden until the host's `accessory` attribute picks one, plus the covering hands. */
+/** Every accessory, hidden until the host's `accessory` attribute picks one, plus the sleep mask. */
 function dressing(): string {
   const parts = ACCESSORY_IDS.filter((a) => a !== 'none').map((a) => `<g class="acc acc-${a}">${accessorySvg(a, 'b')}</g>`);
   return parts.join('') + `<g class="cover">${SHY_SVG}</g>`;

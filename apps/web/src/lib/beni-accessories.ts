@@ -1,8 +1,7 @@
 /**
  * What Beni wears. Each accessory is a small SVG fragment in Beni's 64x64 box, drawn over the body, so
  * the same markup serves the Svelte mascot (Mascot.svelte) and the `<assistant-beni>` custom element of
- * onefile apps (extensions/theme.ts). Skin-coloured parts (hands) use `var(--beni-skin)`, the paws over
- * the eyes a lighter `var(--beni-paw)`; `CLIP` is
+ * onefile apps (extensions/theme.ts). Skin-coloured parts (hands) use `var(--beni-skin)`; `CLIP` is
  * replaced by the id of the body's clip path. Which accessory fits where: `accessoryFor` in mascot.ts.
  *
  * Keep ACCESSORY_IDS in step with ACCESSORIES in apps/web/scripts/extensions-lib.mjs (a test checks).
@@ -127,10 +126,17 @@ export const ACCESSORY_SVG: Record<Accessory, string> = {
     '<circle fill="#fff" stroke="#4646b8" stroke-width=".9" cx="56.8" cy="21.6" r="2.8"/>'
 };
 
-/** Paws over the eyes (password fields): two soft balls; a peek slides the left one down so one eye shows. */
-const PAW = (x: number) =>
-  `<ellipse style="fill: var(--beni-paw, #ff9a5c); stroke: rgb(0 0 0 / 0.2); stroke-width: 0.8" cx="${x}" cy="35.3" rx="7.4" ry="7"/>`;
-export const SHY_SVG = `<g class="hands"><g class="hand-l">${PAW(24.4)}</g><g class="hand-r">${PAW(39.6)}</g></g>`;
+/**
+ * A sleep mask over the eyes (password fields): a strap round the head and a padded mask with closed eyes
+ * stitched on. A peek tilts it up so the left eye shows.
+ */
+export const SHY_SVG =
+  '<g class="mask">' +
+  '<path fill="none" stroke="#3d3c8f" stroke-width="3.4" stroke-linecap="round" d="M10.2 34.2Q32 29.4 53.8 34.2"/>' +
+  '<path fill="#5b5bd6" stroke="#3d3c8f" stroke-width=".9" d="M16.4 31.4Q16.4 27 21.4 27H28Q32 28.6 36 27H42.6Q47.6 27 47.6 31.4V37.6Q47.6 43 41.2 43Q35.6 43 33.8 40Q32 37.8 30.2 40Q28.4 43 22.8 43Q16.4 43 16.4 37.6Z"/>' +
+  '<path fill="none" stroke="#fff" stroke-opacity=".35" stroke-width=".7" stroke-dasharray="1.4 1.2" d="M18.6 31.6Q18.6 29.2 21.6 29.2H27.8Q32 30.6 36.2 29.2H42.4Q45.4 29.2 45.4 31.6"/>' +
+  '<path fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" d="M20.6 35.4Q24.6 38.6 28.6 35.4M35.4 35.4Q39.4 38.6 43.4 35.4M21.8 37.2l-1 1.4M24.6 38l0 1.6M27.4 37.2l1 1.4M36.6 37.2l-1 1.4M39.4 38l0 1.6M42.2 37.2l1 1.4"/>' +
+  '</g>';
 
 /** The fragment for one accessory, with the clip path id filled in. */
 export function accessorySvg(a: Accessory, clipId: string): string {

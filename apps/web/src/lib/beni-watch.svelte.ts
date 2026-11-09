@@ -1,5 +1,5 @@
 /**
- * Beni covers its eyes while you type a password, and peeks when you reveal it. One document-wide
+ * Beni pulls a sleep mask over its eyes while you type a password, and peeks when you reveal it. One document-wide
  * listener, installed by the first mascot that mounts; nothing runs on the server.
  */
 

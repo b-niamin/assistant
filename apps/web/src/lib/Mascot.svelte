@@ -12,7 +12,7 @@
    *
    * What Beni wears follows the page (`accessoryFor`: the app's own accessory, a wrench in settings, ...)
    * unless `accessory` names one; an asleep Beni with nothing else on gets a nightcap. While a password
-   * field has focus Beni covers its eyes (`shy`), and peeks when the password is revealed.
+   * field has focus Beni pulls a sleep mask over its eyes (`shy`), and peeks when the password is revealed.
    */
   let {
     mood = 'idle',
@@ -180,23 +180,22 @@
   }
   .pip {
     --beni-skin: var(--m);
-    --beni-paw: color-mix(in oklch, var(--m), white 22%);
   }
   .pip :global(.band-stripe) {
     fill: var(--accent);
   }
   .cover {
     opacity: 0;
-    transform: translateY(14px);
-    transform-origin: 50% 100%;
+    transform: translateY(-14px);
+    transform-origin: 50% 0;
   }
   .shy .cover,
   .peek .cover {
     opacity: 1;
     transform: none;
   }
-  .peek .cover :global(.hand-l) {
-    transform: translate(-3px, 8px);
+  .peek .cover :global(.mask) {
+    transform: translateY(-6px) rotate(14deg);
   }
   .shy .pupils,
   .peek .pupils {
@@ -309,7 +308,7 @@
       animation: pop-on 0.45s cubic-bezier(0.3, 1.4, 0.5, 1);
     }
     .cover,
-    .cover :global(.hand-l) {
+    .cover :global(.mask) {
       transition:
         transform 260ms cubic-bezier(0.3, 1.3, 0.5, 1),
         opacity 160ms ease-out;

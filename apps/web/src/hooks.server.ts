@@ -2,12 +2,19 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit/hooks';
 import { extensionForPath, visibleTo } from '#lib/extensions/registry.server.ts';
 import { defaultProfile, isConfigured } from '#lib/server/app-config.ts';
+import { canonicalRedirect } from '#lib/server/canonical-origin.ts';
 import { claudeTokenMatches } from '#lib/server/claude-token.ts';
 import { isValidSession, PROFILE_COOKIE, SESSION_COOKIE } from '#lib/server/session.ts';
 
 const PUBLIC_PATHS = new Set(['/login', '/healthz', '/setup']);
 
 export const handle: Handle = async ({ event, resolve }) => {
+  // Opened under another port than PUBLIC_ORIGIN's: go there, or every form would fail the CSRF check.
+  // Tailscale Serve keeps the browser's Host and sets X-Forwarded-Host; either only ever leads to ORIGIN.
+  const host = event.request.headers.get('x-forwarded-host') ?? event.request.headers.get('host');
+  const canonical = canonicalRedirect(event.request.method, host, event.url.pathname + event.url.search);
+  if (canonical) throw redirect(308, canonical);
+
   // Fresh install: nothing works until the first-run wizard has set the app password.
   if (event.url.pathname !== '/healthz' && event.url.pathname !== '/setup' && !(await isConfigured()))
     throw redirect(303, '/setup');

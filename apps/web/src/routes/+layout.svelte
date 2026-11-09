@@ -2,18 +2,10 @@
   import '../app.css';
   import Mascot from '#lib/Mascot.svelte';
   import Dock from '#lib/dock/Dock.svelte';
-  import { goto } from '$app/navigation';
+  import RemoteMenu from '#lib/dock/RemoteMenu.svelte';
+  import UserMenu from '#lib/user-menu/UserMenu.svelte';
   import { page } from '$app/state';
   let { data, children } = $props();
-
-  /** The profile menu also leads to managing profiles; picking that entry navigates instead of switching. */
-  function onProfile(e: Event & { currentTarget: HTMLSelectElement }) {
-    const sel = e.currentTarget;
-    if (sel.value === '__manage') {
-      sel.value = data.profileId;
-      goto('/settings/profiles');
-    } else (sel.form as HTMLFormElement).requestSubmit();
-  }
 </script>
 
 <svelte:head><title>Assistant</title></svelte:head>
@@ -31,21 +23,8 @@
         {/each}
       </nav>
       <div class="right">
-        <form method="POST" action="/profile">
-          <label>
-            <span class="sr">Profile</span>
-            <select name="profile" onchange={onProfile}>
-              {#each data.profiles as p}
-                <option value={p.id} selected={p.id === data.profileId}>{p.name}</option>
-              {/each}
-              <option disabled>──────</option>
-              <option value="__manage">Add or edit profiles…</option>
-            </select>
-          </label>
-          <noscript><button class="btn">Switch</button></noscript>
-        </form>
-        <a class="settings" href="/settings" aria-current={page.url.pathname.startsWith('/settings') ? 'page' : undefined}>Settings</a>
-        <form method="POST" action="/logout"><button class="btn-ghost">Log out</button></form>
+        <RemoteMenu />
+        <UserMenu profiles={data.profiles} profileId={data.profileId} theme={data.theme} />
       </div>
     </div>
   </header>
@@ -124,18 +103,6 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
-  }
-  .right form {
-    margin: 0;
-  }
-  .settings {
-    color: var(--ink-2);
-    text-decoration: none;
-    font-size: 0.9375rem;
-  }
-  .settings[aria-current='page'] {
-    color: var(--ink);
-    font-weight: 600;
   }
   main {
     max-width: 1120px;

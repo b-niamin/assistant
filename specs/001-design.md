@@ -126,8 +126,14 @@ fits. The source's own palette, fonts and logo are dropped.
 
 ## Dock and terminal
 
+The header reads `[Beni] [extensions nav] <spacer> [Remote] [avatar]`. The avatar
+(`lib/user-menu/UserMenu.svelte`) is a round badge with the profile's initial; its menu shows the
+profile's full name, switches profiles, picks the theme (Light, Dark, System: the `theme` cookie, written
+by the server as `data-theme` on `<html>` so nothing flashes) and leads to System settings and Log out.
+
 Every page ends in the dock (`lib/dock/Dock.svelte`): a 40 px bar fixed to the bottom with the terminal
-toggle on the left and the Remote menu on the right. The Remote button's dot sums up the Remote Control
+toggle on the left and the update state on the right. The Remote menu (`lib/dock/RemoteMenu.svelte`) sits
+in the header and shares the dock's status. The Remote button's dot sums up the Remote Control
 sessions: green when Claude and Codex both run, orange when one does, grey when none. Its menu lists each
 with its state and, when one is down, "Start in background" (a detached tmux session `remote-<agent>` in
 the terminal container, `POST /dock`), "Unlock to start" or "Sign in". The states come from `GET /dock`

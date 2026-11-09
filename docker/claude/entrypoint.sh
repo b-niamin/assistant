@@ -68,8 +68,17 @@ supervise() {
   done
 }
 
-# Codex in the background (no terminal needed), Claude in the foreground with the container's tty.
+# Codex needs a terminal of its own (with stdin at EOF it stops at once, and the app showed it as
+# "restarting" forever): it runs in a detached tmux session, which this loop watches. Its output goes
+# to ~/.beni/remote/codex.log; `docker compose exec claude tmux attach -t remote-codex` shows it live.
+codex_remote() {
+  tmux has-session -t =remote-codex 2>/dev/null ||
+    tmux new-session -d -s remote-codex -x 200 -y 50 -c /workspace 'sleep 1; exec codex remote-control --no-daemon' || return 1
+  tmux pipe-pane -o -t remote-codex "cat >> $STATE_DIR/codex.log" 2>/dev/null
+  while tmux has-session -t =remote-codex 2>/dev/null; do sleep 10; done
+}
 if command -v codex >/dev/null; then
-  supervise codex codex remote-control --no-daemon </dev/null &
+  : >"$STATE_DIR/codex.log"
+  supervise codex codex_remote </dev/null &
 fi
 supervise claude claude remote-control

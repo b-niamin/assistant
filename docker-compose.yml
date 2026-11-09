@@ -123,6 +123,8 @@ services:
   # Claude Code (and Codex, once signed in), reachable through Remote Control. See docker/claude/README.md.
   # NO docker socket and NO .env: it can edit code and read data, not touch containers or secrets.
   claude:
+    # What Remote Control calls this machine (claude.ai/code, the Codex apps); install.sh sets the host's name.
+    hostname: ${ASSISTANT_HOSTNAME:-beni-assistant}
     build:
       context: ./docker/claude
       # Must match the owner of this checkout on the host (Synology: `id -u`, often 1026).
@@ -162,6 +164,8 @@ services:
   # `claude /login`, `codex login`, `gh auth login` typed here are what Claude Remote uses. No port, no
   # docker socket, no .env; the web app proxies to it only with a single-use ticket, which it re-checks.
   terminal:
+    # Remote Control started from the app's "Start in background" runs here: named after the host too.
+    hostname: ${ASSISTANT_HOSTNAME:-beni-assistant}-terminal
     build:
       context: ./docker/claude
       args:

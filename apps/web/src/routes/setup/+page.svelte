@@ -1,6 +1,25 @@
 <script lang="ts">
   import Mascot from '#lib/Mascot.svelte';
   let { data, form } = $props();
+
+  // The profile id follows the name ("Zoë Ann" -> "zoe-ann") until it is edited by hand.
+  let name = $state('');
+  let profile = $state('');
+  let profileEdited = $state(false);
+  const slug = (s: string) =>
+    s
+      .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
+      .replace(/ł/g, 'l')
+      .replace(/Ł/g, 'L')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^[^a-z]+|-+$/g, '')
+      .slice(0, 32)
+      .replace(/-+$/, '');
+  $effect(() => {
+    if (!profileEdited) profile = slug(name);
+  });
 </script>
 
 <svelte:head><title>Set up · Assistant</title></svelte:head>
@@ -26,8 +45,17 @@
         <input name="repeat" type="password" autocomplete="new-password" minlength="12" required />
       </label>
       <div class="two">
-        <label>Your name <input name="name" placeholder="Alex" maxlength="40" required /></label>
-        <label>Profile id <input name="profile" placeholder="alex" pattern="[a-z][a-z0-9-]*" maxlength="32" required /></label>
+        <label>Your name <input name="name" placeholder="Alex" maxlength="40" required bind:value={name} /></label>
+        <label>Profile id <input
+            name="profile"
+            placeholder="alex"
+            pattern="[a-z][a-z0-9-]*"
+            maxlength="32"
+            required
+            bind:value={profile}
+            oninput={() => (profileEdited = profile !== '')}
+          /></label
+        >
       </div>
       <button class="btn">Finish setup</button>
       <p class="muted small">Next: System settings, where you add AI keys, apps and more profiles.</p>

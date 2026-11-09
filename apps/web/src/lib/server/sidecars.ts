@@ -23,6 +23,8 @@ export interface LoginStatus {
   remote: { claude: RemoteState; codex: RemoteState };
   /** Started from the app, in a detached tmux session of the terminal container. */
   background: { claude: boolean; codex: boolean };
+  /** The terminal container still runs code from before Remote Control states (an update is building). */
+  outdated: boolean;
 }
 
 /** Which CLIs are logged in and which Remote Control sessions run: booleans and states only. */
@@ -43,22 +45,23 @@ export async function terminalStatus(): Promise<LoginStatus> {
       codex: body.codex === true,
       gh: body.gh === true,
       remote: { claude: remoteOf(body.remote?.claude), codex: remoteOf(body.remote?.codex) },
-      background: { claude: body.background?.claude === true, codex: body.background?.codex === true }
+      background: { claude: body.background?.claude === true, codex: body.background?.codex === true },
+      outdated: body.remote === undefined || body.background === undefined
     };
   } catch {
-    return { reachable: false, claude: false, codex: false, gh: false, remote: { claude: 'off', codex: 'off' }, background: { claude: false, codex: false } };
+    return { reachable: false, claude: false, codex: false, gh: false, remote: { claude: 'off', codex: 'off' }, background: { claude: false, codex: false }, outdated: false };
   }
 }
 
-/** Start an agent's Remote Control in the background of the terminal container (needs a ticket). */
-export async function startBackgroundRemote(agent: 'claude' | 'codex', sid: string): Promise<boolean> {
+/** Start an agent's Remote Control in the background of the terminal container (needs a ticket): its HTTP status, 0 if unreachable. */
+export async function startBackgroundRemote(agent: 'claude' | 'codex', sid: string): Promise<number> {
   const addr = env.TERMINAL_ADDR ?? 'terminal:7681';
   const query = new URLSearchParams({ agent, ticket: ticketFor('terminal', sid) });
   try {
     const res = await fetch(`http://${addr}/remote?${query}`, { method: 'POST', signal: AbortSignal.timeout(5000) });
-    return res.ok;
+    return res.status;
   } catch {
-    return false;
+    return 0;
   }
 }
 

@@ -24,6 +24,7 @@
     gh: boolean;
     remote: { claude: Remote; codex: Remote };
     background: { claude: boolean; codex: boolean };
+    outdated: boolean;
   }
 
   let status = $state<Status | null>(null);
@@ -229,6 +230,11 @@
               </li>
             {/each}
           </ul>
+          {#if status?.outdated}
+            <p class="bad">An update is still building: the containers run the previous version, which cannot report or start these yet.</p>
+          {:else if status && !status.reachable}
+            <p class="bad">The terminal container is not answering.</p>
+          {/if}
           {#if startError}<p class="bad" role="alert">{startError}</p>{/if}
           <p class="meta foot">The claude container starts these on its own once you are signed in. A background one runs in the terminal container until it restarts.</p>
         </div>

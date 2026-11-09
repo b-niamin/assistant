@@ -24,6 +24,10 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
   const { start } = (await request.json().catch(() => ({}))) as { start?: string };
   if (start !== 'claude' && start !== 'codex') throw error(400, 'Unknown agent.');
   console.log(`[dock] ${new Date().toISOString()} start ${start} remote-control in the background`);
-  if (!(await startBackgroundRemote(start, sid))) throw error(502, 'The terminal container did not start it.');
+  const code = await startBackgroundRemote(start, sid);
+  if (code === 404)
+    throw error(503, 'The terminal container still runs the previous version: it restarts when the update has finished building.');
+  if (code === 0) throw error(502, 'The terminal container is not answering.');
+  if (code !== 200) throw error(502, `The terminal container could not start it (HTTP ${code}).`);
   return json({ ok: true });
 };

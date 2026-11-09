@@ -25,6 +25,7 @@
     remote: { claude: Remote; codex: Remote };
     background: { claude: boolean; codex: boolean };
     outdated: boolean;
+    update: { state: string; sha: string; actions: string } | null;
   }
 
   let status = $state<Status | null>(null);
@@ -184,6 +185,15 @@
       {#if started}<span class="status small" class:good={phase === 'open'} title={phase === 'open' ? 'Connected' : 'Not connected'}><span class="sr">{phase === 'open' ? 'Connected' : 'Not connected'}</span></span>{/if}
       <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
     </button>
+    {#if status?.update?.state === 'updating'}
+      <a class="chip" href="/settings#up-h" title="Rebuilding: {status.update.actions}">
+        <span class="status small warning pulse">Updating to {status.update.sha}</span>
+      </a>
+    {:else if status?.update?.state === 'stale'}
+      <a class="chip" href="/settings#up-h" title="The auto-update has not run for a while: new commits are not deployed">
+        <span class="status small critical">Updates stopped</span>
+      </a>
+    {/if}
     <div class="remote" bind:this={menu}>
       <button
         class="remote-btn"
@@ -329,6 +339,29 @@
   .remote {
     position: relative;
     margin-left: auto;
+  }
+  .chip {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .chip + .remote {
+    margin-left: 0;
+  }
+  .chip:hover {
+    color: var(--ink);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .pulse::before {
+      animation: pulse 1s ease-in-out infinite;
+    }
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.35;
+    }
   }
   .remote-btn {
     display: inline-flex;

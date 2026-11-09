@@ -1,7 +1,7 @@
 /**
  * GET -> what the dock at the bottom of every page shows: the terminal's sign-ins, the Remote Control
- * sessions (the claude container's and any started here in the background), and whether this session
- * may open the terminal (unlocked). States only, never file contents. Any logged-in session may read it.
+ * sessions (the claude container's and any started here in the background), whether an update is
+ * being deployed (or the updater stopped), and whether this session may open the terminal (unlocked). States only, never file contents. Any logged-in session may read it.
  *
  * POST {start: 'claude' | 'codex'} -> start that agent's Remote Control in the background of the terminal
  * container. Unlocked sessions only, like opening a shell.
@@ -10,11 +10,14 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
 import { sidecarsConfigured, startBackgroundRemote, terminalStatus } from '#lib/server/sidecars.ts';
+import { isStale, updaterStatus } from '#lib/server/updater.ts';
 
 export const GET: RequestHandler = async ({ cookies, locals }) => {
   if (!locals.authenticated) return json({ error: 'Log in first.' }, { status: 401 });
-  const [status, unlocked] = await Promise.all([terminalStatus(), isElevated(cookies.get(SESSION_COOKIE))]);
-  return json({ ...status, configured: sidecarsConfigured(), unlocked }, { headers: { 'cache-control': 'no-store' } });
+  const [status, unlocked, u] = await Promise.all([terminalStatus(), isElevated(cookies.get(SESSION_COOKIE)), updaterStatus()]);
+  // The host's auto-update: shown in the dock while it deploys, or when it has stopped.
+  const update = u ? { state: isStale(u) ? 'stale' : u.status, sha: u.sha.slice(0, 7), actions: u.status === 'updating' ? u.actions : '' } : null;
+  return json({ ...status, configured: sidecarsConfigured(), unlocked, update }, { headers: { 'cache-control': 'no-store' } });
 };
 
 export const POST: RequestHandler = async ({ request, cookies, locals }) => {

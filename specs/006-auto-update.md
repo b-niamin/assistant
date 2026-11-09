@@ -117,3 +117,12 @@ User-defined script, user `root`, daily every 5 minutes, command
 `sh <checkout>-updater/auto-update.sh run <checkout>` (the installer prints it with your paths).
 
 Status by hand: `sh scripts/auto-update.sh status`. Turn it off: disable the scheduled task.
+
+## Signs of life in the app
+
+Every tick writes a timestamp to `/logs/updater-heartbeat` (root writes the volume directly; anyone else at
+most every 10 minutes through a container). System settings → Updates shows the running commit, the last
+change and the last check; with no sign of life for 20 minutes it says the updater is not running, and so
+does the dock ("Updates stopped"). While a deploy builds, the status is `updating` (with its actions):
+Updates and the dock show "Updating to <sha>". `./beni.sh doctor` warns when no tick ran for 15 minutes.
+All logs in `/logs` are readable in System settings → Logs (each file, or all merged by time).

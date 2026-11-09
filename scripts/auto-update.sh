@@ -17,7 +17,8 @@
 # A tick: fetch main into the mirror; if it moved, fast-forward the checkout (apps/web goes live by
 # itself from there), then rebuild or restart only the services whose files
 # changed. A failed build leaves the old containers running and is not retried until main moves again.
-# Log: /logs/updater.log, status: /logs/updater-status.json (the `logs` volume; System settings shows it).
+# Log: /logs/updater.log, status: /logs/updater-status.json, a timestamp per tick: /logs/updater-heartbeat
+# (the `logs` volume; System settings shows them).
 set -u
 PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:${PATH:-}
 umask 022
@@ -113,7 +114,18 @@ flush_log() { [ -n "$LOG_BUF" ] && printf '%s' "$LOG_BUF" | logs_put updater.log
 
 json_str() { printf '"%s"' "$(printf '%s' "$1" | tr -d '\000-\037' | sed 's/\\/\\\\/g; s/"/\\"/g')"; }
 
-# status <ok|failed|blocked> <message> <actions>
+# A sign of life on every tick (/logs/updater-heartbeat), so the app can tell a stopped updater from a
+# quiet one. Root writes the volume directly; anyone else at most every 10 minutes (a container each).
+heartbeat() {
+  mp=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_logs" 2>/dev/null || true)
+  if [ -n "$mp" ] && [ -d "$mp" ] && [ -w "$mp" ]; then
+    date -u +%Y-%m-%dT%H:%M:%SZ > "$mp/updater-heartbeat" && chmod 644 "$mp/updater-heartbeat" 2>/dev/null || true
+  elif [ -z "$(find "$HOME_DIR/heartbeat" -mmin -10 2>/dev/null)" ]; then
+    date -u +%Y-%m-%dT%H:%M:%SZ | logs_put updater-heartbeat && touch "$HOME_DIR/heartbeat"
+  fi
+}
+
+# status <ok|failed|blocked|updating> <message> <actions>
 write_status() {
   {
     printf '{"status":%s,' "$(json_str "$1")"
@@ -199,6 +211,7 @@ cmd_run() {
   setup_paths "${1:-}"
   [ -n "$DC_BIN" ] || die "Docker Compose is missing"
   [ -d "$MIRROR" ] || die "no mirror at $MIRROR: run 'sh scripts/auto-update.sh install' first"
+  heartbeat
 
   LOCK=$HOME_DIR/lock
   if ! mkdir "$LOCK" 2>/dev/null; then
@@ -280,6 +293,8 @@ cmd_run() {
   short=${SHA%"${SHA#???????}"}
   log "main at $short (was ${base%"${base#???????}"}): $(printf '%s\n' "$changed" | grep -c .) file(s) changed; actions: ${actions:-none}"
 
+  # Builds take minutes on a NAS: the app shows "updating" meanwhile.
+  [ -z "$actions" ] || write_status updating "updating to $short" "$actions"
   if deploy "$actions"; then
     DEPLOYED=$SHA DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) FAILED="" NOTE=""
     log "deployed $short"

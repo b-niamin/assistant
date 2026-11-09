@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, it } from 'vitest';
-import { parseUpdaterStatus, updaterStatus } from './updater';
+import { isStale, parseUpdaterStatus, updaterStatus } from './updater';
 
 const sample = {
   status: 'ok',
@@ -16,7 +16,7 @@ const sample = {
 };
 
 it('reads what auto-update.sh writes', () => {
-  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual(sample);
+  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '' });
 });
 
 it('rejects junk and unknown statuses', () => {
@@ -31,4 +31,17 @@ it('returns null when the file is missing', async () => {
   expect(await updaterStatus(path.join(dir, 'nope.json'))).toBeNull();
   writeFileSync(path.join(dir, 's.json'), JSON.stringify(sample));
   expect((await updaterStatus(path.join(dir, 's.json')))?.status).toBe('ok');
+});
+
+it('reads the heartbeat next to the status and tells a stopped updater', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'upd-'));
+  writeFileSync(path.join(dir, 's.json'), JSON.stringify(sample));
+  const old = (await updaterStatus(path.join(dir, 's.json')))!;
+  expect(old.checkedAt).toBe('');
+  expect(isStale(old, Date.parse('2026-11-06T20:30:00Z'))).toBe(true);
+  writeFileSync(path.join(dir, 'updater-heartbeat'), '2026-11-06T20:25:00Z\n');
+  const fresh = (await updaterStatus(path.join(dir, 's.json')))!;
+  expect(fresh.checkedAt).toBe('2026-11-06T20:25:00Z');
+  expect(isStale(fresh, Date.parse('2026-11-06T20:30:00Z'))).toBe(false);
+  expect(isStale({ ...old, status: 'updating' }, Date.parse('2026-11-07T20:30:00Z'))).toBe(false);
 });

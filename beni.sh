@@ -281,10 +281,17 @@ doctor() {
   else
     st=$(sh scripts/auto-update.sh status "$DIR" 2>/dev/null | sed -n 's/.*"status":"\([^"]*\)".*"message":"\([^"]*\)".*/\1: \2/p' | head -n 1)
     case $st in
-      ok:*) ok "auto-update: ${st#ok: }" ;;
+      ok:* | updating:*) ok "auto-update: ${st#*: }" ;;
       "") ok "auto-update is set up ($home)" ;;
       *) w "auto-update $st" ;;
     esac
+    # Each tick leaves a timestamp; none for 15 minutes means the schedule does not run it.
+    mp=$(docker volume inspect -f '{{.Mountpoint}}' "$(envv COMPOSE_PROJECT_NAME || true)_logs" 2>/dev/null || true)
+    if [ -n "$mp" ] && [ -f "$mp/updater-heartbeat" ] && [ -n "$(find "$mp/updater-heartbeat" -mmin -15 2>/dev/null)" ]; then
+      ok "auto-update ran in the last 15 minutes"
+    elif [ -n "$mp" ]; then
+      w "auto-update has not run in the last 15 minutes: the schedule must run  sh $home/auto-update.sh run $DIR"
+    fi
   fi
   doctor_end
 }

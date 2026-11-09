@@ -7,7 +7,15 @@
 
   let { data, form } = $props();
 
-  const when = (iso: string) => (iso ? new Date(iso).toLocaleString() : '');
+  /** "6 Nov, 23:02 (3 days ago)": the date in this browser's time zone, plus how long ago. */
+  function when(iso: string): string {
+    const t = Date.parse(iso);
+    if (!t) return '';
+    const date = new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    const min = Math.round((Date.now() - t) / 60_000);
+    const ago = min < 1 ? 'just now' : min < 60 ? `${min} min ago` : min < 48 * 60 ? `${Math.round(min / 60)} h ago` : `${Math.round(min / 1440)} days ago`;
+    return `${date} (${ago})`;
+  }
   const short = (sha: string) => sha.slice(0, 7);
   const next = $derived(page.url.searchParams.get('next') ?? '');
 
@@ -176,6 +184,13 @@
     <h2 id="sys-h">System</h2>
     <ul class="menu card">
       <li>
+        <a href="/settings/logs">
+          <span class="mark" style="--hue: var(--hue-blue)" aria-hidden="true">≡</span>
+          <span class="what"><strong>Logs</strong><span class="meta">Every log of the app in one place: web, updater, migrations, services</span></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+      </li>
+      <li>
         <a href="/settings/browser">
           <span class="mark" style="--hue: var(--hue-aqua)" aria-hidden="true">◎</span>
           <span class="what"><strong>Browser</strong><span class="meta">A remote browser for sign-ins that need one</span></span>
@@ -189,18 +204,32 @@
     <h2 id="up-h">Updates</h2>
     {#if data.updates}
       {@const u = data.updates}
+      {@const state = data.updatesStale ? 'stale' : u.status}
       <div class="card updates">
         <p class="upstate">
-          <span class="dot {u.status}" aria-hidden="true"></span>
-          <strong>{u.status === 'ok' ? 'Up to date' : u.status === 'failed' ? 'Last update failed' : 'Updates paused'}</strong>
-          {#if u.deployedSha}<code>{short(u.deployedSha)}</code>{/if}
+          <span class="dot {state}" class:pulse={state === 'updating'} aria-hidden="true"></span>
+          <strong>
+            {state === 'stale' ? 'The updater is not running' : state === 'updating' ? `Updating to ${short(u.sha)}` : state === 'ok' ? 'Up to date' : state === 'failed' ? 'Last update failed' : 'Updates paused'}
+          </strong>
         </p>
-        <p class="meta">
-          {u.message}{u.at ? ` · ${when(u.at)}` : ''}
-          {#if u.status !== 'ok' && u.deployedSha}<br />Running {short(u.deployedSha)}{u.deployedAt ? `, deployed ${when(u.deployedAt)}` : ''}.{/if}
-        </p>
-        {#if u.actions}<p class="meta">Last actions: <code>{u.actions}</code></p>{/if}
-        <p class="meta">The NAS pulls {u.branch} from GitHub every 5 minutes and rebuilds only what changed. Log: <code>/logs/updater.log</code>.</p>
+        {#if state === 'stale'}
+          <p class="meta">
+            No sign of it since {when(u.checkedAt || u.at)}, so new commits on {u.branch} are not deployed. Its scheduled task must run
+            <code>sh &lt;folder&gt;-updater/auto-update.sh run &lt;folder&gt;</code> as root every 5 minutes; <code>sudo ./beni.sh doctor</code>
+            checks it, and <code>sudo ./beni.sh auto-update install</code> prints the exact command.
+          </p>
+        {:else if state === 'updating'}
+          <p class="meta">Rebuilding and restarting: <code>{u.actions}</code>. Builds take a few minutes on a NAS; the old containers keep running until then.</p>
+        {:else if u.status !== 'ok'}
+          <p class="meta">{u.message}</p>
+        {/if}
+        <dl class="facts">
+          {#if u.deployedSha}<dt>Running</dt><dd><code>{short(u.deployedSha)}</code>{u.deployedAt ? `, deployed ${when(u.deployedAt)}` : ''}</dd>{/if}
+          <dt>Last change</dt><dd>{u.message}{u.at ? ` · ${when(u.at)}` : ''}</dd>
+          <dt>Last check</dt><dd>{u.checkedAt ? when(u.checkedAt) : 'not reported'}</dd>
+          {#if u.actions && state !== 'updating'}<dt>Last actions</dt><dd><code>{u.actions}</code></dd>{/if}
+        </dl>
+        <p class="meta">The host pulls {u.branch} from GitHub every 5 minutes and rebuilds only what changed. <a href="/settings/logs?file=updater.log">Updater log</a></p>
       </div>
     {:else}
       <p class="muted">
@@ -470,8 +499,35 @@
   .dot.failed {
     background: var(--critical);
   }
-  .dot.blocked {
+  .dot.blocked,
+  .dot.updating {
     background: var(--warning);
+  }
+  .dot.stale {
+    background: var(--critical);
+  }
+  .facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 2px var(--space-3);
+    margin: 0;
+    font-size: 0.8125rem;
+  }
+  .facts dt {
+    color: var(--ink-2);
+  }
+  .facts dd {
+    margin: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .dot.pulse {
+      animation: pulse 1s ease-in-out infinite;
+    }
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.35;
+    }
   }
   details summary {
     cursor: pointer;

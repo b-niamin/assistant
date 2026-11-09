@@ -250,6 +250,15 @@ of it sits behind a step-up: the app password is asked again and the session sta
   (spec 004). The older manifest list `"secrets": ["token"]` still works and shows up here.
 - **More**: an extension that needs more than fields ships `web/routes/settings/+page.svelte`; its panel
   links to that view (`/<id>/settings`).
+- **Connected accounts**: an extension that pulls data from outside accounts (Garmin, Strava, ...) ships
+  `web/sources.server.ts` exporting `sources: ExtSources` (`$shell`): `list(ctx)` describes each account as
+  data (state, which account, how to connect, a few facts, the sync state with a 0..1 progress) and
+  `act(ctx, source, action, input)` runs an action it offers ("Sync now", "Fetch older data" with a date).
+  The shell renders them at the top of the panel, clamps what comes back (`lib/extensions/sources.ts`),
+  checks an action is on offer before running it and polls `/settings/extensions/<id>/sources` every few
+  seconds while a sync is queued or running. Logins are never typed into the web app: `command` names
+  the terminal command that connects an account. The extension's background service does the fetching;
+  an action only queues work for it (health: `health.sync_requests`).
 
 **System**: the terminal and the browser (spec 004; Claude and Codex run in the terminal on the owner's
 subscriptions, no AI API keys in the app), the app password (when not pinned by `APP_PASSWORD_HASH`) and

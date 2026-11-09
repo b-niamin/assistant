@@ -84,7 +84,7 @@ describe('generate', () => {
     expect(first.extensions[0]).toMatchObject({ id: 'notes', href: '/notes', profiles: ['alex'], kind: 'native' });
     const reg = readFileSync(path.join(web, 'src/lib/extensions/generated/registry.ts'), 'utf8');
     expect(reg).toContain('"id": "notes"');
-    expect(first.changed).toBe(5); // page, server, registry, tiles and tools maps; Helper.svelte is not a route file
+    expect(first.changed).toBe(6); // page, server, registry, tiles, sources and tools maps; Helper.svelte is not a route file
     expect(lib.generate({ webRoot: web, dir }).changed).toBe(0);
   });
   it('fails on a missing extension folder and on a bad `from`', () => {

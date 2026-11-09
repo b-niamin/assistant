@@ -5,6 +5,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { readSettings, saveSettings } from '#lib/extensions/config.server.ts';
+import { runSourceAction, sourcesOf } from '#lib/extensions/sources.server.ts';
 import { extensionById, saveExtensionSwitches } from '#lib/extensions/registry.server.ts';
 import { deleteSecret, listSecretSlots, secretsAvailable, setSecret } from '#lib/server/extension-secrets.ts';
 import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
@@ -20,16 +21,22 @@ async function extOf(id: string) {
   return ext;
 }
 
-export const load: PageServerLoad = async ({ params, cookies }) => {
+export const load: PageServerLoad = async ({ params, cookies, locals }) => {
   await guard(cookies.get(SESSION_COOKIE), params.id);
   const ext = await extOf(params.id);
-  const [values, secrets, profiles] = await Promise.all([readSettings(ext), listSecretSlots([ext]), listProfiles()]);
+  const [values, secrets, profiles, sources] = await Promise.all([
+    readSettings(ext),
+    listSecretSlots([ext]),
+    listProfiles(),
+    sourcesOf(ext, { locals })
+  ]);
   const status = await terminalStatus();
   return {
     ext,
     values,
     secrets,
     profiles,
+    sources,
     secretsAvailable: secretsAvailable(),
     terminal: { configured: sidecarsConfigured(), reachable: status.reachable, claude: status.claude, codex: status.codex }
   };
@@ -60,6 +67,21 @@ export const actions: Actions = {
     }
     log(`extension ${ext.id} settings saved`);
     return { ok: 'Settings saved.' };
+  },
+  source: async ({ params, request, cookies, locals }) => {
+    await guard(cookies.get(SESSION_COOKIE));
+    const ext = await extOf(params.id);
+    const f = await request.formData();
+    const source = String(f.get('source') ?? '');
+    const action = String(f.get('action') ?? '');
+    const date = f.get('date');
+    try {
+      const ok = await runSourceAction(ext, { locals }, source, action, typeof date === 'string' && date ? { date } : {});
+      log(`extension ${ext.id} source ${source}: ${action}`);
+      return { ok, source };
+    } catch (e) {
+      return fail(400, { error: (e as Error).message, source });
+    }
   },
   secret: async ({ params, request, cookies }) => {
     await guard(cookies.get(SESSION_COOKIE));

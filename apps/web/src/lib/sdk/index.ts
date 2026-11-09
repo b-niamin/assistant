@@ -67,5 +67,7 @@ export type DataOf<L extends (...args: any[]) => any> = Awaited<ReturnType<L>>;
 
 /** Dashboard tiles (spec 003): `export const tiles: ExtTile[]` in web/tiles.server.ts. */
 /** Tools for Claude (spec 005): `export const tools: ExtTool[]` in web/tools.server.ts. */
+/** Connected accounts in its System settings panel (spec 002): `export const sources: ExtSources` in web/sources.server.ts. */
+export type { ExtSources, SourceAction, SourceActionInput, SourceFact, SourceState, SourceStatus, SourceSync, SyncState } from '#lib/extensions/sources.ts';
 export type { ExtTool, ToolSchema } from '#lib/extensions/tools.ts';
 export type { ExtTile, TileData, TileKpi, TileListItem, TilePoint, TileSeries, TileSize, TileTone } from '#lib/extensions/tiles.ts';

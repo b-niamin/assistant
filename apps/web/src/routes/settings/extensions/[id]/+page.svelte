@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import AgentConsole from '#lib/settings/AgentConsole.svelte';
+  import SourcesPanel from '#lib/settings/SourcesPanel.svelte';
   import { hueFor, initials } from '#lib/settings/guide.ts';
   let { data, form } = $props();
   const ext = $derived(data.ext);
@@ -11,28 +12,41 @@
 
 <svelte:head><title>{ext.name} · System settings</title></svelte:head>
 
-<div class="head">
+<header class="head">
   <p class="eyebrow"><a href="/settings">System settings</a></p>
-  <div class="name">
+  <div class="ident">
     <span class="mark" style="--hue: {hueFor(ext.id)}" aria-hidden="true">{initials(ext.name)}</span>
-    <h1>{ext.name}</h1>
-    <span class="status small" class:good={ext.enabled}>{ext.enabled ? 'On' : 'Off'}</span>
+    <div class="title">
+      <div class="name">
+        <h1>{ext.name}</h1>
+        <span class="status small" class:good={ext.enabled}>{ext.enabled ? 'On' : 'Off'}</span>
+      </div>
+      {#if ext.description}<p class="desc">{ext.description}</p>{/if}
+    </div>
+    <a class="btn open" href={ext.href}>Open</a>
   </div>
-  {#if ext.description}<p class="muted">{ext.description}</p>{/if}
-  <p class="meta">
-    {ext.kind === 'native' ? 'Native' : 'One file'} · {ext.scope === 'shared' ? 'data shared by all profiles' : 'data per profile'} ·
-    v{ext.version}{#if ext.inspiredBy}
-      · inspired by {#if /^https?:\/\//.test(ext.inspiredBy)}<a href={ext.inspiredBy} rel="noreferrer">{ext.inspiredBy.replace(/^https?:\/\//, '')}</a>{:else}{ext.inspiredBy}{/if}{/if}
-  </p>
-  <p><a class="btn-ghost" href={ext.href}>Open {ext.name}</a></p>
-</div>
+  <ul class="meta" aria-label="About {ext.name}">
+    <li>{ext.kind === 'native' ? 'Native' : 'One file'}</li>
+    <li>{ext.scope === 'shared' ? 'Data shared by all profiles' : 'Data per profile'}</li>
+    <li class="num">v{ext.version}</li>
+    {#if ext.inspiredBy}
+      <li>
+        Inspired by {#if /^https?:\/\//.test(ext.inspiredBy)}<a href={ext.inspiredBy} rel="noreferrer">{ext.inspiredBy.replace(/^https?:\/\//, '')}</a>{:else}{ext.inspiredBy}{/if}
+      </li>
+    {/if}
+  </ul>
+</header>
+
+{#if data.sources}
+  <SourcesPanel extId={ext.id} result={data.sources} {form} />
+{/if}
 
 <section aria-label="Change {ext.name}">
   <AgentConsole title="Change {ext.name} with me" session="ext-{ext.id}" dir={ext.id} terminal={data.terminal} />
 </section>
 
-{#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
-{#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}
+{#if form?.error && !form.source}<p class="note bad" role="alert">{form.error}</p>{/if}
+{#if form?.ok && !form.source}<p class="note good" role="status">{form.ok}</p>{/if}
 
 <section>
   <h2>Availability</h2>
@@ -120,39 +134,95 @@
   </section>
 {/if}
 
-{#if !plain.length && !ext.secrets.length && !ext.settingsPage}
+{#if !plain.length && !ext.secrets.length && !ext.settingsPage && !data.sources}
   <p class="muted">{ext.name} has no settings of its own.</p>
 {/if}
 
 <style>
   .head {
     display: grid;
-    gap: var(--space-1);
-    margin-bottom: var(--space-4);
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
   }
   .head p,
   .head h1 {
     margin: 0;
   }
-  .name {
+  .ident {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-4);
   }
   .mark {
+    flex: none;
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 11px;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
     background: color-mix(in srgb, var(--hue) 16%, transparent);
     color: var(--hue);
-    font: 700 0.9375rem/1 var(--mono);
+    font: 700 1.125rem/1 var(--mono);
   }
-  .meta,
+  .title {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+  .name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+  }
+  .desc {
+    color: var(--ink-2);
+  }
+  .open {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .open:hover {
+    background: var(--surface-2);
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .meta li {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 0.75rem;
+    color: var(--ink-2);
+  }
   .small {
     font-size: 0.8125rem;
     color: var(--ink-2);
+  }
+  @media (max-width: 560px) {
+    .ident {
+      flex-wrap: wrap;
+    }
+    .mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+    }
+    .open {
+      order: 3;
+      width: 100%;
+      justify-content: center;
+    }
   }
   section {
     margin-bottom: var(--space-5);

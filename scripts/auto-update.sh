@@ -168,7 +168,13 @@ fix_ownership() {
     n=0
     while IFS= read -r f; do synoacltool -del "$f" >/dev/null 2>&1 && n=$((n + 1)); done < "$list"
     rm -f "$list"
-    [ "$n" = 0 ] || log "removed Synology ACLs from $n path(s)"
+    if [ "$n" != 0 ]; then
+      log "removed Synology ACLs from $n path(s)"
+      # They leave x bits on every file: without this git counts each one as changed and pulls stop.
+      # Only the config file is written (-f, from /): no git command runs as root in the checkout.
+      (cd / && git config -f "$DIR/.git/config" core.fileMode false) 2>/dev/null || true
+      chown "$OWNER_UID:$OWNER_GID" "$DIR/.git/config" 2>/dev/null || true
+    fi
   fi
   # Owner read/write everywhere (and x on directories), else the owner still cannot write. Removing a
   # Synology ACL can leave mode bits of 000 behind. Git keeps its object files read-only on purpose: they
@@ -230,7 +236,9 @@ cmd_run() {
   out=$(docker run --rm --network none --user "$OWNER_UID:$OWNER_GID" -e HOME=/tmp \
     -v "$DIR:/repo" -v "$MIRROR:/mirror:ro" -w /repo --entrypoint sh "$(claude_image)" -c '
       set -u
-      g() { git -c safe.directory="*" -c core.hooksPath=/dev/null "$@"; }
+      # safe.directory from the global config: git fetch from a local path ignores the -c one.
+      git config --global safe.directory "*"
+      g() { git -c core.hooksPath=/dev/null "$@"; }
       cur=$(g symbolic-ref --short -q HEAD) || cur=""
       [ "$cur" = "$2" ] || { echo "result:branch ${cur:-detached}"; exit 0; }
       g fetch -q /mirror "+refs/heads/$2:refs/remotes/origin/$2" >&2 || { echo "result:failed fetch"; exit 0; }
@@ -360,8 +368,17 @@ cmd_install() {
   say "updater home: $HOME_DIR (not visible to any container)"
   say "repo:         $(printf '%s' "$url" | sed 's#//[^@/]*@#//***@#')"
   mkdir -p "$HOME_DIR" && chmod 755 "$HOME_DIR"
+  # A Synology shared folder puts an ACL on the new folder that denies the owner writes: the mirror
+  # would then be cloned as root, and the checkout owner could not fetch from it.
+  if command -v synoacltool >/dev/null 2>&1; then
+    find "$HOME_DIR" -xdev -exec ls -dln {} + 2>/dev/null | acl_paths | while IFS= read -r f; do synoacltool -del "$f" >/dev/null 2>&1; done
+  fi
 
   fix_ownership
+  # A mirror an older version cloned as root goes to the checkout owner (it fetches with their credentials).
+  if [ -d "$MIRROR" ] && [ "$(id -u)" = 0 ] && [ "$OWNER_UID" != 0 ] && [ "$(stat -c %u "$MIRROR")" = 0 ]; then
+    chown -R "$OWNER_UID:$OWNER_GID" "$MIRROR" && chmod -R u+rwX "$MIRROR" && say "mirror given to uid $OWNER_UID"
+  fi
 
   if [ ! -d "$MIRROR" ]; then
     # Clone as the checkout owner (their git credentials), else as root.

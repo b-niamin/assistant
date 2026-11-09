@@ -72,7 +72,11 @@ there when a new long-lived service or build context appears.
   `HOST_UID` are handed back (a `git pull` or `npm ci` once run as root), Synology ACLs are removed
   (DSM puts them on everything in a shared folder; they show as `r-xr-xr-x+` and deny writes whatever the
   owner), and the owner gets `u+rw` (`u+x` on directories). `.env` and git's read-only objects are left
-  alone. By hand: `sudo sh scripts/auto-update.sh fix-permissions`.
+  alone. Removing the ACLs leaves x bits on every file, so the checkout gets `core.fileMode false` (git
+  would otherwise count every file as changed and stop the fast-forward). `install` also strips the ACL
+  from the updater home, so the mirror is cloned as (and stays owned by) the checkout owner; a mirror an
+  older version cloned as root is given back. By hand: `sudo sh scripts/auto-update.sh fix-permissions`;
+  `./beni.sh doctor` reports what is wrong.
 
 ## Security (spec 004)
 

@@ -141,7 +141,9 @@ setup_paths() {
   [ -n "$OWNER_UID" ] || OWNER_UID=$(stat -c %u "$DIR")
   OWNER_GID=$(awk -F: -v u="$OWNER_UID" '$3 == u { print $4; exit }' /etc/passwd 2>/dev/null)
   [ -n "$OWNER_GID" ] || OWNER_GID=$(stat -c %g "$DIR")
-  PROJECT=${ASSISTANT_COMPOSE_PROJECT:-$(basename "$DIR")}
+  # COMPOSE_PROJECT_NAME in .env (install.sh pins it), else the folder name, as Compose normalizes it.
+  PROJECT=${ASSISTANT_COMPOSE_PROJECT:-$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' "$DIR/.env" 2>/dev/null | tail -n 1)}
+  [ -n "$PROJECT" ] || PROJECT=$(basename "$DIR" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_-')
   HOME_DIR=${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}
   case "$HOME_DIR/" in "$DIR"/*) die "the updater home must be outside the checkout" ;; esac
   MIRROR=$HOME_DIR/mirror.git

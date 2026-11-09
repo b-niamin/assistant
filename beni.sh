@@ -11,6 +11,7 @@
 #   ./beni.sh migrate <old-checkout> [--no-garmin-login]   copy data from an older install (after a backup)
 #   ./beni.sh fix-permissions       owner, Synology ACLs and modes in the checkout
 #   ./beni.sh fix-db-password       the database keeps its data but takes the password in .env
+#   ./beni.sh move <new-folder>     move the install (stopped, data kept), e.g. to /volume1/docker/assistant
 #   ./beni.sh auto-update [install | status]
 #
 # Docker on Synology needs root: put sudo in front (sudo ./beni.sh status).
@@ -33,13 +34,17 @@ dc() {
   [ -n "$DC" ] || die "Docker Compose is missing."
   [ -f .env ] || die "not installed yet: ./beni.sh install"
   [ -r .env ] || die "cannot read .env (it belongs to root): put sudo in front"
-  set -- --project-directory "$DIR" --env-file "$DIR/.env" \
+  set -- -p "$(project)" --project-directory "$DIR" --env-file "$DIR/.env" \
     $(sed -n 's/^COMPOSE_FILE=//p' .env | tr ':' '\n' | sed 's/^/-f /') "$@"
   $DC "$@"
 }
 envv() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n 1; }
-# The compose project name (volumes are prefixed with it): the folder name, as Compose normalizes it.
-project() { basename "$DIR" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_-'; }
+# The compose project name (volumes and containers are prefixed with it): COMPOSE_PROJECT_NAME in .env,
+# which install.sh pins, else the folder name, as Compose normalizes it.
+project() {
+  p=$(envv COMPOSE_PROJECT_NAME)
+  printf '%s\n' "${p:-$(basename "$DIR")}" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_\n-'
+}
 
 # The containers write the checkout as HOST_UID (from .env, else the folder's owner).
 owner_uid() {
@@ -56,7 +61,7 @@ as_owner() {
   else "$@"; fi
 }
 
-usage() { sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # --- the database password ----------------------------------------------------------------------
 # A database volume keeps the password it was created with. A new .env (a fresh clone into the same
@@ -121,6 +126,10 @@ doctor() {
   w() { warn "$*"; warns=$((warns + 1)); }
   printf '\n\033[1mChecking %s\033[0m\n' "$DIR"
   is_root=no; [ "$(id -u)" = 0 ] && is_root=yes
+  # The default folder used to be called assistant-core.
+  if [ "$(basename "$DIR")" = assistant-core ] && [ ! -e "$(dirname "$DIR")/assistant" ]; then
+    say "the default folder is now $(dirname "$DIR")/assistant; to move this install (data kept): sudo ./beni.sh move $(dirname "$DIR")/assistant"
+  fi
 
   # Docker
   docker_ok=no
@@ -226,6 +235,9 @@ doctor() {
   # Containers and the database
   if [ "$docker_ok" = yes ]; then
     p=$(project)
+    other=$(docker ps -a --filter "label=com.docker.compose.project=$p" --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null |
+      grep -v -x -e "$DIR" -e "$DIR/stack" | sort -u | head -n 1)
+    [ -z "$other" ] || f "the compose project $p is also used by $other: both installs share containers and volumes (set COMPOSE_PROJECT_NAME in one .env, or ./beni.sh move one of them)"
     if docker volume inspect "${p}_db-data" >/dev/null 2>&1; then
       db_check && rc=0 || rc=$?
       case $rc in
@@ -277,6 +289,48 @@ doctor() {
   fi
   doctor_end
 }
+# --- move ---------------------------------------------------------------------------------------
+# The containers bind-mount the checkout and COMPOSE_FILE / stack/ hold absolute paths, so a move stops
+# the stack, moves the folder (and the updater home next to it) and runs the installer in the new place.
+# The compose project name is pinned in .env first: the containers and volumes keep their names, so the
+# data stays where it is.
+move_to() {
+  [ "$(id -u)" = 0 ] || die "run it with sudo"
+  [ -n "${1:-}" ] || die "usage: sudo ./beni.sh move <new folder>"
+  [ -f .env ] || die "not installed yet: ./beni.sh install"
+  parent=$(cd "$(dirname "$1")" 2>/dev/null && pwd -P) || die "$(dirname "$1") does not exist"
+  new=$parent/$(basename "$1")
+  [ "$new" != "$DIR" ] || die "the install is already in $new"
+  [ ! -e "$new" ] || die "$new exists already"
+  case "$new/" in "$DIR"/*) die "cannot move the install into itself" ;; esac
+  p=$(project)
+  if ! grep -q '^COMPOSE_PROJECT_NAME=.' .env; then
+    sed -i '/^COMPOSE_PROJECT_NAME=/d' .env
+    printf 'COMPOSE_PROJECT_NAME=%s\n' "$p" >> .env
+  fi
+  say "compose project $p: same containers and volumes, so the same data"
+  dc down && ok "stopped (data kept)"
+  new_home=""
+  if [ -z "${ASSISTANT_UPDATER_HOME:-}" ]; then
+    old_home=$(dirname "$DIR")/$(basename "$DIR")-updater
+    new_home=$parent/$(basename "$new")-updater
+    if [ -d "$old_home" ] && [ ! -e "$new_home" ]; then
+      mv "$old_home" "$new_home" && ok "updater home: $new_home"
+      if command -v crontab >/dev/null 2>&1 && crontab -l 2>/dev/null | grep -qF "$old_home/auto-update.sh"; then
+        crontab -l 2>/dev/null | grep -vF "$old_home/auto-update.sh" | crontab - && say "removed the old cron entry"
+      fi
+    fi
+  fi
+  mv "$DIR" "$new" && ok "moved to $new"
+  cd "$new"
+  if [ -f /etc/synoinfo.conf ] && [ -n "$new_home" ] && [ -f "$new_home/auto-update.sh" ]; then
+    warn "DSM Task Scheduler: change the auto-update task's command to the one the installer prints below"
+  fi
+  [ "$(envv START_MODE)" != manual ] ||
+    warn "Container Manager: delete the project $p (keep its data) and create it again from $new/stack"
+  ASSISTANT_YES=1 exec sh ./install.sh
+}
+
 doctor_end() {
   printf '\n'
   if [ "$fails" -gt 0 ]; then bad "$fails problem(s), $warns warning(s)"; return 1; fi
@@ -311,6 +365,7 @@ case $cmd in
   logs) dc logs -f --tail 100 "$@" ;;
   ext) dc exec claude node scripts/ext.mjs "$@" ;;
   migrate) exec sh scripts/import-legacy.sh "$@" ;;
+  move) move_to "$@" ;;
   fix-permissions) exec sh scripts/auto-update.sh fix-permissions "$DIR" ;;
   auto-update)
     case ${1:-status} in

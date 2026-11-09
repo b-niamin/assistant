@@ -39,7 +39,7 @@ More to read: [architecture](specs/000-architecture.md), [extensions](specs/002-
 ### What the installer does
 
 It asks a few questions, each with a suggestion you take with Enter: the folder
-(`/volume1/docker/assistant-core` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS
+(`/volume1/docker/assistant` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS
 port on your tailnet (443, or 8443 when something is already served there), the extensions to install
 (checkboxes from the extensions repo's `catalog.json`) and whether to update itself from `main` ([spec 006](specs/006-auto-update.md)). Then it
 clones this repo, writes `.env` with random secrets, installs the extensions, starts the stack, runs
@@ -54,8 +54,13 @@ It shows numbered progress for each phase. The last question is how to start: by
 `stack/docker-compose.yml` (extensions merged in) and `stack/.env` and tells you where to point the tool.
 
 Unattended: `... | sudo ASSISTANT_YES=1 sh` takes the suggestions; `ASSISTANT_DIR`, `WEB_PORT`,
-`ASSISTANT_HTTPS_PORT`, `ASSISTANT_EXTENSIONS`, `ASSISTANT_AUTO_UPDATE=0|1` and `ASSISTANT_START=now|manual`
-answer up front.
+`ASSISTANT_HTTPS_PORT`, `ASSISTANT_EXTENSIONS`, `ASSISTANT_AUTO_UPDATE=0|1`, `ASSISTANT_START=now|manual`
+and `ASSISTANT_PROJECT` (the compose project name) answer up front.
+
+Containers and volumes are named after the compose project: the folder name, pinned in `.env` as
+`COMPOSE_PROJECT_NAME` so the folder can move later. When another folder's stack already uses that name
+(the older single-repo install also lived in a folder called `assistant`), a new install takes the next
+free one (`assistant-2`) and says so.
 
 Two steps stay in a terminal because they log in to outside accounts:
 
@@ -73,13 +78,13 @@ extension that brings a background service.
    *Tailscale*, signed in to your tailnet, to reach the app over HTTPS.
 2. **SSH**: Control Panel → Terminal & SNMP → enable SSH. From your computer: `ssh <you>@<nas>`.
 3. **Install**: the command above, answering with Enter. Next to another app it suggests a free port
-   and another tailnet port, and the folder name keeps its containers and volumes separate. The checkout
+   and another tailnet port, and its own compose project name keeps its containers and volumes separate. The checkout
    belongs to you (the user who ran `sudo`); the first build takes 10-20 minutes on a small NAS.
 4. **Auto-update**: the installer prints a Task Scheduler entry. Control Panel → Task Scheduler → Create
    → Scheduled Task → User-defined script, user `root`, daily, every 5 minutes, with the printed command.
 5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and
    your profile.
-6. **Claude**: `cd /volume1/docker/assistant-core && docker compose exec -it claude claude`, then `/login`
+6. **Claude**: `cd /volume1/docker/assistant && docker compose exec -it claude claude`, then `/login`
    and `/exit`. Remote Control keeps running from then on (or log in from System settings → Terminal).
 7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
    `docker compose exec garmin-sync python -m sync backfill`.
@@ -92,8 +97,19 @@ sudo ./beni.sh migrate /path/to/old/assistant   # the old checkout
 ```
 
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
-Scheduler entry). A new folder name gives the new install fresh volumes, so the old data stays until you
-remove it (`docker compose down -v` in the old folder).
+Scheduler entry). The new install has its own compose project, so fresh volumes, and the old data stays
+until you remove it (`docker compose down -v` in the old folder).
+
+Installs made before the default folder became `/volume1/docker/assistant` live in
+`/volume1/docker/assistant-core`. To move one (the data stays; the containers and volumes keep the
+`assistant-core` names):
+
+```sh
+cd /volume1/docker/assistant-core && sudo ./beni.sh move /volume1/docker/assistant
+```
+
+It stops the stack, moves the folder and the updater next to it, and runs the installer there. Then change
+the auto-update task's command in DSM Task Scheduler to the one it prints.
 
 ## Everyday: `beni.sh`
 
@@ -109,6 +125,7 @@ One command for the host (Synology: `sudo` in front):
 ./beni.sh migrate <old-checkout> # copy data from an older install, after a backup
 ./beni.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
 ./beni.sh fix-db-password        # the database keeps its data, takes the password in .env
+./beni.sh move <new-folder>      # move the install elsewhere, data kept
 ```
 
 Run `git` in the checkout as yourself, not with sudo: files git writes as root stop the containers
@@ -118,7 +135,7 @@ earlier `sudo git pull` left behind.
 A database volume keeps the password it was created with. A new `.env` next to an old volume (a fresh
 clone into the same folder name) makes the installer stop instead of failing later with "password
 authentication failed": put the old `.env` back, run `sudo ./beni.sh fix-db-password`, or remove the
-`<folder>_db-data` volume to start empty.
+`<project>_db-data` volume to start empty.
 
 `install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
 Its tool output goes to `install.log`; only the tail is shown when a step fails.

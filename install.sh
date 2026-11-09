@@ -7,7 +7,8 @@
 # In a terminal it asks a few questions (folder, port, tailnet port, extensions, auto-update), each with a
 # default that avoids what is already running. Unattended: ASSISTANT_YES=1 takes the defaults; the
 # answers can also be given up front as ASSISTANT_DIR, WEB_PORT, ASSISTANT_HTTPS_PORT,
-# ASSISTANT_EXTENSIONS (or arguments: sh -s -- health gym) and ASSISTANT_AUTO_UPDATE=0|1.
+# ASSISTANT_EXTENSIONS (or arguments: sh -s -- health gym) and ASSISTANT_AUTO_UPDATE=0|1. ASSISTANT_PROJECT
+# names the compose project of a new install (default: the folder name; pinned in .env).
 #
 # What it does, and nothing else:
 #   1. checks Docker + Compose, clones the repo (ASSISTANT_REPO, ASSISTANT_DIR) if not run from a checkout,
@@ -132,7 +133,7 @@ pick_extensions() {
   EXTENSIONS=$(printf '%s' "$chosen" | xargs)
   printf '\033[1A\r\033[K  \033[32m✓\033[0m Extensions: %s\n' "${EXTENSIONS:-none}" > /dev/tty
 }
-if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant-core; else default_dir=$HOME/assistant; fi
+if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant; else default_dir=$HOME/assistant; fi
 in_checkout=no
 [ -f docker-compose.yml ] && [ -f scripts/ext.mjs ] && [ -f install.sh ] && in_checkout=yes
 # ASSISTANT_DIR, when given, wins over the folder this runs in (curl ... | sudo sh from inside another checkout).
@@ -232,8 +233,25 @@ git config core.hooksPath scripts/hooks 2>/dev/null || true
 # on a shared folder (DSM puts them on every new file, and they deny writes), would stop them and a
 # later `git pull` (spec 006). Fixed right away, so even a run that stops below leaves a usable checkout.
 if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers (owner, Synology ACLs)" sh scripts/auto-update.sh fix-permissions "$DIR"; fi
-# The compose project name, as Compose makes it from the folder name: volumes are prefixed with it.
-PROJECT=$(basename "$DIR" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_-')
+# The compose project name: volumes and containers are prefixed with it. It is pinned in .env
+# (COMPOSE_PROJECT_NAME), so the folder can move or be renamed later and keep its data. A new install takes
+# ASSISTANT_PROJECT, else the folder name; when containers of another folder already use that name (an
+# older install also called "assistant"), the two stacks would be one, so it takes the next free one.
+taken_elsewhere() {
+  docker ps -a --filter "label=com.docker.compose.project=$1" \
+    --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null |
+    grep -v -x -e "$DIR" -e "$DIR/stack" | grep -q .
+}
+PROJECT=$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' .env 2>/dev/null | tail -n 1)
+if [ -z "$PROJECT" ]; then
+  PROJECT=$(printf '%s' "${ASSISTANT_PROJECT:-$(basename "$DIR")}" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_-')
+  if [ ! -f .env ] && [ -z "${ASSISTANT_PROJECT:-}" ] && taken_elsewhere "$PROJECT"; then
+    base=$PROJECT n=2
+    while taken_elsewhere "$base-$n"; do n=$((n + 1)); done
+    PROJECT=$base-$n
+    say "another install already uses the compose project $base (its own folder): this one is $PROJECT"
+  fi
+fi
 had_db=no
 docker volume inspect "${PROJECT}_db-data" >/dev/null 2>&1 && had_db=yes
 
@@ -261,7 +279,8 @@ else
     Its password is in the .env of that install: put that .env back in $DIR and run this again.
     Or start with an empty database (deletes that data; daily dumps stay in volume ${PROJECT}_backups):
       sudo docker compose -p $PROJECT down && sudo docker volume rm ${PROJECT}_db-data
-    then run this again."
+    then run this again. If that database belongs to another install (an older one in a folder with the
+    same name), keep it and give this one its own name: sudo ASSISTANT_PROJECT=<name> ./install.sh"
   fi
   say "writing .env with new random secrets"
   umask 077
@@ -302,6 +321,9 @@ for key in SECRETS_KEY SIDECAR_TICKET_SECRET CLAUDE_TOOLS_TOKEN SERVICES_DB_PASS
     say "added $key to .env"
   fi
 done
+# Older installs went by the folder name: pin it, so moving the folder keeps the same containers and volumes.
+sed -i '/^COMPOSE_PROJECT_NAME=$/d' .env
+grep -q '^COMPOSE_PROJECT_NAME=' .env || printf 'COMPOSE_PROJECT_NAME=%s\n' "$PROJECT" >> .env
 
 # Which installed extensions bring a service: their compose.yml joins the stack through COMPOSE_FILE.
 compose_files() {
@@ -319,7 +341,7 @@ compose_files() {
 }
 # Compose with everything explicit (folder, .env, files), whatever directory the binary thinks it is in.
 dc() {
-  set -- --project-directory "$DIR" --env-file "$DIR/.env" $(sed -n 's/^COMPOSE_FILE=//p' "$DIR/.env" | tr ':' '\n' | sed 's/^/-f /') "$@"
+  set -- -p "$PROJECT" --project-directory "$DIR" --env-file "$DIR/.env" $(sed -n 's/^COMPOSE_FILE=//p' "$DIR/.env" | tr ':' '\n' | sed 's/^/-f /') "$@"
   $DC "$@"
 }
 compose_files
@@ -398,11 +420,11 @@ if [ "$START" = manual ]; then
   cat <<MANUAL
 
   Not started yet. Start it with one of:
-    - Synology Container Manager: Project > Create. Name: $(basename "$DIR")  Path: $DIR/stack
-      ("use the existing docker-compose.yml"), then Next > Done. The name must be $(basename "$DIR")
+    - Synology Container Manager: Project > Create. Name: $PROJECT  Path: $DIR/stack
+      ("use the existing docker-compose.yml"), then Next > Done. The name must be $PROJECT
       so auto-update and the commands below find the same containers.
     - Portainer or another tool: the compose file $DIR/stack/docker-compose.yml with $DIR/stack/.env,
-      project name $(basename "$DIR").
+      project name $PROJECT.
     - A terminal:  cd $DIR && sudo ./beni.sh start
   The first start builds images: 10-20 minutes on a small NAS.
 MANUAL

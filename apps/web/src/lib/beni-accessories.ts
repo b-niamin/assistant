@@ -127,24 +127,10 @@ export const ACCESSORY_SVG: Record<Accessory, string> = {
     '<circle fill="#fff" stroke="#4646b8" stroke-width=".9" cx="56.8" cy="21.6" r="2.8"/>'
 };
 
-/**
- * Hands over the eyes (password fields): a short arm up from the belly, a palm and three fingers fanned
- * over the eye, a thumb tucked towards the nose. Drawn twice, a slightly fatter dark copy under the fill,
- * so the outline goes round the whole hand instead of every finger. The right hand mirrors the left; a
- * peek slides the left one down so one eye shows.
- */
-const HAND_PARTS = (w: number) =>
-  `<path d="M21.2 49.4L23.6 41" stroke-width="${5 + w}"/>` +
-  `<ellipse cx="24.8" cy="36.2" rx="${6.4 + w / 2}" ry="${5.6 + w / 2}"/>` +
-  `<path d="M21 35L20.2 29.4M24.8 34.6V28.4M28.6 35L29.4 29.4" stroke-width="${4.6 + w}"/>` +
-  `<path d="M29.4 40.2L30.6 38.4" stroke-width="${3.2 + w}"/>`;
-const HAND =
-  `<g stroke="rgb(0 0 0 / 0.3)" fill="rgb(0 0 0 / 0.3)" stroke-linecap="round">${HAND_PARTS(1.4)}</g>` +
-  `<g style="fill: var(--beni-paw, #ff9a5c); stroke: var(--beni-paw, #ff9a5c)" stroke-linecap="round">${HAND_PARTS(0)}</g>` +
-  '<path fill="none" stroke="rgb(0 0 0 / 0.22)" stroke-width=".7" stroke-linecap="round" d="M22.8 31.6l.3 2.2M26.8 31.6l-.3 2.2"/>';
-export const SHY_SVG =
-  `<g class="hands"><g class="hand-l">${HAND}</g>` +
-  `<g class="hand-r"><g transform="matrix(-1 0 0 1 64 0)">${HAND}</g></g></g>`;
+/** Paws over the eyes (password fields): two soft balls; a peek slides the left one down so one eye shows. */
+const PAW = (x: number) =>
+  `<ellipse style="fill: var(--beni-paw, #ff9a5c); stroke: rgb(0 0 0 / 0.2); stroke-width: 0.8" cx="${x}" cy="35.3" rx="7.4" ry="7"/>`;
+export const SHY_SVG = `<g class="hands"><g class="hand-l">${PAW(24.4)}</g><g class="hand-r">${PAW(39.6)}</g></g>`;
 
 /** The fragment for one accessory, with the clip path id filled in. */
 export function accessorySvg(a: Accessory, clipId: string): string {

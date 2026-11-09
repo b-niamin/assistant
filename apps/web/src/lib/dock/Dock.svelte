@@ -2,10 +2,10 @@
   /**
    * The dock: a thin bar at the bottom of every page. Collapsed, it shows whether the Remote Control
    * sessions of the `claude` container (Claude Code, Codex) are up. Expanded, it holds the app's only
-   * terminal (spec 004): a shell in the claude container, kept in tmux, for signing in and for running
+   * terminal (spec 004): a shell in the terminal container, kept in tmux, for signing in and for running
    * Claude or Codex by hand (sign-ins are in System settings). The terminal is created on first open and stays connected while collapsed.
    * The Remote menu sums the sessions up in one dot (all up: green, some: orange, none: grey) and can
-   * start one that is down in the background (tmux in the claude container).
+   * start one that is down in the background of the terminal container.
    */
   import { onMount } from 'svelte';
   import { deserialize } from '$app/forms';
@@ -75,7 +75,7 @@
     if (dock.open) refresh();
   }
 
-  /** Start an agent's Remote Control in the background (tmux in the claude container). */
+  /** Start an agent's Remote Control in the background of the terminal container. */
   async function startRemote(agent: 'claude' | 'codex') {
     starting = agent;
     startError = '';
@@ -255,10 +255,10 @@
           {#if status?.outdated}
             <p class="bad">An update is still building: the containers run the previous version, which cannot report or start these yet.</p>
           {:else if status && !status.reachable}
-            <p class="bad">The claude container (terminal) is not answering.</p>
+            <p class="bad">The terminal container is not answering.</p>
           {/if}
           {#if startError}<p class="bad" role="alert">{startError}</p>{/if}
-          <p class="meta foot">The claude container starts these on its own once you are signed in. A background one runs in tmux there until the container restarts.</p>
+          <p class="meta foot">The claude container starts these on its own once you are signed in. A background one runs in the terminal container until it restarts.</p>
         </div>
       {/if}
     </div>

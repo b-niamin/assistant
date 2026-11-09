@@ -116,13 +116,11 @@ services:
       # Installed extensions, compiled into the shell (spec 002). Read-only: only Claude edits them.
       - ./extensions:/extensions:ro
       - logs:/logs
-    # sidecars: the internal network of the terminal (in claude) and the browser (spec 004).
+    # sidecars: the internal network of the terminal and browser containers (spec 004).
     networks: [default, sidecars]
     mem_limit: 1536m
 
-  # The agents' container: Claude Code and Codex (Remote Control, started by the entrypoint) and the in-app
-  # terminal (spec 004: the dock at the bottom of every page, port 7681 on the internal sidecars network only),
-  # all in one place, so a login typed in the terminal is the one the remote sessions use. See docker/claude/README.md.
+  # Claude Code (and Codex, once signed in), reachable through Remote Control. See docker/claude/README.md.
   # NO docker socket and NO .env: it can edit code and read data, not touch containers or secrets.
   claude:
     # What Remote Control calls this machine (claude.ai/code, the Codex apps); install.sh sets the host's name.
@@ -152,20 +150,42 @@ services:
       GIT_COMMITTER_EMAIL: ${GIT_AUTHOR_EMAIL:-noreply@anthropic.com}
       # Optional: fine-grained PAT with Contents read/write on this ONE repo, so commits get pushed.
       GITHUB_TOKEN: ${CLAUDE_GITHUB_TOKEN:-}
-      # The terminal server checks the web app's single-use tickets with it; the entrypoint hands it to that
-      # server only and removes it from what the agents and the shells get.
-      SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
-      TZ: ${APP_TIMEZONE:-UTC}
     volumes:
       - .:/workspace
       # Shadow the secrets file: the container sees an empty .env.
       - /dev/null:/workspace/.env:ro
       - claude-home:/home/claude
       - logs:/logs:ro
-    # sidecars: drives the in-app browser over CDP (browser:9223, see .mcp.json); the web app reaches the
-    # terminal here (claude:7681).
+    # sidecars: drives the in-app browser over CDP (browser:9223, see .mcp.json).
     networks: [default, sidecars]
-    mem_limit: 2560m
+    mem_limit: 2g
+
+  # In-app terminal (spec 004): the dock at the bottom of every page. Same image and home volume as `claude`, so
+  # `claude /login`, `codex login`, `gh auth login` typed here are what Claude Remote uses. No port, no
+  # docker socket, no .env; the web app proxies to it only with a single-use ticket, which it re-checks.
+  terminal:
+    # Remote Control started from the app's "Start in background" runs here: named after the host too.
+    hostname: ${ASSISTANT_HOSTNAME:-beni-assistant}-terminal
+    build:
+      context: ./docker/claude
+      args:
+        UID: ${HOST_UID:-1000}
+    restart: unless-stopped
+    working_dir: /workspace
+    entrypoint: ['node', '/workspace/services/terminal/server.mjs']
+    environment:
+      SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
+      CLAUDE_RO_DATABASE_URL: postgresql://claude_ro:${CLAUDE_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
+      # Tools for Claude (spec 005): the `assistant` MCP server in .mcp.json calls the web app with this.
+      CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
+      ASSISTANT_URL: http://web:3000
+      TZ: ${APP_TIMEZONE:-UTC}
+    volumes:
+      - .:/workspace
+      - /dev/null:/workspace/.env:ro
+      - claude-home:/home/claude
+    networks: [default, sidecars]
+    mem_limit: 768m
 
   # In-app browser (spec 004): System settings -> Browser. Chromium + noVNC; its signed-in profile is
   # in the browser-profile volume (treat it as a secret). Only reachable on the internal sidecars network.
@@ -202,7 +222,7 @@ services:
 
 networks:
   default:
-  # Internal: web, claude and browser only. No internet, nothing else can reach noVNC/CDP.
+  # Internal: web, claude, terminal and browser only. No internet, nothing else can reach noVNC/CDP.
   sidecars:
     internal: true
   # The browser's own way out to the internet, shared with no other service.

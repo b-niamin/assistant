@@ -5,7 +5,7 @@
 #   ./beni.sh update                update to GitHub main now, with a progress bar (the same command the
 #                                   schedule runs: <folder>-updater/update.sh); a running update is followed
 #   ./beni.sh update --status       what the updater does or did; --cancel stops a running update;
-#                                   --restart also restarts claude when it waits for it
+#                                   --restart also restarts claude and terminal when they wait for it
 #   ./beni.sh start | stop | restart [service]
 #   ./beni.sh status                containers and the app's health
 #   ./beni.sh doctor                checks the install: permissions, git, .env, database password, ...
@@ -156,7 +156,7 @@ doctor() {
     case $(stat -c %a .env) in 600 | 400) ;; *) w ".env is readable by others (mode $(stat -c %a .env)): chmod 600 .env" ;; esac
   fi
 
-  # Files: the containers (web, claude) write the checkout as HOST_UID.
+  # Files: the containers (web, claude, terminal) write the checkout as HOST_UID.
   uid=$(owner_uid)
   [ "$uid" != 0 ] || f "HOST_UID is 0: the containers would run as root; set it to the owner's uid (id -u)"
   [ "$(stat -c %u "$DIR")" = "$uid" ] || w "the folder belongs to uid $(stat -c %u "$DIR"), the containers run as $uid (HOST_UID)"

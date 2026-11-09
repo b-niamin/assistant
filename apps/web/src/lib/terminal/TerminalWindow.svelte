@@ -158,7 +158,7 @@
       };
       sock.onerror = () => {
         phase = 'error';
-        message = 'The claude container (terminal) did not answer. Is it running?';
+        message = 'The terminal container did not answer. Is it running?';
       };
       ws = sock;
     } catch (e) {
@@ -301,7 +301,7 @@
           <p class="big">{phase === 'closed' ? 'Session disconnected' : 'Could not connect'}</p>
           <p class="sub">
             {phase === 'closed' ? 'Your shell is still running in tmux.' : message || 'Try again in a moment.'}
-            {#if !reachable}The claude container (terminal) is not answering.{/if}
+            {#if !reachable}The terminal container is not answering.{/if}
           </p>
           <button class="btn-primary btn" type="button" onclick={connect}>Reconnect</button>
         {/if}

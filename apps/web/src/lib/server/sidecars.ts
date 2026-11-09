@@ -21,15 +21,15 @@ export interface LoginStatus {
   codex: boolean;
   gh: boolean;
   remote: { claude: RemoteState; codex: RemoteState };
-  /** Started from the app, in a detached tmux session of the claude container. */
+  /** Started from the app, in a detached tmux session of the terminal container. */
   background: { claude: boolean; codex: boolean };
-  /** The claude container still runs code from before Remote Control states (an update is building). */
+  /** The terminal container still runs code from before Remote Control states (an update is building). */
   outdated: boolean;
 }
 
 /** Which CLIs are logged in and which Remote Control sessions run: booleans and states only. */
 export async function terminalStatus(): Promise<LoginStatus> {
-  const addr = env.TERMINAL_ADDR ?? 'claude:7681';
+  const addr = env.TERMINAL_ADDR ?? 'terminal:7681';
   try {
     const res = await fetch(`http://${addr}/status`, { signal: AbortSignal.timeout(1500) });
     const body = (await res.json()) as {
@@ -53,9 +53,9 @@ export async function terminalStatus(): Promise<LoginStatus> {
   }
 }
 
-/** Start an agent's Remote Control in the background of the claude container (needs a ticket): its HTTP status, 0 if unreachable. */
+/** Start an agent's Remote Control in the background of the terminal container (needs a ticket): its HTTP status, 0 if unreachable. */
 export async function startBackgroundRemote(agent: 'claude' | 'codex', sid: string): Promise<number> {
-  const addr = env.TERMINAL_ADDR ?? 'claude:7681';
+  const addr = env.TERMINAL_ADDR ?? 'terminal:7681';
   const query = new URLSearchParams({ agent, ticket: ticketFor('terminal', sid) });
   try {
     const res = await fetch(`http://${addr}/remote?${query}`, { method: 'POST', signal: AbortSignal.timeout(5000) });

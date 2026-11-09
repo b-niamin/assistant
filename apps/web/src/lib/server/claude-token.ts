@@ -1,4 +1,4 @@
-/** CLAUDE_TOOLS_TOKEN (spec 005): shared by web and the claude container, 32+ characters. */
+/** CLAUDE_TOOLS_TOKEN (spec 005): shared by web and the claude/terminal containers, 32+ characters. */
 import { timingSafeEqual } from 'node:crypto';
 import * as env from '$app/env/private';
 

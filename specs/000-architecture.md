@@ -44,7 +44,7 @@ db/migrations/                numbered SQL, additive only
 db/roles.sql                  least-privilege roles, re-applied on every migrate
 db/extension-role.sql         per-extension roles
 docker/claude/, docker/browser/   images
-services/terminal/            in-app terminal server (runs in the claude container)
+services/terminal/            in-app terminal sidecar
 scripts/                      ext CLI, MCP server for Claude, auto-update, hooks
 AGENTS.md                     rules for AI agents in this repo (CLAUDE.md points to it)
 .ai/skills/                   project skills (.claude/skills and .agents/skills link here)

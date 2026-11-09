@@ -52,7 +52,7 @@ test('server: rejects without ticket, runs a shell with one', async (t) => {
   // A private tmux socket dir, so the test never touches anyone's real tmux server.
   const TMUX_TMPDIR = mkdtempSync(path.join(tmpdir(), 'term-test-'));
   const srv = spawn('node', [new URL('./server.mjs', import.meta.url).pathname], {
-    env: { ...process.env, TERMINAL_PORT: String(port), SIDECAR_TICKET_SECRET: SECRET, HOME: TMUX_TMPDIR, TMUX_TMPDIR, TERMINAL_WATCH: '0' },
+    env: { ...process.env, TERMINAL_PORT: String(port), SIDECAR_TICKET_SECRET: SECRET, HOME: TMUX_TMPDIR, TMUX_TMPDIR },
     stdio: ['ignore', 'pipe', 'inherit']
   });
   t.after(() => {

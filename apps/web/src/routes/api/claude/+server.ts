@@ -1,6 +1,6 @@
 /**
  * Tools for Claude (spec 005). Not for browsers: hooks.server.ts lets a request in only with
- * `Authorization: Bearer $CLAUDE_TOOLS_TOKEN`, which the claude container has.
+ * `Authorization: Bearer $CLAUDE_TOOLS_TOKEN`, which the claude and terminal containers have.
  *   GET  /api/claude?profile=alex                       every extension the profile sees, with its tools
  *   POST /api/claude {extension, tool, arguments, profile}  run one tool, returns {result}
  */

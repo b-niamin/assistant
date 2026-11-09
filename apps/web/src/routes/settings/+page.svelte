@@ -172,7 +172,7 @@
             <span class="what">
               <strong>{tool.name}</strong>
               <span class="meta">
-                {#if !t.reachable}The claude container (terminal) is not answering.
+                {#if !t.reachable}The terminal container is not answering.
                 {:else if !ok}{tool.hint}
                 {:else if tool.id === 'gh'}Lets the tools push to and read your GitHub repositories.
                 {:else}{t.background[tool.id] && t.remote[tool.id] !== 'running' ? 'Remote Control running in the background' : REMOTE_LABEL[t.remote[tool.id]]}{/if}
@@ -310,8 +310,8 @@
           <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Manual: show new versions, update when I click</label>
           <noscript><button class="btn">Save</button></noscript>
         </form>
-        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label="Restarts of claude">
-          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Ask before restarting claude (it ends the Claude and Codex sessions and the terminal)</label>
+        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label="Restarts of claude and terminal">
+          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Ask before restarting claude and terminal</label>
           <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Restart them by themselves</label>
           <noscript><button class="btn">Save</button></noscript>
         </form>

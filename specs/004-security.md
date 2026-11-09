@@ -28,11 +28,11 @@ browser inside the app) are isolated.
 |---|---|---|
 | App password | `APP_PASSWORD_HASH` (scrypt) in `.env` | web |
 | Extension secrets | `secrets.extension_secrets`, AES-256-GCM, key `SECRETS_KEY` from `.env` | web only; an extension reads only the names it declares; never sent back to the browser, only a hint |
-| Claude tools token | `CLAUDE_TOOLS_TOKEN` in `.env` (spec 005) | web, claude |
+| Claude tools token | `CLAUDE_TOOLS_TOKEN` in `.env` (spec 005) | web, claude, terminal |
 | Extension service logins (e.g. Garmin) | `<id>.secret_*` tables, Fernet (`TOKEN_ENCRYPTION_KEY`) | that extension's service (`ext_<id>_svc`) |
 | Claude Code / Codex / gh logins | files in the `claude-home` volume | `claude` and `terminal` containers |
 | Browser sessions (cookies) | `browser-profile` volume | `browser` container; usable over CDP by `claude` |
-| Sidecar ticket key | `SIDECAR_TICKET_SECRET` in `.env` | web, claude (its terminal server only) |
+| Sidecar ticket key | `SIDECAR_TICKET_SECRET` in `.env` | web, terminal |
 
 `claude_ro` (Claude's data chat) has no access to `secrets` and no `SELECT` on `core.sessions`. The
 `claude` and `terminal` containers see an empty `.env`. Backups contain only ciphertext: keep `.env`
@@ -54,7 +54,7 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
                                                                 ▼
                                              sidecars network (internal: no internet, no other services)
                                      ┌──────────────────────────┴───────────────────────────┐
-                              claude:7681 (re-checks ticket)                      browser:6080 (noVNC)
+                              terminal:7681 (re-checks ticket)                     browser:6080 (noVNC)
                               shell in tmux, claude image,                         Chromium on Xvfb,
                               claude-home + checkout                               browser-profile volume
                                                                                    CDP :9223 ──► claude (playwright MCP)
@@ -65,13 +65,10 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
   session only; each nonce is accepted once by the proxy and once by the terminal. A leaked ticket is
   useless without the session cookie, after 60 s, or after first use. Cross-site WebSocket hijacking is
   stopped by the Origin check (browsers do not apply CORS to WebSockets).
-- **Terminal**: a server in the `claude` container (started by its entrypoint, restarted when its code
-  changes); no Docker socket, no `.env`, no published port. The shell gets a clean environment (the ticket
-  key is not in it, nor in the agents': the entrypoint hands it to the server only; it is still in
-  `/proc/1/environ`, readable inside the container, where it buys nothing a shell there does not have).
-  Being the agents' own container is the point: `claude` then `/login`, `codex login --device-auth`,
-  `gh auth login` typed here are what Claude and Codex Remote Control use, and anything started here runs
-  next to them. tmux keeps a half-finished login alive across reconnects. Sessions end
+- **Terminal**: own container from the claude image; no Docker socket, no `.env`, no port. The shell
+  gets a clean environment (the ticket key is not in it). It shares `claude-home` with the `claude`
+  container on purpose: `claude` then `/login`, `codex login --device-auth`, `gh auth login` typed here
+  are what Claude Remote uses. tmux keeps a half-finished login alive across reconnects. Sessions end
   after 8 h. The terminal lives only in the dock at the bottom of every page; `GET /dock` (any logged-in
   session) returns sign-in booleans and Remote Control states, never file contents, plus whether the
   session is unlocked. Opening a shell still needs the unlock and a ticket.
@@ -79,7 +76,7 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
   is signed in, `codex remote-control --no-daemon` running in `/workspace`, restarting them with backoff.
   Each writes its state to `~/.beni/remote/<agent>.json` (heartbeat every 30 s); the terminal's `/status`
   reports it, and a stale file reads as off. The Remote menu can also start one in the background of the
-  claude container (`POST /dock` for an unlocked session -> `POST claude:7681/remote` with a
+  terminal container (`POST /dock` for an unlocked session -> `POST terminal:7681/remote` with a
   single-use ticket; fixed commands only, in tmux session `remote-<agent>`). Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
 - **Browser**: Chromium with a persistent profile on a virtual display. x11vnc listens on loopback
   only (no VNC password); websockify (noVNC) accepts only handshakes with `Origin: $PUBLIC_ORIGIN`, which

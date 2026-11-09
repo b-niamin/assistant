@@ -4,24 +4,11 @@
 # state lives in /home/claude (a named volume), so it survives container and host restarts. Until you
 # log in (the terminal bar at the bottom of the app), each one waits.
 #
-# It also runs the in-app terminal's server (services/terminal, port 7681 on the sidecars network): the
-# shell in the dock at the bottom of the app, in this same container, so whatever you log in to or start
-# there is what the agents use.
-#
 # Each agent's state goes to ~/.beni/remote/<agent>.json ({"state": "...", "since": <epoch>}), which the
-# terminal server reads for the indicators in the app. A heartbeat touches the files every 30 s, so a
-# stopped container shows up as stale instead of "running".
+# terminal sidecar reads (same volume) for the indicators in the app. A heartbeat touches the files every
+# 30 s, so a stopped container shows up as stale instead of "running".
 set -u
 cd /workspace
-
-# The ticket key is for the terminal server only: the agents and every shell started here run without it.
-TICKET_SECRET=${SIDECAR_TICKET_SECRET:-}
-unset SIDECAR_TICKET_SECRET
-# The server exits when its code changes (an update); this loop starts the new one. tmux keeps the shells.
-(while true; do
-  SIDECAR_TICKET_SECRET=$TICKET_SECRET node /workspace/services/terminal/server.mjs
-  sleep 2
-done) &
 
 git config --global --add safe.directory /workspace
 git config core.hooksPath scripts/hooks

@@ -68,17 +68,32 @@ supervise() {
   done
 }
 
-# Codex needs a terminal of its own (with stdin at EOF it stops at once, and the app showed it as
-# "restarting" forever): it runs in a detached tmux session, which this loop watches. Its output goes
-# to ~/.beni/remote/codex.log; `docker compose exec llm tmux attach -t remote-codex` shows it live.
-codex_remote() {
-  tmux has-session -t =remote-codex 2>/dev/null ||
-    tmux new-session -d -s remote-codex -x 200 -y 50 -c /workspace 'sleep 1; exec codex remote-control --no-daemon' || return 1
-  tmux pipe-pane -o -t remote-codex "cat >> $STATE_DIR/codex.log" 2>/dev/null
-  while tmux has-session -t =remote-codex 2>/dev/null; do sleep 10; done
+# Both agents run in detached tmux sessions (remote-claude, remote-codex), which these loops watch: Codex
+# stops at once without a terminal, and Claude asks "Enable Remote Control? (y/n)" on its first run, which
+# nobody answers in a container (it then waits forever and never shows up in claude.ai). This entrypoint
+# exists to run Remote Control, so it answers y. Their output goes to ~/.beni/remote/<agent>.log and to
+# the container log; `docker compose exec llm tmux attach -t remote-claude` (or remote-codex) shows it live.
+remote_in_tmux() {
+  name=remote-$1
+  shift
+  if ! tmux has-session -t "=$name" 2>/dev/null; then
+    tmux new-session -d -s "$name" -x 200 -y 50 -c /workspace "sleep 1; exec $*" || return 1
+    tmux pipe-pane -o -t "$name" "tee -a $STATE_DIR/${name#remote-}.log >/proc/1/fd/1" 2>/dev/null
+  fi
+  answered=0
+  while tmux has-session -t "=$name" 2>/dev/null; do
+    if [ "$answered" = 0 ] && tmux capture-pane -p -t "$name" 2>/dev/null | grep -q 'Enable Remote Control? (y/n)'; then
+      tmux send-keys -t "$name" y Enter && answered=1 && echo "[${name#remote-}] answered: Enable Remote Control? y"
+    fi
+    sleep 5
+  done
 }
+claude_remote() { remote_in_tmux claude claude remote-control; }
+codex_remote() { remote_in_tmux codex codex remote-control --no-daemon; }
+
+: >"$STATE_DIR/claude.log"
 if command -v codex >/dev/null; then
   : >"$STATE_DIR/codex.log"
   supervise codex codex_remote </dev/null &
 fi
-supervise claude claude remote-control
+supervise claude claude_remote

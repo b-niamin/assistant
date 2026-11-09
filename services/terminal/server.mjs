@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Terminal sidecar (spec 004). A shell in the browser, for logging in to CLIs that keep their login
+ * In-app terminal (spec 004), run by the claude container's entrypoint. A shell in the browser, for logging in to CLIs that keep their login
  * in $HOME: `claude` (/login, then remote-control picks it up), `codex login`, `gh auth login`...
  *
  * Runs in its own container from the claude image, sharing only the claude-home volume and the
@@ -16,7 +16,7 @@
  *                        Server -> client binary frames: terminal output.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, watchFile } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -196,3 +196,16 @@ if (SECRET.length < 32) {
   log('SIDECAR_TICKET_SECRET is missing or shorter than 32 chars; refusing every connection');
 }
 server.listen(PORT, '0.0.0.0', () => log(`listening on :${PORT}`));
+
+// The entrypoint of the claude container restarts this server when it exits: exit when its code changes
+// (an update pulled into the checkout), so the new code runs without restarting the container. The shells
+// live on in tmux; open windows reconnect. Polling: bind mounts on a NAS deliver no fs events.
+if (process.env.TERMINAL_WATCH !== '0') {
+  for (const f of ['server.mjs', 'ws.mjs', 'ticket.mjs', 'ptyhost.py', 'tmux.conf']) {
+    watchFile(path.join(HERE, f), { interval: 5000 }, (cur, prev) => {
+      if (cur.mtimeMs === prev.mtimeMs) return;
+      log(`${f} changed: restarting with the new code`);
+      process.exit(0);
+    });
+  }
+}

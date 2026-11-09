@@ -130,7 +130,7 @@ Every page ends in the dock (`lib/dock/Dock.svelte`): a 40 px bar fixed to the b
 toggle on the left and the Remote menu on the right. The Remote button's dot sums up the Remote Control
 sessions: green when Claude and Codex both run, orange when one does, grey when none. Its menu lists each
 with its state and, when one is down, "Start in background" (a detached tmux session `remote-<agent>` in
-the terminal container, `POST /dock`), "Unlock to start" or "Sign in". The states come from `GET /dock`
+the claude container, `POST /dock`), "Unlock to start" or "Sign in". The states come from `GET /dock`
 every 30 s; normally the `claude` container keeps the sessions up on its own. Expanding the dock opens
 the app's only terminal (created on first open, kept connected while collapsed, open or closed
 remembered per browser). Locked, it asks for the app password inline (the System settings unlock).

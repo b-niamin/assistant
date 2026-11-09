@@ -38,8 +38,8 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
   console.log(`[dock] ${new Date().toISOString()} start ${start} remote-control in the background`);
   const code = await startBackgroundRemote(start, sid);
   if (code === 404)
-    throw error(503, 'The terminal container still runs the previous version: it restarts when the update has finished building.');
-  if (code === 0) throw error(502, 'The terminal container is not answering.');
-  if (code !== 200) throw error(502, `The terminal container could not start it (HTTP ${code}).`);
+    throw error(503, 'The claude container still runs the previous version: it restarts when the update has finished building.');
+  if (code === 0) throw error(502, 'The claude container (terminal) is not answering.');
+  if (code !== 200) throw error(502, `The claude container could not start it (HTTP ${code}).`);
   return json({ ok: true });
 };

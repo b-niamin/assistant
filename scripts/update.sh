@@ -6,7 +6,7 @@
 #                                     update when automatic updates are on or the app asked for one, and
 #                                     finish an update that was interrupted
 #   sh <home>/update.sh --now         update now, also without a terminal (and retry a failed update)
-#   sh <home>/update.sh --restart     the same, and restart claude/terminal if they wait for it (see HELD)
+#   sh <home>/update.sh --restart     the same, and restart claude if it waits for it (see HELD)
 #   sh <home>/update.sh status        what it does or did (--json: the raw status)
 #   sh <home>/update.sh cancel        stop a running update; the containers that ran before keep running
 #   sh scripts/update.sh install      once: <home> with a mirror of GitHub and this script, and the schedule
@@ -40,7 +40,7 @@ STEP_TIMEOUT=${ASSISTANT_STEP_TIMEOUT:-900}       # any other step
 MAX_ATTEMPTS=3                                    # an interrupted or failed update is tried this often
 # Recreating or restarting these ends what runs in them (Claude and Codex sessions, the terminal): with
 # restarts=ask (the default, System settings -> Updates) the update leaves them to a confirmed restart.
-HELD=${ASSISTANT_HELD_SERVICES:-claude terminal}
+HELD=${ASSISTANT_HELD_SERVICES:-claude}
 
 say() { printf '[update] %s\n' "$*"; }
 # An error also lands in <home>/last-error and the app's updater.log: a scheduled task's output is
@@ -67,11 +67,10 @@ plan() {
   while IFS= read -r p; do
     case $p in
       docker-compose.yml) echo all ;;
-      docker/claude/*) echo build:claude; echo build:terminal ;;
+      docker/claude/*) echo build:claude ;;
       docker/browser/*) echo build:browser ;;
       apps/web/scripts/live-reload.mjs) echo restart:web ;;
-      services/terminal/*.test.mjs) ;;
-      services/terminal/*) echo restart:terminal ;;
+      # services/terminal: the terminal server in claude restarts itself when its code changes.
       db/watch-extensions.sh) echo restart:ext-migrate ;;
       db/migrate.sh | db/roles.sql | db/extension-role.sql) echo migrate; echo restart:ext-migrate ;;
       db/backup.sh) echo restart:backup ;;

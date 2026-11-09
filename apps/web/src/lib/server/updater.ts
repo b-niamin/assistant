@@ -25,7 +25,7 @@ export interface UpdaterStatus {
   attempt: number;
   /** The app's last request the updater took ('' when none, or an older updater). */
   request: string;
-  /** Services that still run the previous version until a confirmed restart ("claude terminal"), '' when none. */
+  /** Services that still run the previous version until a confirmed restart ("claude"), '' when none. */
   pendingRestart: string;
   /** The app's last "Restart now" the updater took. */
   restartRequest: string;

@@ -3,7 +3,7 @@
  * Production entry: the SvelteKit handler plus a guarded WebSocket proxy to the sidecars (spec 004).
  * adapter-node's build/index.js cannot accept WebSocket upgrades, so this file owns the HTTP server.
  *
- *   /settings/terminal/ws?ticket=...  -> terminal:7681/ws   (shell in the terminal container)
+ *   /settings/terminal/ws?ticket=...  -> claude:7681/ws     (shell in the agents' container)
  *   /settings/browser/ws?ticket=...   -> browser:6080/      (noVNC view of the browser container)
  *
  * An upgrade is proxied only when ALL hold: the Origin is this app's ORIGIN, the request carries a
@@ -21,7 +21,7 @@ const ORIGIN = process.env.ORIGIN ?? '';
 const verify = createVerifier(process.env.SIDECAR_TICKET_SECRET ?? '');
 
 const ROUTES = {
-  '/settings/terminal/ws': { aud: 'terminal', target: process.env.TERMINAL_ADDR ?? 'terminal:7681', path: '/ws' },
+  '/settings/terminal/ws': { aud: 'terminal', target: process.env.TERMINAL_ADDR ?? 'claude:7681', path: '/ws' },
   '/settings/browser/ws': { aud: 'browser', target: process.env.BROWSER_VNC_ADDR ?? 'browser:6080', path: '/' }
 };
 

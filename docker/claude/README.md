@@ -1,6 +1,7 @@
 # Claude container
 
-Claude Code (and Codex, once signed in) running inside the stack, reachable through Remote Control.
+Claude Code (and Codex, once signed in) running inside the stack, reachable through Remote Control, and the
+in-app terminal (the dock at the bottom of the app; `services/terminal`, port 7681 on the internal network).
 
 ## First start
 
@@ -13,7 +14,7 @@ Exit the interactive session after logging in (`/exit`). The entrypoint notices 
 starts `claude remote-control` in `/workspace`; the session then shows up in claude.ai. Login state
 lives in the `claude-home` volume, so it survives restarts. To log out, run `/logout` the same way.
 
-Or sign in from the terminal in the bar at the bottom of the app (same `claude-home` volume).
+Or sign in from the terminal in the bar at the bottom of the app: it runs in this container.
 
 Codex works the same way: after `codex login --device-auth` (in that terminal) the entrypoint starts
 `codex remote-control --no-daemon` next to Claude's (experimental in Codex 0.167). The bar shows each

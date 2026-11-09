@@ -76,12 +76,12 @@ export const actions: Actions = {
     return { ok: 'Update requested: it starts within a minute.' };
   },
 
-  /** Restarts of claude and terminal: asked for first, or automatic (spec 006). */
+  /** Restarts of claude: asked for first, or automatic (spec 006). */
   updateRestarts: async ({ request, cookies }) => {
     if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
     const restarts = str(await request.formData(), 'restarts') === 'auto' ? 'auto' : 'ask';
     await setUpdaterControl({ ...(await updaterControl()), restarts });
-    return { ok: restarts === 'auto' ? 'Updates restart claude and terminal by themselves.' : 'Updates ask before restarting claude and terminal.' };
+    return { ok: restarts === 'auto' ? 'Updates restart claude by themselves.' : 'Updates ask before restarting claude.' };
   },
 
   /** "Restart now": the updater recreates the services that wait for it, within a minute. */

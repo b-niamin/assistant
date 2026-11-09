@@ -69,7 +69,7 @@
   </div>
   <p class="meta">
     {shown.length} line{shown.length === 1 ? '' : 's'}{data.file ? ` from the end of ${data.file}` : ', newest of every log, merged by time'}.
-    Logs of the claude and terminal containers: <code>docker compose logs claude terminal</code> on the host.
+    Logs of the claude container (agents and terminal): <code>docker compose logs claude</code> on the host.
   </p>
 {/if}
 

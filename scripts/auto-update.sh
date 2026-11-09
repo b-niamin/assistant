@@ -241,13 +241,18 @@ cmd_run() {
 
   LOCK=$HOME_DIR/lock
   if ! mkdir "$LOCK" 2>/dev/null; then
-    # A crashed tick leaves the lock behind: take it over after an hour.
-    if [ -z "$(find "$LOCK" -maxdepth 0 -mmin +60 2>/dev/null)" ]; then
-      [ "${ASSISTANT_UPDATE_NOW:-0}" != 1 ] || say "an update is already running: follow it in System settings > Updates"
+    # Taken over when its tick is gone (pid no longer alive; a crash or a reboot) or after six hours.
+    pid=$(cat "$LOCK/pid" 2>/dev/null || true)
+    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then say "taking over the lock of a tick that is gone (pid $pid)"
+    elif [ -z "$pid" ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +60 2>/dev/null)" ]; then :
+    elif [ -n "$(find "$LOCK" -maxdepth 0 -mmin +360 2>/dev/null)" ]; then say "taking over a lock older than six hours"
+    else
+      [ "${ASSISTANT_UPDATE_NOW:-0}" != 1 ] || say "an update is already running (pid ${pid:-?}): follow it in System settings > Updates"
       exit 0
     fi
     rm -rf "$LOCK"; mkdir "$LOCK" || exit 0
   fi
+  echo $$ >"$LOCK/pid"
   SRC=""
   trap 'rm -rf "$LOCK" ${SRC:+"$SRC"}' EXIT INT TERM
 

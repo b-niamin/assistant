@@ -71,6 +71,11 @@ test('server: rejects without ticket, runs a shell with one', async (t) => {
   const status = await (await fetch(`http://127.0.0.1:${port}/status`)).json();
   assert.deepEqual(status.remote, { claude: 'running', codex: 'off' });
   assert.equal(status.claude, false);
+  assert.deepEqual(status.background, { claude: false, codex: false });
+  // Starting a background Remote Control needs a ticket and a known agent.
+  const post = (q) => fetch(`http://127.0.0.1:${port}/remote?${q}`, { method: 'POST' }).then((r) => r.status);
+  assert.equal(await post('agent=claude'), 403);
+  assert.equal(await post(`agent=rm&ticket=${mintTicket(SECRET, 'terminal', 'sid')}`), 403);
 
   const upgrade = (q) =>
     new Promise((resolve) => {

@@ -75,7 +75,9 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
 - **Remote Control**: the `claude` container's entrypoint keeps `claude remote-control` and, once Codex
   is signed in, `codex remote-control --no-daemon` running in `/workspace`, restarting them with backoff.
   Each writes its state to `~/.beni/remote/<agent>.json` (heartbeat every 30 s); the terminal's `/status`
-  reports it, and a stale file reads as off. Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
+  reports it, and a stale file reads as off. The Remote menu can also start one in the background of the
+  terminal container (`POST /dock` for an unlocked session -> `POST terminal:7681/remote` with a
+  single-use ticket; fixed commands only, in tmux session `remote-<agent>`). Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
 - **Browser**: Chromium with a persistent profile on a virtual display. x11vnc listens on loopback
   only (no VNC password); websockify (noVNC) accepts only handshakes with `Origin: $PUBLIC_ORIGIN`, which
   the web proxy sends and a page inside this browser cannot; websockify and a CDP bridge listen on the internal `sidecars` network, which only web,

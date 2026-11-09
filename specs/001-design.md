@@ -127,14 +127,16 @@ fits. The source's own palette, fonts and logo are dropped.
 ## Dock and terminal
 
 Every page ends in the dock (`lib/dock/Dock.svelte`): a 40 px bar fixed to the bottom with the terminal
-toggle on the left and the Remote Control indicators on the right (Claude, Codex: dot plus a word,
-`remote on` / `starting` / `restarting` / `not signed in` / `off`; phones show only the dot and name).
-The indicators come from `GET /dock` every 30 s; the remote sessions themselves run on their own in the
-`claude` container, so the app only shows them. Expanding the dock opens the app's only terminal
-(created on first open, kept connected while collapsed, open or closed remembered per browser). Locked,
-it asks for the app password inline (the System settings unlock). Above the window, shortcuts run
-`claude`, `codex` or a sign-in command, each in a new tmux window; pages hand it work the same way
-(`runInDock`, e.g. "Extend the system" and an extension's "Change it with me").
+toggle on the left and the Remote menu on the right. The Remote button's dot sums up the Remote Control
+sessions: green when Claude and Codex both run, orange when one does, grey when none. Its menu lists each
+with its state and, when one is down, "Start in background" (a detached tmux session `remote-<agent>` in
+the terminal container, `POST /dock`), "Unlock to start" or "Sign in". The states come from `GET /dock`
+every 30 s; normally the `claude` container keeps the sessions up on its own. Expanding the dock opens
+the app's only terminal (created on first open, kept connected while collapsed, open or closed
+remembered per browser). Locked, it asks for the app password inline (the System settings unlock).
+Pages hand it work: `runInDock` runs a command in a new tmux window ("Extend the system", the sign-ins
+in System settings → Terminal), `typeInDock` types without Enter (an extension panel's "Update" types
+`Update extension <name> (extensions/<id>): ` for the owner to finish).
 
 The terminal is a dark window in both themes, like a code block in an editor.
 
@@ -145,8 +147,8 @@ The terminal is a dark window in both themes, like a code block in an editor.
   then text size A−/A+ (remembered per device), reconnect and full screen. When the socket is not open
   a veil over the screen says why and offers Reconnect; the page reconnects by itself when a phone
   wakes the tab.
-- Shortcuts for Claude Code, Codex and GitHub CLI: a sign-in command until the terminal's `/status`
-  says signed in (polled again after one is run), then the plain `claude` / `codex`.
+- Sign-ins live in System settings → Terminal: Claude Code, Codex and GitHub CLI with their state and
+  a "Sign in" button that runs the command in the dock.
 - Touch key bar (`lib/terminal/keys.ts`) on coarse pointers and narrow windows: Esc, Tab, Shift+Tab,
   sticky Ctrl, ^C, arrows (application cursor mode aware) and a few symbols phone keyboards hide.
   In full screen the window follows the visual viewport, so the bar stays above the keyboard.

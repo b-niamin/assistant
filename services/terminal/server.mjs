@@ -8,11 +8,14 @@
  * here after checking the session; this server checks the single-use ticket again.
  *
  *   GET  /status  -> {"claude": bool, "codex": bool, "gh": bool,       (booleans only, never file contents)
- *                     "remote": {"claude": state, "codex": state}}     (remote-control in the claude container)
+ *                     "remote": {"claude": state, "codex": state},     (remote-control in the claude container,
+ *                     "background": {"claude": bool, "codex": bool}}    or started here in the background)
+ *   POST /remote?agent=claude|codex&ticket=...  Start that agent's Remote Control in a detached tmux
+ *                        session here (`remote-<agent>`), for when the claude container's is not running.
  *   GET  /ws?ticket=...  WebSocket. Client -> server text frames: "0<input>" or "1<cols> <rows>".
  *                        Server -> client binary frames: terminal output.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
@@ -76,8 +79,39 @@ function remoteState(file, now = Date.now()) {
   }
 }
 
+/** Remote Control started from the app in the background: a detached tmux session per agent. */
+const REMOTE_COMMANDS = { claude: 'claude remote-control', codex: 'codex remote-control --no-daemon' };
+const tmuxConf = () => path.join(HERE, 'tmux.conf');
+const backgroundRuns = (agent) =>
+  spawnSync('tmux', ['-f', tmuxConf(), 'has-session', '-t', `=remote-${agent}`], { env: shellEnv(), stdio: 'ignore' }).status === 0;
+
+function startBackground(agent) {
+  if (backgroundRuns(agent)) return true;
+  const r = spawnSync('tmux', ['-f', tmuxConf(), 'new-session', '-d', '-s', `remote-${agent}`, '-c', WORKSPACE, REMOTE_COMMANDS[agent]], {
+    cwd: WORKSPACE,
+    env: shellEnv(),
+    stdio: 'ignore'
+  });
+  return r.status === 0;
+}
+
 const server = createServer((req, res) => {
-  if (req.url === '/status') {
+  const url = new URL(req.url ?? '/', 'http://terminal');
+  if (req.method === 'POST' && url.pathname === '/remote') {
+    const agent = url.searchParams.get('agent') ?? '';
+    // Same single-use ticket as a shell: only the web app, for an unlocked session, can start one.
+    if (!verify(url.searchParams.get('ticket'), 'terminal') || !Object.hasOwn(REMOTE_COMMANDS, agent)) {
+      res.statusCode = 403;
+      res.end();
+      return;
+    }
+    const ok = startBackground(agent);
+    log(`background remote-control ${agent}: ${ok ? 'running' : 'failed to start'}`);
+    res.statusCode = ok ? 200 : 500;
+    res.end();
+    return;
+  }
+  if (url.pathname === '/status') {
     res.setHeader('content-type', 'application/json');
     res.end(
       JSON.stringify({
@@ -88,7 +122,8 @@ const server = createServer((req, res) => {
         remote: {
           claude: remoteState(path.join(HOME, '.beni/remote/claude.json')),
           codex: remoteState(path.join(HOME, '.beni/remote/codex.json'))
-        }
+        },
+        background: { claude: backgroundRuns('claude'), codex: backgroundRuns('codex') }
       })
     );
     return;

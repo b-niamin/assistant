@@ -82,6 +82,12 @@
     setTimeout(() => run(cmd), 400);
   }
 
+  /** Type text where the cursor is, without Enter: the owner finishes the line. */
+  export function type(text: string) {
+    send(text);
+    term?.focus();
+  }
+
   /** Say something to the program running in the window (e.g. Claude Code) and press Enter. */
   export function say(text: string) {
     send(text.replace(/\s+/g, ' ').trim());

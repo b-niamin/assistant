@@ -3,13 +3,15 @@
    * The dock: a thin bar at the bottom of every page. Collapsed, it shows whether the Remote Control
    * sessions of the `claude` container (Claude Code, Codex) are up. Expanded, it holds the app's only
    * terminal (spec 004): a shell in the terminal container, kept in tmux, for signing in and for running
-   * Claude or Codex by hand. The terminal is created on first open and stays connected while collapsed.
+   * Claude or Codex by hand (sign-ins are in System settings). The terminal is created on first open and stays connected while collapsed.
+   * The Remote menu sums the sessions up in one dot (all up: green, some: orange, none: grey) and can
+   * start one that is down in the background of the terminal container.
    */
   import { onMount } from 'svelte';
   import { deserialize } from '$app/forms';
   import Mascot from '#lib/Mascot.svelte';
   import TerminalWindow from '#lib/terminal/TerminalWindow.svelte';
-  import { dock } from './dock.svelte.ts';
+  import { dock, runInDock } from './dock.svelte.ts';
 
   type Phase = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
   type Remote = 'starting' | 'running' | 'restarting' | 'signed-out' | 'off';
@@ -21,6 +23,7 @@
     codex: boolean;
     gh: boolean;
     remote: { claude: Remote; codex: Remote };
+    background: { claude: boolean; codex: boolean };
   }
 
   let status = $state<Status | null>(null);
@@ -33,23 +36,28 @@
   let unlocking = $state(false);
   // Open or closed is remembered per browser; written only after it was read back on load.
   let restored = $state(false);
+  let menuOpen = $state(false);
+  let menu = $state<HTMLElement>();
+  let starting = $state<'' | 'claude' | 'codex'>('');
+  let startError = $state('');
 
   const REMOTES = [
-    { id: 'claude', name: 'Claude', where: 'claude.ai/code or the Claude app' },
-    { id: 'codex', name: 'Codex', where: 'the ChatGPT or Codex app' }
+    { id: 'claude', name: 'Claude Code', where: 'claude.ai/code or the Claude app', login: 'claude' },
+    { id: 'codex', name: 'Codex', where: 'the ChatGPT or Codex app', login: 'codex login --device-auth' }
   ] as const;
-  const TONE: Record<Remote, string> = { starting: 'warning', running: 'good', restarting: 'warning', 'signed-out': '', off: '' };
-  const LABEL: Record<Remote, string> = { starting: 'starting', running: 'remote on', restarting: 'restarting', 'signed-out': 'not signed in', off: 'off' };
+  const LABEL: Record<Remote, string> = { starting: 'Starting', running: 'Running', restarting: 'Restarting', 'signed-out': 'Not signed in', off: 'Not running' };
 
-  const SHORTCUTS = $derived(
-    status
-      ? [
-          status.claude ? { label: 'Claude', cmd: 'claude' } : { label: 'Sign in to Claude', cmd: 'claude', hint: 'then type /login' },
-          status.codex ? { label: 'Codex', cmd: 'codex' } : { label: 'Sign in to Codex', cmd: 'codex login --device-auth' },
-          ...(status.gh ? [] : [{ label: 'Sign in to GitHub', cmd: 'gh auth login' }])
-        ]
-      : []
+  // Up = the claude container's session runs, or one started here in the background.
+  const agents = $derived(
+    REMOTES.map((r) => {
+      const state: Remote = status?.reachable ? status.remote[r.id] : 'off';
+      const background = !!status?.background?.[r.id];
+      return { ...r, state, background, up: state === 'running' || background, signedIn: !!status?.[r.id] };
+    })
   );
+  const upCount = $derived(agents.filter((a) => a.up).length);
+  const tone = $derived(upCount === agents.length ? 'good' : upCount ? 'serious' : '');
+  const summary = $derived(upCount === agents.length ? 'all running' : upCount ? `${upCount} of ${agents.length} running` : 'none running');
 
   async function refresh() {
     try {
@@ -65,10 +73,32 @@
     if (dock.open) refresh();
   }
 
-  function shortcut(cmd: string) {
-    win?.runInNewWindow(cmd);
-    // A sign-in takes a while: look again a few times so the indicators catch up without a reload.
-    for (const ms of [5000, 15000, 30000, 60000]) setTimeout(refresh, ms);
+  /** Start an agent's Remote Control in the background of the terminal container. */
+  async function startRemote(agent: 'claude' | 'codex') {
+    starting = agent;
+    startError = '';
+    try {
+      const res = await fetch('/dock', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ start: agent })
+      });
+      if (!res.ok) startError = ((await res.json().catch(() => null)) as { message?: string } | null)?.message ?? 'Could not start it.';
+      await refresh();
+    } finally {
+      starting = '';
+    }
+  }
+
+  /** Locked: the dock opens with its password prompt; the menu closes so it is in view. */
+  function openTerminal() {
+    menuOpen = false;
+    dock.open = true;
+    refresh();
+  }
+
+  function onWindowClick(e: MouseEvent) {
+    if (menuOpen && menu && !menu.contains(e.target as Node)) menuOpen = false;
   }
 
   /** The same unlock as System settings (10 minutes), without leaving the page. */
@@ -111,7 +141,9 @@
     const queued = dock.queue;
     dock.queue = [];
     // tmux needs a moment after the socket opens before it takes keys.
-    queued.forEach((cmd, i) => setTimeout(() => win?.runInNewWindow(cmd), 1200 + i * 900));
+    queued.forEach((item, i) =>
+      setTimeout(() => (item.run !== undefined ? win?.runInNewWindow(item.run) : win?.type(item.type)), 1200 + i * 900)
+    );
   });
 
   $effect(() => {
@@ -141,6 +173,8 @@
   });
 </script>
 
+<svelte:window onclick={onWindowClick} onkeydown={(e) => e.key === 'Escape' && (menuOpen = false)} />
+
 <section class="dock" class:open={dock.open} aria-label="Terminal and remote sessions">
   <div class="strip">
     <button class="toggle" type="button" onclick={toggle} aria-expanded={dock.open} aria-controls="dock-panel">
@@ -149,14 +183,57 @@
       {#if started}<span class="status small" class:good={phase === 'open'} title={phase === 'open' ? 'Connected' : 'Not connected'}><span class="sr">{phase === 'open' ? 'Connected' : 'Not connected'}</span></span>{/if}
       <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
     </button>
-    <ul class="remotes" aria-label="Remote Control">
-      {#each REMOTES as r (r.id)}
-        {@const state = status?.reachable ? status.remote[r.id] : 'off'}
-        <li class="status small {TONE[state]}" title="{r.name} Remote Control: {LABEL[state]}{state === 'running' ? `. Open it from ${r.where}.` : ''}">
-          <span class="name">{r.name}</span><span class="state">{LABEL[state]}</span>
-        </li>
-      {/each}
-    </ul>
+    <div class="remote" bind:this={menu}>
+      <button
+        class="remote-btn"
+        type="button"
+        aria-expanded={menuOpen}
+        aria-controls="dock-remote"
+        title="Remote Control: {summary}"
+        onclick={() => {
+          menuOpen = !menuOpen;
+          if (menuOpen) refresh();
+        }}
+      >
+        <span class="status small {tone}">Remote</span>
+        <span class="sr">: {summary}</span>
+        <svg class="chev" class:up={menuOpen} viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
+      </button>
+      {#if menuOpen}
+        <div class="menu card" id="dock-remote" role="region" aria-label="Remote Control">
+          <p class="menu-head">Remote Control <span>{summary}</span></p>
+          <ul>
+            {#each agents as a (a.id)}
+              <li>
+                <span class="status small" class:good={a.up} class:warning={!a.up && (a.state === 'starting' || a.state === 'restarting')}></span>
+                <span class="what">
+                  <strong>{a.name}</strong>
+                  <span class="meta">
+                    {#if a.state === 'running'}Running in the claude container · open it from {a.where}
+                    {:else if a.background}Running in the background (terminal) · open it from {a.where}
+                    {:else if !a.signedIn}Not signed in
+                    {:else}{LABEL[a.state]}{/if}
+                  </span>
+                </span>
+                {#if !a.up}
+                  {#if !a.signedIn}
+                    <button type="button" class="btn small-btn" onclick={() => (runInDock(a.login), (menuOpen = false))}>Sign in</button>
+                  {:else if !status?.unlocked}
+                    <button type="button" class="btn small-btn" onclick={openTerminal} title="Starting it needs the app password">Unlock to start</button>
+                  {:else}
+                    <button type="button" class="btn btn-primary small-btn" disabled={starting !== ''} onclick={() => startRemote(a.id)}>
+                      {starting === a.id ? 'Starting…' : 'Start in background'}
+                    </button>
+                  {/if}
+                {/if}
+              </li>
+            {/each}
+          </ul>
+          {#if startError}<p class="bad" role="alert">{startError}</p>{/if}
+          <p class="meta foot">The claude container starts these on its own once you are signed in. A background one runs in the terminal container until it restarts.</p>
+        </div>
+      {/if}
+    </div>
   </div>
 
   <div class="panel" id="dock-panel" hidden={!dock.open}>
@@ -176,14 +253,6 @@
       </form>
     {/if}
     {#if started}
-      <div class="shortcuts" role="toolbar" aria-label="Run in a new window">
-        {#each SHORTCUTS as s (s.label)}
-          <button type="button" class="run" disabled={phase !== 'open'} onclick={() => shortcut(s.cmd)} title={s.hint ? `${s.cmd}, ${s.hint}` : s.cmd}>
-            <code>{s.cmd}</code><span>{s.label}</span>
-          </button>
-        {/each}
-        <span class="meta">Each runs in a new tmux window. The remote sessions run on their own, in the claude container.</span>
-      </div>
       <TerminalWindow bind:this={win} bind:phase configured={status?.configured ?? true} reachable={status?.reachable ?? true} height="min(50vh, 480px)" />
     {/if}
   </div>
@@ -251,23 +320,89 @@
   .open .chev {
     transform: rotate(180deg);
   }
-  .remotes {
-    display: flex;
-    gap: var(--space-4);
-    margin: 0 0 0 auto;
-    padding: 0;
-    list-style: none;
-    font-size: 0.8125rem;
-    color: var(--ink-2);
-    white-space: nowrap;
+  .remote {
+    position: relative;
+    margin-left: auto;
   }
-  .remotes .name {
+  .remote-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 30px;
+    padding: 0 8px 0 10px;
+    border: 1px solid var(--ring);
+    border-radius: 999px;
+    background: var(--surface);
     color: var(--ink);
-    font-weight: 550;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
   }
-  .remotes .state::before {
-    content: ' · ';
+  .remote-btn:hover {
+    background: var(--surface-2);
+  }
+  .chev.up {
+    transform: rotate(180deg);
+  }
+  .menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    width: min(420px, calc(100vw - 24px));
+    padding: var(--space-3) var(--space-4);
+    box-shadow: 0 12px 32px -12px rgb(0 0 0 / 35%);
+    z-index: 2;
+  }
+  .menu-head {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 0 var(--space-1);
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+  .menu-head span {
+    font-weight: 400;
+    color: var(--ink-2);
+  }
+  .menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .menu li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+  }
+  .menu li + li {
+    border-top: 1px solid var(--ring);
+  }
+  .menu .what {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    font-size: 0.875rem;
+  }
+  .menu .meta {
+    font-size: 0.75rem;
+    color: var(--ink-2);
+  }
+  .menu .foot {
+    margin: var(--space-2) 0 0;
     color: var(--ink-3);
+  }
+  .menu .bad {
+    margin: var(--space-1) 0 0;
+    color: var(--critical);
+    font-size: 0.8125rem;
+  }
+  .small-btn {
+    flex: none;
+    font-size: 0.8125rem;
+    padding: 4px 10px;
   }
   .panel {
     max-width: 1120px;
@@ -306,61 +441,10 @@
     color: var(--critical);
     font-size: 0.875rem;
   }
-  .shortcuts {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-1) 0 var(--space-2);
-  }
-  .shortcuts .meta {
-    font-size: 0.75rem;
-    color: var(--ink-3);
-  }
-  .run {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    height: 30px;
-    padding: 0 10px;
-    border-radius: var(--radius-sm);
-    border: 1px solid #2c2c2a;
-    background: #141413;
-    color: #e8e6df;
-    font-size: 0.8125rem;
-    cursor: pointer;
-  }
-  .run code {
-    background: none;
-    padding: 0;
-    color: inherit;
-  }
-  .run code::before {
-    content: '$ ';
-    color: var(--hue-orange);
-  }
-  .run span {
-    color: #a3a29a;
-  }
-  .run:hover:not(:disabled) {
-    border-color: var(--hue-orange);
-  }
-  .run:disabled {
-    opacity: 0.55;
-    cursor: default;
-  }
   @media (max-width: 640px) {
     .strip {
       gap: var(--space-2);
       padding: 0 var(--space-3);
-    }
-    .remotes {
-      gap: var(--space-3);
-    }
-    .remotes .state,
-    .shortcuts .meta,
-    .run span {
-      display: none;
     }
     .panel {
       padding: 0 var(--space-2) var(--space-2);

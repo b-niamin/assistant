@@ -1,14 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { runInDock } from '#lib/dock/dock.svelte.ts';
+  import { typeInDock } from '#lib/dock/dock.svelte.ts';
   import SourcesPanel from '#lib/settings/SourcesPanel.svelte';
-  import { agentCommand, buildChangePrompt, hueFor, initials } from '#lib/settings/guide.ts';
+  import { hueFor, initials } from '#lib/settings/guide.ts';
   let { data, form } = $props();
   const ext = $derived(data.ext);
   const plain = $derived(ext.settings.filter((f) => f.type !== 'secret'));
   const slot = (name: string) => data.secrets.find((s) => s.name === name);
-  let change = $state('');
-  const ask = (tool: 'claude' | 'codex') => runInDock(agentCommand(tool, buildChangePrompt(ext.id, ext.name, change)));
   const fieldsById = $derived(new Map(ext.settings.map((f) => [f.name, f])));
 </script>
 
@@ -43,15 +41,10 @@
   <SourcesPanel extId={ext.id} result={data.sources} {form} />
 {/if}
 
-<section class="card change" aria-labelledby="change-h">
-  <h2 id="change-h">Change {ext.name} with me</h2>
-  <textarea bind:value={change} rows="2" placeholder="Add a rest timer between sets…"></textarea>
-  <div class="go">
-    <button type="button" class="btn btn-primary" disabled={!change.trim()} onclick={() => ask('claude')}>Ask Claude</button>
-    <button type="button" class="btn" disabled={!change.trim()} onclick={() => ask('codex')}>Ask Codex</button>
-    <span class="meta">It runs in the terminal at the bottom.</span>
-  </div>
-</section>
+<p class="card change">
+  <span class="meta">To change {ext.name}, use the terminal at the bottom: ask Claude or Codex there.</span>
+  <button type="button" class="btn" onclick={() => typeInDock(`Update extension ${ext.name} (extensions/${ext.id}): `)}>Update</button>
+</p>
 
 {#if form?.error && !form.source}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok && !form.source}<p class="note good" role="status">{form.ok}</p>{/if}
@@ -148,23 +141,13 @@
 
 <style>
   .change {
-    display: grid;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    margin-bottom: var(--space-5);
-  }
-  .change h2 {
-    margin: 0;
-  }
-  .change textarea {
-    width: 100%;
-    resize: vertical;
-  }
-  .change .go {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-5);
+    padding: var(--space-3) var(--space-4);
   }
   .head {
     display: grid;

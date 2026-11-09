@@ -2,7 +2,7 @@
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
-  import { dock } from '#lib/dock/dock.svelte.ts';
+  import { dock, runInDock } from '#lib/dock/dock.svelte.ts';
   import { hueFor, initials } from '#lib/settings/guide.ts';
 
   let { data, form } = $props();
@@ -10,6 +10,20 @@
   const when = (iso: string) => (iso ? new Date(iso).toLocaleString() : '');
   const short = (sha: string) => sha.slice(0, 7);
   const next = $derived(page.url.searchParams.get('next') ?? '');
+
+  // Sign-ins for the terminal's CLIs; the commands run in the dock's terminal at the bottom.
+  const TOOLS = [
+    { id: 'claude', name: 'Claude Code', mark: 'C', hue: 'var(--brand)', cmd: 'claude', hint: 'Then type /login and open the link it prints.' },
+    { id: 'codex', name: 'Codex', mark: 'X', hue: 'var(--hue-aqua)', cmd: 'codex login --device-auth', hint: 'Sign in with ChatGPT: enter the code at the URL it prints.' },
+    { id: 'gh', name: 'GitHub CLI', mark: 'G', hue: 'var(--hue-violet)', cmd: 'gh auth login', hint: 'Choose GitHub.com, HTTPS, then log in with a web browser.' }
+  ] as const;
+  const REMOTE_LABEL: Record<string, string> = {
+    running: 'Remote Control running',
+    starting: 'Remote Control starting',
+    restarting: 'Remote Control restarting',
+    'signed-out': 'Remote Control waits for the sign-in',
+    off: 'Remote Control not running'
+  };
 
   const whoSees = (ids: string[] | null, profiles: { id: string; name: string }[]) =>
     ids === null ? 'everyone' : ids.map((id) => profiles.find((p) => p.id === id)?.name ?? id).join(', ') || 'nobody';
@@ -125,22 +139,42 @@
     </a>
   </section>
 
+  <section aria-labelledby="term-h">
+    <div class="sh">
+      <h2 id="term-h">Terminal</h2>
+      <button type="button" class="meta linkish" onclick={() => (dock.open = true)}>Open the terminal</button>
+    </div>
+    {#if !data.terminal.configured}
+      <p class="muted">The terminal is off. Set <code>SIDECAR_TICKET_SECRET</code> in <code>.env</code> and run <code>docker compose up -d</code>.</p>
+    {:else}
+      <ul class="menu card">
+        {#each TOOLS as tool (tool.id)}
+          {@const t = data.terminal}
+          {@const ok = t[tool.id]}
+          <li class="row">
+            <span class="mark" style="--hue: {tool.hue}" aria-hidden="true">{tool.mark}</span>
+            <span class="what">
+              <strong>{tool.name}</strong>
+              <span class="meta">
+                {#if !t.reachable}The terminal container is not answering.
+                {:else if !ok}{tool.hint}
+                {:else if tool.id === 'gh'}Lets the tools push to and read your GitHub repositories.
+                {:else}{t.background[tool.id] && t.remote[tool.id] !== 'running' ? 'Remote Control running in the background' : REMOTE_LABEL[t.remote[tool.id]]}{/if}
+              </span>
+            </span>
+            <span class="state"><span class="status small" class:good={ok}>{ok ? 'Signed in' : 'Not signed in'}</span></span>
+            {#if !ok && t.reachable}
+              <button type="button" class="btn btn-primary" onclick={() => runInDock(tool.cmd)} title="Runs {tool.cmd} in the terminal at the bottom">Sign in</button>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
+
   <section aria-labelledby="sys-h">
     <h2 id="sys-h">System</h2>
     <ul class="menu card">
-      <li>
-        <button type="button" onclick={() => (dock.open = true)}>
-          <span class="mark" style="--hue: var(--hue-violet)" aria-hidden="true">›_</span>
-          <span class="what"><strong>Terminal</strong><span class="meta">In the bar at the bottom: sign in to Claude, Codex and GitHub, run them by hand</span></span>
-          <span class="state">
-            {#if !data.terminal.configured}<span class="status small warning">Off</span>
-            {:else if !data.terminal.reachable}<span class="status small critical">Not answering</span>
-            {:else}{@const remote = [data.terminal.remote.claude === 'running' && 'Claude', data.terminal.remote.codex === 'running' && 'Codex'].filter(Boolean)}
-              <span class="status small" class:good={remote.length > 0}>{remote.length ? `Remote: ${remote.join(', ')}` : 'No remote session'}</span>{/if}
-          </span>
-          <span class="chev" aria-hidden="true">›</span>
-        </button>
-      </li>
       <li>
         <a href="/settings/browser">
           <span class="mark" style="--hue: var(--hue-aqua)" aria-hidden="true">◎</span>
@@ -287,23 +321,32 @@
   .menu li + li {
     border-top: 1px solid var(--ring);
   }
-  .menu a,
-  .menu button {
+  .menu a {
     display: flex;
-    width: 100%;
-    border: 0;
-    background: none;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3) 0;
     color: inherit;
     text-decoration: none;
   }
-  .menu a:hover strong,
-  .menu button:hover strong {
+  .menu li.row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+  }
+  .menu li.row .btn {
+    flex: none;
+  }
+  .linkish {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: var(--accent-ink);
+    cursor: pointer;
+    font: inherit;
+  }
+  .menu a:hover strong {
     color: var(--accent-ink);
   }
   .mark {

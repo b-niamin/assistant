@@ -134,7 +134,8 @@
           <span class="state">
             {#if !data.terminal.configured}<span class="status small warning">Off</span>
             {:else if !data.terminal.reachable}<span class="status small critical">Not answering</span>
-            {:else}<span class="status small" class:good={data.terminal.claude}>{data.terminal.claude ? 'Claude signed in' : 'Claude not signed in'}</span>{/if}
+            {:else}{@const signed = [data.terminal.claude && 'Claude', data.terminal.codex && 'Codex'].filter(Boolean)}
+              <span class="status small" class:good={signed.length > 0}>{signed.length ? `${signed.join(', ')} signed in` : 'Not signed in'}</span>{/if}
           </span>
           <span class="chev" aria-hidden="true">›</span>
         </a>

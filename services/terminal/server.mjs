@@ -66,7 +66,7 @@ const server = createServer((req, res) => {
       JSON.stringify({
         // .claude.json appears on the first run, before any login: only an oauthAccount in it counts.
         claude: nonEmpty(path.join(HOME, '.claude/.credentials.json')) || mentions(path.join(HOME, '.claude.json'), '"oauthAccount"'),
-        codex: nonEmpty(path.join(HOME, '.codex/auth.json')),
+        codex: nonEmpty(path.join(process.env.CODEX_HOME || path.join(HOME, '.codex'), 'auth.json')),
         gh: nonEmpty(path.join(HOME, '.config/gh/hosts.yml'))
       })
     );

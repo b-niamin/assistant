@@ -22,7 +22,9 @@
       mark: 'C',
       hue: 'var(--brand)',
       cmd: 'claude',
-      hint: 'Then type /login and open the link it prints.'
+      use: 'claude',
+      about: 'Builds and changes apps; Claude Remote uses this login too.',
+      hint: 'Run it, then type /login and open the link it prints.'
     },
     {
       id: 'codex',
@@ -30,6 +32,8 @@
       mark: 'X',
       hue: 'var(--hue-aqua)',
       cmd: 'codex login --device-auth',
+      use: 'codex',
+      about: 'Builds and changes apps with your ChatGPT plan.',
       hint: 'Sign in with ChatGPT: enter the code at the URL it prints.'
     },
     {
@@ -38,9 +42,12 @@
       mark: 'G',
       hue: 'var(--hue-violet)',
       cmd: 'gh auth login',
+      use: 'gh auth status',
+      about: 'Lets the tools push to and read your GitHub repositories.',
       hint: 'Choose GitHub.com, HTTPS, then log in with a web browser.'
     }
   ] as const;
+  const signedIn = $derived(LOGINS.filter((l) => status[l.id]).map((l) => l.name));
 
   /** Quick action: type the command and run it. Ctrl+U first clears a half-typed line. */
   function run(cmd: string) {
@@ -112,10 +119,17 @@
 
 <div class="head rise" style="--i: 0">
   <p class="eyebrow"><a href="/settings">System settings</a></p>
-  <h1>Terminal</h1>
-  <p class="lede">
-    A shell in its own container for signing in to command-line tools. Logins land in the shared Claude home, so
-    Claude Remote picks them up, and the session (tmux) keeps running after you close this page.
+  <div class="name">
+    <span class="mark big" style="--hue: var(--hue-violet)" aria-hidden="true">›_</span>
+    <h1>Terminal</h1>
+    {#if !data.configured}<span class="status small warning">Off</span>
+    {:else if !status.reachable}<span class="status small critical">Not answering</span>
+    {:else}<span class="status small good">On</span>{/if}
+  </div>
+  <p class="muted">A shell for signing in to command-line tools and building apps with Claude or Codex.</p>
+  <p class="meta">
+    Own container · shared Claude home · tmux keeps it running ·
+    {signedIn.length ? `signed in: ${signedIn.join(', ')}` : 'nothing signed in yet'}
   </p>
 </div>
 
@@ -126,31 +140,34 @@
   </p>
 {/if}
 
-<section class="logins" aria-label="Sign-ins">
-  {#each LOGINS as l, i}
-    {@const ok = status[l.id]}
-    <article class="login card rise" style="--i: {i + 1}; --hue: {l.hue}">
-      <span class="mark" aria-hidden="true">{l.mark}</span>
-      <div class="who">
-        <h2>{l.name}</h2>
+<section class="rise" style="--i: 1" aria-labelledby="tools-h">
+  <h2 id="tools-h">Tools</h2>
+  <ul class="menu card">
+    {#each LOGINS as l (l.id)}
+      {@const ok = status[l.id]}
+      <li class="tool">
+        <span class="mark" style="--hue: {l.hue}" aria-hidden="true">{l.mark}</span>
+        <span class="what">
+          <strong>{l.name}</strong>
+          <span class="meta">{ok ? l.about : l.hint}</span>
+        </span>
         <span class="status small" class:good={ok}>{ok ? 'Signed in' : 'Not signed in'}</span>
-      </div>
-      <button
-        class="run"
-        class:quiet={ok}
-        type="button"
-        disabled={phase !== 'open'}
-        onclick={() => run(l.cmd)}
-        title={l.hint}
-        aria-label="Run {l.cmd}"
-      >
-        <code>{l.cmd}</code>
-        <span class="short">{ok ? 'Run' : 'Sign in'}</span>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5 10.5 8 5 12.5" /></svg>
-      </button>
-      <p class="hint">{l.hint}</p>
-    </article>
-  {/each}
+        <button
+          class="run"
+          class:quiet={ok}
+          type="button"
+          disabled={phase !== 'open'}
+          onclick={() => run(ok ? l.use : l.cmd)}
+          title={ok ? `Run ${l.use}` : l.hint}
+          aria-label="Run {ok ? l.use : l.cmd}"
+        >
+          <code>{ok ? l.use : l.cmd}</code>
+          <span class="short">{ok ? 'Open' : 'Sign in'}</span>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5 10.5 8 5 12.5" /></svg>
+        </button>
+      </li>
+    {/each}
+  </ul>
 </section>
 
 {#if fresh}
@@ -187,7 +204,7 @@
         {pending.tool === 'shell' ? 'Run it' : pending.tool === 'codex' ? 'Run in Codex' : 'Run in Claude'}
       </button>
       <button class="btn-ghost" type="button" onclick={clearPending}>Dismiss</button>
-      {#if !pendingNeeds}<p class="small">Sign in to {pending.tool === 'codex' ? 'Codex' : 'Claude Code'} first (card above).</p>{/if}
+      {#if !pendingNeeds}<p class="small">Sign in to {pending.tool === 'codex' ? 'Codex' : 'Claude Code'} first (Tools above).</p>{/if}
     </div>
   </section>
 {/if}
@@ -206,9 +223,17 @@
   .head h1 {
     margin: 0;
   }
-  .lede {
+  .name {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .meta {
+    font-size: 0.8125rem;
     color: var(--ink-2);
-    max-width: 68ch;
+  }
+  section {
+    margin-bottom: var(--space-5);
   }
   .ready {
     display: grid;
@@ -248,46 +273,55 @@
     padding: var(--space-3) var(--space-4);
   }
 
-  /* Sign-in cards */
-  .logins {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
+  /* Tools: one row each, like the System list in settings */
+  .menu {
+    list-style: none;
+    margin: 0;
+    padding: var(--space-1) var(--space-4);
   }
-  .login {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-areas: 'mark who' 'run run' 'hint hint';
+  .menu li + li {
+    border-top: 1px solid var(--ring);
+  }
+  .tool {
+    display: flex;
     align-items: center;
-    /* Cards in a row share a height: keep the rows at the top so the buttons line up across cards. */
-    align-content: start;
     gap: var(--space-3);
-    padding: var(--space-4);
+    padding: var(--space-3) 0;
   }
   .mark {
-    grid-area: mark;
     display: grid;
     place-items: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
     background: color-mix(in srgb, var(--hue) 16%, transparent);
     color: var(--hue);
-    font: 700 1rem/1 var(--mono);
+    font: 700 0.8125rem/1 var(--mono);
   }
-  .who {
-    grid-area: who;
+  .mark.big {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    font-size: 0.9375rem;
+  }
+  .what {
     display: grid;
     gap: 2px;
+    flex: 1 1 auto;
     min-width: 0;
+  }
+  .tool > .status {
+    flex: none;
+    white-space: nowrap;
   }
   .small {
     font-size: 0.8125rem;
     color: var(--ink-2);
   }
   .run {
-    grid-area: run;
+    flex: 0 1 230px;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -347,36 +381,19 @@
     cursor: default;
     opacity: 0.55;
   }
-  .hint {
-    grid-area: hint;
-    margin: 0;
-    font-size: 0.8125rem;
-    color: var(--ink-3);
-  }
-
   /* The terminal window: dark in both themes */
   @media (max-width: 640px) {
     .head {
       margin-bottom: var(--space-4);
     }
-    .lede {
-      font-size: 0.875rem;
+    .menu {
+      padding: var(--space-1) var(--space-3);
     }
-    .logins {
-      gap: var(--space-2);
-    }
-    .login {
-      grid-template-columns: auto 1fr auto;
-      grid-template-areas: 'mark who run';
-      padding: var(--space-3);
-    }
-    .hint {
+    .what .meta {
       display: none;
     }
-    .who .status {
-      white-space: nowrap;
-    }
     .run {
+      flex: none;
       gap: 4px;
     }
     .run code {

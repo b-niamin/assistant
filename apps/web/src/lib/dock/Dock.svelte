@@ -189,6 +189,10 @@
       <a class="chip" href="/settings#up-h" title="Rebuilding: {status.update.actions}">
         <span class="status small warning pulse">Updating to {status.update.sha}</span>
       </a>
+    {:else if status?.update?.state === 'available'}
+      <a class="chip" href="/settings#up-h" title="A new version is on GitHub: update it from System settings">
+        <span class="status small available">Update available</span>
+      </a>
     {:else if status?.update?.state === 'stale'}
       <a class="chip" href="/settings#up-h" title="The auto-update has not run for a while: new commits are not deployed">
         <span class="status small critical">Updates stopped</span>
@@ -349,6 +353,9 @@
   }
   .chip + .remote {
     margin-left: 0;
+  }
+  .chip .available::before {
+    background: var(--accent);
   }
   .chip:hover {
     color: var(--ink);

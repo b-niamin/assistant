@@ -281,7 +281,7 @@ doctor() {
   else
     st=$(sh scripts/auto-update.sh status "$DIR" 2>/dev/null | sed -n 's/.*"status":"\([^"]*\)".*"message":"\([^"]*\)".*/\1: \2/p' | head -n 1)
     case $st in
-      ok:* | updating:*) ok "auto-update: ${st#*: }" ;;
+      ok:* | updating:* | available:*) ok "auto-update: ${st#*: }" ;;
       "") ok "auto-update is set up ($home)" ;;
       *) w "auto-update $st" ;;
     esac

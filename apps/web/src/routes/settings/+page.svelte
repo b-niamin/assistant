@@ -205,13 +205,23 @@
     {#if data.updates}
       {@const u = data.updates}
       {@const state = data.updatesStale ? 'stale' : u.status}
+      <!-- Clicked after the last status: the updater has not picked it up yet. -->
+      {@const pending = !!data.updateControl.request && Date.parse(data.updateControl.request) > Date.parse(u.at)}
       <div class="card updates">
-        <p class="upstate">
+        <div class="upstate">
           <span class="dot {state}" class:pulse={state === 'updating'} aria-hidden="true"></span>
           <strong>
-            {state === 'stale' ? 'The updater is not running' : state === 'updating' ? `Updating to ${short(u.sha)}` : state === 'ok' ? 'Up to date' : state === 'failed' ? 'Last update failed' : 'Updates paused'}
+            {state === 'stale' ? 'The updater is not running' : state === 'updating' ? `Updating to ${short(u.sha)}` : state === 'available' ? `Update available: ${short(u.sha)}` : state === 'ok' ? 'Up to date' : state === 'failed' ? 'Last update failed' : 'Updates paused'}
           </strong>
-        </p>
+          {#if state !== 'updating' && state !== 'stale'}
+            <form method="POST" action="?/updateNow" use:enhance class="now">
+              <button class="btn" class:btn-primary={state === 'available' || state === 'failed'} disabled={pending}>
+                {pending ? 'Requested…' : 'Update now'}
+              </button>
+            </form>
+          {/if}
+        </div>
+        {#if pending}<p class="meta">Requested {when(data.updateControl.request)}: it starts at the updater's next run (every minute or five, as its task is set).</p>{/if}
         {#if state === 'stale'}
           <p class="meta">
             No sign of it since {when(u.checkedAt || u.at)}, so new commits on {u.branch} are not deployed. Its scheduled task must run
@@ -229,7 +239,15 @@
           <dt>Last check</dt><dd>{u.checkedAt ? when(u.checkedAt) : 'not reported'}</dd>
           {#if u.actions && state !== 'updating'}<dt>Last actions</dt><dd><code>{u.actions}</code></dd>{/if}
         </dl>
-        <p class="meta">The host pulls {u.branch} from GitHub every 5 minutes and rebuilds only what changed. <a href="/settings/logs?file=updater.log">Updater log</a></p>
+        <form method="POST" action="?/updateMode" use:enhance class="mode" aria-label="Update mode">
+          <label><input type="radio" name="mode" value="auto" checked={data.updateControl.mode === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Automatic</label>
+          <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Manual: show new versions, update when I click</label>
+          <noscript><button class="btn">Save</button></noscript>
+        </form>
+        <p class="meta">
+          The host checks {u.branch} on GitHub at every run of its scheduled task and rebuilds only what changed.
+          <a href="/settings/logs?file=updater.log">Updater log</a>
+        </p>
       </div>
     {:else}
       <p class="muted">
@@ -498,6 +516,23 @@
   }
   .dot.failed {
     background: var(--critical);
+  }
+  .upstate .now {
+    margin: 0 0 0 auto;
+  }
+  .mode {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    font-size: 0.875rem;
+  }
+  .mode label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot.available {
+    background: var(--accent);
   }
   .dot.blocked,
   .dot.updating {

@@ -126,3 +126,13 @@ change and the last check; with no sign of life for 20 minutes it says the updat
 does the dock ("Updates stopped"). While a deploy builds, the status is `updating` (with its actions):
 Updates and the dock show "Updating to <sha>". `./beni.sh doctor` warns when no tick ran for 15 minutes.
 All logs in `/logs` are readable in System settings → Logs (each file, or all merged by time).
+
+## Manual mode ("Update now")
+
+System settings → Updates switches between Automatic and Manual. The app writes `/logs/updater-control`
+(`mode=auto|manual`, and `request=<time>` when "Update now" is clicked); the updater reads it as root on its
+next tick and never runs anything from it. In manual mode a tick only fetches and, when main moved, writes
+status `available` (Updates and the dock show "Update available"); a request deploys main (retrying a commit
+that failed) and is handled once (`handled=` in the state). Set the scheduled task to every minute so a
+click starts within a minute. Builds write their output to `/logs/updater-build.log` while they run, and the
+updater log gets the "main at …" line before the build starts.

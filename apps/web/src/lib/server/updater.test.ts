@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, it } from 'vitest';
-import { isStale, parseUpdaterStatus, updaterStatus } from './updater';
+import { isStale, parseControl, parseUpdaterStatus, setUpdaterControl, updaterControl, updaterStatus } from './updater';
 
 const sample = {
   status: 'ok',
@@ -44,4 +44,13 @@ it('reads the heartbeat next to the status and tells a stopped updater', async (
   expect(fresh.checkedAt).toBe('2026-11-06T20:25:00Z');
   expect(isStale(fresh, Date.parse('2026-11-06T20:30:00Z'))).toBe(false);
   expect(isStale({ ...old, status: 'updating' }, Date.parse('2026-11-07T20:30:00Z'))).toBe(false);
+});
+
+it('keeps the manual mode and the update request for the host', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'upd-'));
+  const file = path.join(dir, 'updater-status.json');
+  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '' });
+  await setUpdaterControl({ mode: 'manual', request: '2026-11-09T15:30:00.000Z' }, file);
+  expect(await updaterControl(file)).toEqual({ mode: 'manual', request: '2026-11-09T15:30:00.000Z' });
+  expect(parseControl('mode=manual\nrequest=$(reboot)\n')).toEqual({ mode: 'manual', request: '' });
 });

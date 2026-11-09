@@ -125,7 +125,7 @@ heartbeat() {
   fi
 }
 
-# status <ok|failed|blocked|updating> <message> <actions>
+# status <ok|failed|blocked|updating|available> <message> <actions>
 write_status() {
   {
     printf '{"status":%s,' "$(json_str "$1")"
@@ -141,8 +141,19 @@ write_status() {
 
 state_get() { sed -n "s/^$1=//p" "$STATE" 2>/dev/null | head -n 1; }
 state_save() {
-  printf 'deployed=%s\ndeployed_at=%s\nfailed=%s\nnote=%s\n' "$DEPLOYED" "$DEPLOYED_AT" "$FAILED" "$NOTE" > "$STATE.tmp" &&
+  printf 'deployed=%s\ndeployed_at=%s\nfailed=%s\nnote=%s\nhandled=%s\n' "$DEPLOYED" "$DEPLOYED_AT" "$FAILED" "$NOTE" "${HANDLED:-}" > "$STATE.tmp" &&
     mv "$STATE.tmp" "$STATE"
+}
+
+# The app's choice (System settings -> Updates), in the logs volume: `mode=auto|manual` and
+# `request=<id>` when "Update now" was clicked. Read directly (root); without access: automatic.
+read_control() {
+  MODE=auto REQUEST=""
+  mp=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_logs" 2>/dev/null || true)
+  [ -n "$mp" ] && [ -r "$mp/updater-control" ] || return 0
+  MODE=$(sed -n 's/^mode=//p' "$mp/updater-control" | grep -x -e auto -e manual | tail -n 1)
+  REQUEST=$(sed -n 's/^request=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$mp/updater-control" | tail -n 1)
+  [ -n "$MODE" ] || MODE=auto
 }
 
 setup_paths() {
@@ -223,7 +234,12 @@ cmd_run() {
   trap 'rm -rf "$LOCK" ${SRC:+"$SRC"}' EXIT INT TERM
 
   DEPLOYED=$(state_get deployed) DEPLOYED_AT=$(state_get deployed_at) FAILED=$(state_get failed) NOTE=$(state_get note)
+  HANDLED=$(state_get handled)
   SHA=""
+  read_control
+  # A click on "Update now" counts once, and retries a commit that failed before.
+  requested=0
+  if [ -n "$REQUEST" ] && [ "$REQUEST" != "$HANDLED" ]; then requested=1 HANDLED=$REQUEST FORCE=1; fi
 
   if ! mirror_git fetch -q --prune origin 2>"$HOME_DIR/fetch.err"; then
     msg="fetch failed: $(tail -n 1 "$HOME_DIR/fetch.err")"
@@ -231,6 +247,22 @@ cmd_run() {
     exit 1
   fi
   SHA=$(mirror_git rev-parse -q --verify "refs/heads/$BRANCH^{commit}") || die "no branch $BRANCH in the mirror"
+  short=${SHA%"${SHA#???????}"}
+
+  # Clicked while nothing is new: say so, once.
+  if [ "$requested" = 1 ] && [ "$SHA" = "$DEPLOYED" ]; then
+    NOTE="" FAILED=""; log "update requested: already at $short"; write_status ok "up to date" ""; state_save; flush_log
+    exit 0
+  fi
+  # Manual mode: only tell the app what is waiting; deploy when asked.
+  if [ "$MODE" = manual ] && [ "$requested" = 0 ] && [ "$SHA" != "$DEPLOYED" ]; then
+    if [ "$NOTE" != "available:$SHA" ]; then
+      n=$(mirror_git rev-list --count "$DEPLOYED..$SHA" 2>/dev/null || echo "")
+      NOTE="available:$SHA"; write_status available "update available: $short${n:+ ($n new commit$( [ "$n" = 1 ] || echo s))}" ""
+      state_save
+    fi
+    exit 0
+  fi
 
   # Nothing new, or this commit already failed: stay quiet until main moves (FORCE=1 retries).
   if [ "${FORCE:-0}" != 1 ] && { [ "$SHA" = "$DEPLOYED" ] || [ "$SHA" = "$FAILED" ]; }; then
@@ -290,11 +322,15 @@ cmd_run() {
     changed=docker-compose.yml # unknown base: treat as a full deploy
   fi
   actions=$(printf '%s\n' "$changed" | plan | tr '\n' ' ' | sed 's/ $//')
-  short=${SHA%"${SHA#???????}"}
   log "main at $short (was ${base%"${base#???????}"}): $(printf '%s\n' "$changed" | grep -c .) file(s) changed; actions: ${actions:-none}"
 
-  # Builds take minutes on a NAS: the app shows "updating" meanwhile.
+  # Builds take minutes on a NAS: the app shows "updating" meanwhile, the log says what started, and
+  # the build's own output goes to /logs/updater-build.log as it runs (root; else the updater home).
   [ -z "$actions" ] || write_status updating "updating to $short" "$actions"
+  flush_log
+  mp=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_logs" 2>/dev/null || true)
+  if [ -n "$mp" ] && [ -w "$mp" ]; then BUILD_LOG=$mp/updater-build.log; else BUILD_LOG=$HOME_DIR/build.log; fi
+  printf '%s build for %s: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$short" "${actions:-none}" >"$BUILD_LOG" 2>/dev/null || BUILD_LOG=/dev/null
   if deploy "$actions"; then
     DEPLOYED=$SHA DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) FAILED="" NOTE=""
     log "deployed $short"
@@ -348,14 +384,14 @@ deploy() {
     fi
     STEP="build"
     if [ "$all" = 1 ]; then
-      dc_build || return 1
+      dc_build >>"$BUILD_LOG" 2>&1 || return 1
       STEP="docker compose up"
       dc up -d --no-build || return 1
       # Every container was just reconciled with the new config; restarts are still needed for the
       # ones whose code changed but whose config did not.
     else
       # shellcheck disable=SC2086
-      dc_build $builds || return 1
+      dc_build $builds >>"$BUILD_LOG" 2>&1 || return 1
       STEP="docker compose up"
       # shellcheck disable=SC2086
       dc up -d --no-build --no-deps $builds || return 1

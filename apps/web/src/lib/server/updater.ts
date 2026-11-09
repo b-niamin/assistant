@@ -3,11 +3,11 @@
  * /logs/updater-status.json in the shared `logs` volume, and a timestamp on every tick to
  * /logs/updater-heartbeat; this only reads them.
  */
-import { readFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export interface UpdaterStatus {
-  status: 'ok' | 'failed' | 'blocked' | 'updating';
+  status: 'ok' | 'failed' | 'blocked' | 'updating' | 'available';
   message: string;
   actions: string;
   sha: string;
@@ -19,7 +19,7 @@ export interface UpdaterStatus {
   checkedAt: string;
 }
 
-const STATUSES = new Set(['ok', 'failed', 'blocked', 'updating']);
+const STATUSES = new Set(['ok', 'failed', 'blocked', 'updating', 'available']);
 /** The updater ticks every 5 minutes: no sign of life for this long means its schedule does not run. */
 export const STALE_MS = 20 * 60_000;
 const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -62,4 +62,33 @@ export async function updaterStatus(file = process.env.UPDATER_STATUS_FILE ?? '/
   } catch {
     return null;
   }
+}
+
+/**
+ * The app's side of updating (spec 006): `mode=auto|manual` and, after "Update now", `request=<id>`, in
+ * /logs/updater-control. The host's updater reads it on its next tick; it never runs anything from it.
+ */
+export interface UpdaterControl {
+  mode: 'auto' | 'manual';
+  /** When "Update now" was last clicked (ISO), '' if never. */
+  request: string;
+}
+
+const controlFile = (statusFile: string) => path.join(path.dirname(statusFile), 'updater-control');
+const STATUS_FILE = () => process.env.UPDATER_STATUS_FILE ?? '/logs/updater-status.json';
+
+export function parseControl(raw: string): UpdaterControl {
+  const get = (k: string) => raw.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1]?.trim() ?? '';
+  const request = get('request');
+  return { mode: get('mode') === 'manual' ? 'manual' : 'auto', request: /^[A-Za-z0-9:._-]{1,64}$/.test(request) ? request : '' };
+}
+
+export async function updaterControl(file = STATUS_FILE()): Promise<UpdaterControl> {
+  return parseControl(await readFile(controlFile(file), 'utf8').catch(() => ''));
+}
+
+export async function setUpdaterControl(c: UpdaterControl, file = STATUS_FILE()): Promise<void> {
+  const target = controlFile(file);
+  await writeFile(`${target}.tmp`, `mode=${c.mode}\n${c.request ? `request=${c.request}\n` : ''}`, { mode: 0o644 });
+  await rename(`${target}.tmp`, target);
 }

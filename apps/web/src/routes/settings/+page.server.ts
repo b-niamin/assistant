@@ -11,7 +11,7 @@ import { passwordFromEnv, passwordHash, passwordProblem, setPassword } from '#li
 import { verifyPassword } from '#lib/server/password.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
-import { isStale, updaterStatus } from '#lib/server/updater.ts';
+import { isStale, setUpdaterControl, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 import { deleteOtherSessions, dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
 
 const limiter = createLimiter(5, 15 * 60 * 1000);
@@ -20,13 +20,14 @@ const NEXT_RE = /^[a-z0-9-]+(\/[a-z0-9-]+)?$/;
 
 export const load: PageServerLoad = async ({ cookies }) => {
   if (!(await isElevated(cookies.get(SESSION_COOKIE)))) return { locked: true as const };
-  const [extensions, profiles, updates, terminal] = await Promise.all([allExtensions(), listProfiles(), updaterStatus(), terminalStatus()]);
+  const [extensions, profiles, updates, terminal, updateControl] = await Promise.all([allExtensions(), listProfiles(), updaterStatus(), terminalStatus(), updaterControl()]);
   return {
     locked: false as const,
     extensions,
     profiles,
     updates,
     updatesStale: updates ? isStale(updates) : false,
+    updateControl,
     terminal: { ...terminal, configured: sidecarsConfigured() },
     passwordFromEnv: passwordFromEnv()
   };
@@ -55,6 +56,22 @@ export const actions: Actions = {
   lock: async ({ cookies }) => {
     await dropElevation(cookies.get(SESSION_COOKIE));
     return { ok: 'Locked.' };
+  },
+
+  /** Automatic or manual updates; the host's updater reads it on its next tick (spec 006). */
+  updateMode: async ({ request, cookies }) => {
+    if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
+    const mode = str(await request.formData(), 'mode') === 'manual' ? 'manual' : 'auto';
+    await setUpdaterControl({ ...(await updaterControl()), mode });
+    return { ok: mode === 'manual' ? 'Manual updates: the app shows new versions and waits for "Update now".' : 'Automatic updates.' };
+  },
+
+  /** "Update now": a request the updater acts on at its next tick (it deploys GitHub main, nothing else). */
+  updateNow: async ({ cookies }) => {
+    if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
+    await setUpdaterControl({ ...(await updaterControl()), request: new Date().toISOString() });
+    console.log(`[settings] ${new Date().toISOString()} update requested`);
+    return { ok: 'Update requested: it starts at the updater\'s next run.' };
   },
 
   password: async ({ request, cookies }) => {

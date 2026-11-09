@@ -25,7 +25,8 @@
       const state: Remote = status?.reachable ? status.remote[r.id] : 'off';
       const background = !!status?.background?.[r.id];
       const reason = status?.reasons?.[r.id] ?? '';
-      return { ...r, state, background, reason, up: state === 'running' || background, signedIn: !!status?.[r.id] };
+      // A Codex daemon keeps running while OpenAI refuses it: a known failure means it is not up.
+      return { ...r, state, background, reason, up: (state === 'running' || background) && !reason, signedIn: !!status?.[r.id] };
     })
   );
   const upCount = $derived(agents.filter((a) => a.up).length);
@@ -46,6 +47,21 @@
       await refreshDock();
     } finally {
       starting = '';
+    }
+  }
+
+  /** A pairing code for a device (ChatGPT/Codex app) from the Codex daemon. */
+  let pairing = $state(false);
+  let pairText = $state('');
+  async function pairCodex() {
+    pairing = true;
+    pairText = '';
+    try {
+      const res = await fetch('/dock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pair: 'codex' }) });
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; text?: string; message?: string } | null;
+      pairText = res.ok ? body?.text || 'No code came back.' : (body?.message ?? 'Could not get a code.');
+    } finally {
+      pairing = false;
     }
   }
 
@@ -97,12 +113,21 @@
                 {:else}{LABEL[a.state]}{/if}
               </span>
             </span>
+            {#if a.up && a.id === 'codex'}
+              {#if status?.unlocked}
+                <button type="button" class="btn small-btn" disabled={pairing} onclick={pairCodex} title="A short-lived code to connect another device">
+                  {pairing ? 'Asking…' : 'Pair a device'}
+                </button>
+              {:else}
+                <button type="button" class="btn small-btn" onclick={openTerminal} title="Pairing needs the app password">Unlock to pair</button>
+              {/if}
+            {/if}
             {#if !a.up}
               {#if !a.signedIn || a.reason}
                 <button type="button" class="btn small-btn" onclick={() => (runInDock(a.reason && a.id === 'codex' ? `codex logout; ${a.login}` : a.login), (menuOpen = false))}>{a.reason ? 'Sign in again' : 'Sign in'}</button>
               {:else if !status?.unlocked}
                 <button type="button" class="btn small-btn" onclick={openTerminal} title="Starting it needs the app password">Unlock to start</button>
-              {:else}
+              {:else if a.id === 'claude'}
                 <button type="button" class="btn btn-primary small-btn" disabled={starting !== ''} onclick={() => startRemote(a.id)}>
                   {starting === a.id ? 'Starting…' : 'Start in background'}
                 </button>
@@ -117,7 +142,13 @@
         <p class="bad">The terminal container is not answering.</p>
       {/if}
       {#if startError}<p class="bad" role="alert">{startError}</p>{/if}
-      <p class="meta foot">The llm container starts these on its own once you are signed in. A background one runs in the terminal container until it restarts.</p>
+      {#if pairText}
+        <div class="pair">
+          <p class="meta">Codex pairing (enter the code in the ChatGPT or Codex app; it expires soon):</p>
+          <pre>{pairText}</pre>
+        </div>
+      {/if}
+      <p class="meta foot">The llm container starts these on its own once you are signed in. A Claude started in the background runs in the terminal container until it restarts.</p>
     </div>
   {/if}
 </div>
@@ -224,5 +255,18 @@
       top: 64px;
       width: auto;
     }
+  }
+  .pair {
+    margin-top: var(--space-2);
+  }
+  .pair pre {
+    margin: var(--space-1) 0 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    font: 0.8125rem/1.5 var(--mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    user-select: all;
   }
 </style>

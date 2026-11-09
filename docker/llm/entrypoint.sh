@@ -89,11 +89,22 @@ remote_in_tmux() {
   done
 }
 claude_remote() { remote_in_tmux claude claude remote-control; }
-codex_remote() { remote_in_tmux codex codex remote-control --no-daemon; }
+# Codex runs as its own daemon (`codex remote-control start`): only then does it have the control socket
+# that `codex remote-control pair` (the app's "Pair a device") talks to. It keeps retrying by itself; this
+# loop watches its pid and starts it again when it is gone. Its log: ~/.codex/app-server-daemon/daemon.stderr.log.
+codex_remote() {
+  codex remote-control start >>"$STATE_DIR/codex.log" 2>&1
+  pidfile=${CODEX_HOME:-$HOME/.codex}/app-server-daemon/daemon.pid
+  sleep 5
+  # daemon.pid is JSON: {"pid":258,...}.
+  while pid=$(sed -n 's/^{"pid":\([0-9]*\).*/\1/p' "$pidfile" 2>/dev/null) && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; do sleep 10; done
+}
 
 : >"$STATE_DIR/claude.log"
 if command -v codex >/dev/null; then
   : >"$STATE_DIR/codex.log"
+  # A daemon from before this container (its pid file is in the shared home) is not running here.
+  codex remote-control stop >/dev/null 2>&1
   supervise codex codex_remote </dev/null &
 fi
 supervise claude claude_remote

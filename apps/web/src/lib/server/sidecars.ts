@@ -71,6 +71,20 @@ export async function startBackgroundRemote(agent: 'claude' | 'codex', sid: stri
   }
 }
 
+/** A short-lived code to pair a device with the Codex daemon in the llm container (needs a ticket). */
+export async function codexPairingCode(sid: string): Promise<{ ok: boolean; text: string } | null> {
+  const addr = env.TERMINAL_ADDR ?? 'terminal:7681';
+  const query = new URLSearchParams({ ticket: ticketFor('terminal', sid) });
+  try {
+    const res = await fetch(`http://${addr}/remote/pair?${query}`, { method: 'POST', signal: AbortSignal.timeout(25_000) });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { ok?: unknown; text?: unknown };
+    return { ok: body.ok === true, text: typeof body.text === 'string' ? body.text.slice(0, 2000) : '' };
+  } catch {
+    return null;
+  }
+}
+
 /** The browser container's own health: is its noVNC endpoint up? */
 export async function browserReachable(): Promise<boolean> {
   const addr = env.BROWSER_VNC_ADDR ?? 'browser:6080';

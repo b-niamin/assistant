@@ -80,7 +80,8 @@ function remoteState(file, now = Date.now()) {
 }
 
 /** Remote Control started from the app in the background: a detached tmux session per agent. */
-const REMOTE_COMMANDS = { claude: 'claude remote-control', codex: 'codex remote-control --no-daemon' };
+// Claude only: Codex runs as a daemon in the llm container, and a second one on the same home would clash.
+const REMOTE_COMMANDS = { claude: 'claude remote-control' };
 const tmuxConf = () => path.join(HERE, 'tmux.conf');
 const backgroundRuns = (agent) =>
   spawnSync('tmux', ['-f', tmuxConf(), 'has-session', '-t', `=remote-${agent}`], { env: shellEnv(), stdio: 'ignore' }).status === 0;
@@ -126,6 +127,21 @@ function logTail(file, bytes = 16384) {
 
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://terminal');
+  // A short-lived code to pair a device with the Codex daemon (its control socket is in the shared home).
+  if (req.method === 'POST' && url.pathname === '/remote/pair') {
+    if (!verify(url.searchParams.get('ticket'), 'terminal')) {
+      res.statusCode = 403;
+      res.end();
+      return;
+    }
+    const r = spawnSync('codex', ['remote-control', 'pair'], { cwd: WORKSPACE, env: shellEnv(), encoding: 'utf8', timeout: 20_000 });
+    // eslint-disable-next-line no-control-regex
+    const text = `${r.stdout ?? ''}${r.stderr ?? ''}`.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').trim().slice(0, 2000);
+    log(`codex pairing code requested: ${r.status === 0 ? 'ok' : 'failed'}`);
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: r.status === 0, text }));
+    return;
+  }
   if (req.method === 'POST' && url.pathname === '/remote') {
     const agent = url.searchParams.get('agent') ?? '';
     // Same single-use ticket as a shell: only the web app, for an unlocked session, can start one.
@@ -155,7 +171,8 @@ const server = createServer((req, res) => {
         background: { claude: backgroundRuns('claude'), codex: backgroundRuns('codex') },
         reasons: {
           claude: remoteReason(logTail(path.join(HOME, '.beni/remote/claude.log'))),
-          codex: remoteReason(logTail(path.join(HOME, '.beni/remote/codex.log')))
+          // The daemon's own log: only its end, an older failure may have been fixed since.
+          codex: remoteReason(logTail(path.join(process.env.CODEX_HOME || path.join(HOME, '.codex'), 'app-server-daemon/daemon.stderr.log'), 4096))
         }
       })
     );

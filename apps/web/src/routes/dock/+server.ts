@@ -9,7 +9,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
-import { sidecarsConfigured, startBackgroundRemote, terminalStatus } from '#lib/server/sidecars.ts';
+import { codexPairingCode, sidecarsConfigured, startBackgroundRemote, terminalStatus } from '#lib/server/sidecars.ts';
 import { updateView, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 
 export const GET: RequestHandler = async ({ cookies, locals }) => {
@@ -33,8 +33,14 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
   const sid = cookies.get(SESSION_COOKIE);
   if (!locals.authenticated || !sid || !(await isElevated(sid))) throw error(403, 'Re-enter the password first.');
   if (!sidecarsConfigured()) throw error(503, 'SIDECAR_TICKET_SECRET is not set.');
-  const { start } = (await request.json().catch(() => ({}))) as { start?: string };
-  if (start !== 'claude' && start !== 'codex') throw error(400, 'Unknown agent.');
+  const { start, pair } = (await request.json().catch(() => ({}))) as { start?: string; pair?: string };
+  if (pair === 'codex') {
+    console.log(`[dock] ${new Date().toISOString()} codex pairing code requested`);
+    const r = await codexPairingCode(sid);
+    if (!r) throw error(502, 'The terminal container did not answer (an update still building?).');
+    return json(r, { headers: { 'cache-control': 'no-store' } });
+  }
+  if (start !== 'claude') throw error(400, 'Only Claude starts in the background; Codex runs as a daemon in the llm container.');
   console.log(`[dock] ${new Date().toISOString()} start ${start} remote-control in the background`);
   const code = await startBackgroundRemote(start, sid);
   if (code === 404)

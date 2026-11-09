@@ -20,8 +20,10 @@ Codex works the same way: after `codex login --device-auth` (in that terminal) t
 one's state: it reads `~/.beni/remote/<agent>.json`, which the entrypoint keeps up to date.
 
 Both show up as `beni-assistant` (`ASSISTANT_HOSTNAME` in `.env` changes it),
-not under a random container id. Both run in detached tmux sessions (`remote-claude`, `remote-codex`): Codex stops without a terminal, and
-Claude's first-run question "Enable Remote Control? (y/n)" is answered y by the entrypoint. Output: the
+not under a random container id. Claude runs in a detached tmux session (`remote-claude`); its first-run question "Enable Remote Control?
+(y/n)" is answered y by the entrypoint. Codex runs as its own daemon (`codex remote-control start`, log in
+`~/.codex/app-server-daemon/daemon.stderr.log`), which `codex remote-control pair` and the app's Remote menu
+("Pair a device") need. Codex's enrollment needs a ChatGPT account with multi-factor authentication. Output: the
 container log and `~/.beni/remote/<agent>.log`; live with `docker compose exec llm tmux attach -t remote-claude`.
 
 Logs: `docker compose logs -f llm`.

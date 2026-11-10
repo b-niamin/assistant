@@ -883,7 +883,7 @@ cmd_status() {
   fi
   say "running commit: $(short "$DEPLOYED") since ${DEPLOYED_AT:-?}"
   [ -z "$S_pending" ] || say "waiting for a restart: $(pending_services) (sudo ./beni.sh update --restart)"
-  say "last run: $(cat "$HOME_DIR/last-run" 2>/dev/null || echo never) (the schedule should run it every minute)"
+  say "last run: $(cat "$HOME_DIR/last-run" 2>/dev/null || echo never) (the schedule should run it every minute, all day)"
   [ ! -f "$HOME_DIR/last-error" ] || say "last error: $(cat "$HOME_DIR/last-error")"
   [ -z "$LOGS_MP" ] || [ ! -r "$LOGS_MP/updater-control" ] || say "mode: $(sed -n 's/^mode=//p' "$LOGS_MP/updater-control" | tail -n 1)"
 }
@@ -958,7 +958,8 @@ cmd_install() {
   Synology: add the schedule once in DSM (or change the command of the existing task):
     Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script
       General:   Task "assistant update", User: root
-      Schedule:  Daily, Frequency: every minute (first run 00:00, last run 23:59)
+      Schedule:  Daily, Frequency: every minute, first run time 00:00, last run time 23:59
+                 (DSM proposes 00:59: then it only runs in the first hour of the day)
       Task Settings > Run command:
         $cmd
 

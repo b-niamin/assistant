@@ -293,7 +293,7 @@ doctor() {
     if [ -n "$mp" ] && [ -f "$mp/updater-heartbeat" ] && [ -n "$(find "$mp/updater-heartbeat" -mmin -15 2>/dev/null)" ]; then
       ok "the updater ran in the last 15 minutes"
     elif [ -n "$mp" ]; then
-      w "the updater has not run in the last 15 minutes: the schedule must run  sh $home/update.sh  (as root, every minute)"
+      w "the updater has not run in the last 15 minutes: the schedule must run  sh $home/update.sh  (as root, every minute; DSM: last run time 23:59, not 00:59)"
     fi
   fi
   doctor_end

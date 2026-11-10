@@ -406,7 +406,7 @@ if (quietly "Updates from GitHub main" sh scripts/update.sh install $manual "$DI
   updater="${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}/update.sh"
   if [ -f /etc/synoinfo.conf ]; then
     say "Add it once in DSM: Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script,"
-    say "user root, daily every minute, command:  sh $updater"
+    say "user root, daily every minute, first run 00:00, last run time 23:59 (not 00:59), command:  sh $updater"
   fi
 else
   say "Updater not set up; later: sudo ./beni.sh update"
@@ -475,7 +475,7 @@ ask _ "Press Enter when the setup page says you are done" ""
 if [ -d /volume1 ]; then
   step "update schedule (Synology)"
   printf '  DSM: Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script.\n' > /dev/tty
-  printf '  User root, daily, every minute, and the command printed above by [update].\n' > /dev/tty
+  printf '  User root, daily, every minute, first run 00:00, last run time 23:59 (not 00:59),\n  and the command printed above by [update].\n' > /dev/tty
   ask _ "Press Enter when the task is saved" ""
 fi
 

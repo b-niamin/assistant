@@ -81,7 +81,7 @@ extension that brings a background service.
    and another tailnet port, and its own compose project name keeps its containers and volumes separate. The checkout
    belongs to you (the user who ran `sudo`); the first build takes 10-20 minutes on a small NAS.
 4. **Updates**: the installer prints a Task Scheduler entry. Control Panel → Task Scheduler → Create
-   → Scheduled Task → User-defined script, user `root`, daily, every minute, with the printed command
+   → Scheduled Task → User-defined script, user `root`, daily, every minute from 00:00 to **23:59** (the *Last run time*; the default 00:59 stops it after the first hour), with the printed command
    (`sh /volume1/docker/assistant-updater/update.sh`). It updates by itself, or only when you click
    Update in System settings if you chose manual updates.
 5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and

@@ -255,7 +255,7 @@
         </div>
         {#if v.unanswered}
           <p class="meta bad">
-            Requested {when(data.updateControl.request)}, but the updater has not taken it: is its scheduled task running every minute?
+            Requested {when(data.updateControl.request)}, but the updater has not taken it: is its scheduled task running every minute, all day? (In DSM its last run time must be 23:59.)
             On the host, <code>sudo ./beni.sh update</code> updates right away.
           </p>
         {:else if v.pending}
@@ -264,7 +264,8 @@
         {#if state === 'stale'}
           <p class="meta">
             No sign of it since {when(u.checkedAt || u.at)}, so new commits on {u.branch} are not deployed. Its scheduled task must run
-            <code>sh &lt;folder&gt;-updater/update.sh</code> as root every minute; <code>sudo ./beni.sh doctor</code> checks it, and
+            <code>sh &lt;folder&gt;-updater/update.sh</code> as root every minute, all day (DSM Task Scheduler: daily, every minute, first run 00:00, <strong>last run time 23:59</strong>);
+            <code>sudo ./beni.sh doctor</code> checks it, and
             <code>sudo ./beni.sh auto-update install</code> prints the exact command. <code>sudo ./beni.sh update</code> updates by hand.
           </p>
         {:else if state === 'updating' || state === 'interrupted'}

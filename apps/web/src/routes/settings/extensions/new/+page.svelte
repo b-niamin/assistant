@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import Mascot from '#lib/Mascot.svelte';
   import { runInDock } from '#lib/dock/dock.svelte.ts';
-  import { agentCommand, claudeCommand, hueFor, inspirationPrompt, installCommand, newAppPrompt } from '#lib/settings/guide.ts';
+  import { claudeCommand, hueFor, inspirationPrompt, installCommand } from '#lib/settings/guide.ts';
   import { guessAccessory } from '#lib/mascot.ts';
 
   let { data } = $props();
@@ -11,7 +11,13 @@
   const installed = $derived(polled ?? data.installed);
   const installedIds = $derived(installed.map((e) => e.id));
   const ready = $derived(data.catalog.extensions.filter((e) => !installedIds.includes(e.id)));
-  let idea = $state('');
+  // Only the agents signed in to the terminal; if none is, name both so it is clear what to sign in to.
+  const AGENTS = [
+    { id: 'claude', name: 'Claude' },
+    { id: 'codex', name: 'Codex' }
+  ] as const;
+  const signedIn = $derived(AGENTS.filter((a) => data.agents[a.id]));
+  const agents = $derived(signedIn.length ? signedIn : AGENTS);
   // Apps that appeared while this page was open (built or installed in the dock's terminal).
   let fresh = $state<{ id: string; name: string; href: string }[]>([]);
 
@@ -45,7 +51,7 @@
     <h1>Extend the system</h1>
   </div>
   <div class="pip">
-    <p class="bubble">Install an app, or tell me what to build!</p>
+    <p class="bubble">Install an app, or build your own!</p>
     <Mascot mood="charged" size={96} decorative />
   </div>
 </div>
@@ -124,12 +130,15 @@
 {/each}
 
 <section class="block own card" aria-labelledby="own-h">
-  <h2 id="own-h">Or tell me what to build</h2>
-  <textarea bind:value={idea} rows="3" placeholder="A tracker for the kids' chores, with a weekly star chart…"></textarea>
-  <div class="go">
-    <button type="button" class="btn btn-primary" disabled={!idea.trim()} onclick={() => runInDock(claudeCommand(newAppPrompt(idea)))}>Build with Claude</button>
-    <button type="button" class="btn" disabled={!idea.trim()} onclick={() => runInDock(agentCommand('codex', newAppPrompt(idea)))}>Build with Codex</button>
-    <span class="meta">It runs in the terminal at the bottom; answer there if it asks something.</span>
+  <Mascot mood="steady" size={40} decorative />
+  <div class="grow">
+    <h2 id="own-h">Build your own</h2>
+    <p class="meta">
+      Ask
+      {#each agents as a, n (a.id)}{#if n > 0} or {/if}<button type="button" class="agent" title="Open {a.name} in the terminal" onclick={() => runInDock(a.id)}>{a.name}</button>{/each}
+      in the terminal to build your own extension.
+      {#if !signedIn.length}Sign in there first.{/if}
+    </p>
   </div>
 </section>
 
@@ -199,22 +208,27 @@
     background: var(--hue);
   }
   .own {
-    display: grid;
+    display: flex;
+    align-items: center;
     gap: var(--space-3);
     padding: var(--space-4);
   }
   .own h2 {
-    margin: 0;
+    margin: 0 0 var(--space-1);
+    font-size: 1.125rem;
   }
-  .own textarea {
-    width: 100%;
-    resize: vertical;
+  .agent {
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--ring);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
   }
-  .own .go {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
+  .agent:hover {
+    border-color: var(--accent);
   }
   .block {
     margin-bottom: var(--space-5);

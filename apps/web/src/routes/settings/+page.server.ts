@@ -21,7 +21,8 @@ const limiter = createLimiter(5, 15 * 60 * 1000);
 /** Where unlock goes next (?next=profiles): a settings sub-page, nothing else. */
 const NEXT_RE = /^[a-z0-9-]+(\/[a-z0-9-]+)?$/;
 
-export const load: PageServerLoad = async ({ cookies, locals }) => {
+export const load: PageServerLoad = async ({ cookies, locals, depends }) => {
+  depends('app:updates');
   if (!(await isElevated(cookies.get(SESSION_COOKIE)))) return { locked: true as const };
   const [all, profiles, updates, terminal, updateControl, agent, languages, backup] = await Promise.all([
     allExtensions(),
@@ -49,7 +50,8 @@ export const load: PageServerLoad = async ({ cookies, locals }) => {
     updates,
     updateView: updates ? updateView(updates, updateControl) : null,
     // main on GitHub right now (null when it does not answer): a newer commit shows "Update" at once.
-    latestSha: updates?.repo ? await latestOnGithub(updates.repo, updates.branch) : null,
+    // Streamed: the page does not wait up to 4 s for GitHub (or for no internet) before it shows.
+    latestSha: updates?.repo ? latestOnGithub(updates.repo, updates.branch).catch(() => null) : null,
     updateControl,
     buildTail: updates?.status === 'updating' || updates?.status === 'failed' ? await buildTail() : [],
     terminal: { ...terminal, configured: sidecarsConfigured() },

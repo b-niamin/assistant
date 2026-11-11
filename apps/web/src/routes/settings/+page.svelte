@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from '#lib/forms.ts';
-  import { invalidateAll } from '$app/navigation';
+  import { invalidate } from '$app/navigation';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
   import { AGENT_NAMES, askAgent, lockSession, openDock, refreshDock, runInDock } from '#lib/dock/dock.svelte.ts';
@@ -52,8 +52,17 @@
   // While an update runs or is asked for, follow it: the page reloads its data every 5 seconds.
   $effect(() => {
     if (data.locked || !(data.updates?.status === 'updating' || data.updateView?.pending || data.updateView?.restartPending)) return;
-    const t = setInterval(() => invalidateAll(), 5000);
+    const t = setInterval(() => invalidate('app:updates'), 5000);
     return () => clearInterval(t);
+  });
+
+  // GitHub's main arrives after the page (streamed from the load).
+  let latestSha = $state<string | null>(null);
+  $effect(() => {
+    const p = data.locked ? null : data.latestSha;
+    let live = true;
+    Promise.resolve(p).then((v) => live && (latestSha = v ?? null));
+    return () => (live = false);
   });
 
   const whoSees = (ids: string[] | null, profiles: { id: string; name: string }[]) =>
@@ -328,9 +337,9 @@
       {@const u = data.updates}
       {@const v = data.updateView}
       <!-- main on GitHub, asked as the page opened: a newer commit than the running one is an update now. -->
-      {@const newer = !!data.latestSha && data.latestSha !== u.deployedSha && state0(v.state)}
+      {@const newer = !!latestSha && latestSha !== u.deployedSha && state0(v.state)}
       {@const state = newer && v.state === 'ok' ? 'available' : v.state}
-      {@const target = newer ? data.latestSha! : u.sha}
+      {@const target = newer ? latestSha! : u.sha}
       {@const cancelling = !!data.updateControl.cancel && Date.parse(data.updateControl.cancel) > Date.parse(u.startedAt || u.at)}
       {@const title = {
         stale: t('The updater is not running'),
@@ -356,7 +365,7 @@
                 {cancelling ? t('Cancelling…') : t('Cancel')}
               </button>
             </form>
-          {:else if state !== 'stale' && (state !== 'ok' || !data.latestSha || v.pending)}
+          {:else if state !== 'stale' && (state !== 'ok' || !latestSha || v.pending)}
             <!-- Up to date with GitHub as of now: nothing to click. Unknown (GitHub did not answer): Update asks the updater. -->
             <form method="POST" action="?/updateNow" use:enhance class="now">
               <button class="btn" class:btn-primary={state === 'available' || state === 'failed'} disabled={v.pending}>
@@ -423,7 +432,7 @@
         <dl class="facts">
           {#if u.deployedSha}<dt>{t('Running')}</dt><dd><code>{short(u.deployedSha)}</code>{u.deployedAt ? `, ${t('deployed {when}', { when: when(u.deployedAt) })}` : ''}</dd>{/if}
           <dt>{t('Last change')}</dt><dd>{u.message}{u.at ? ` · ${when(u.at)}` : ''}</dd>
-          <dt>GitHub {u.branch}</dt><dd>{#if data.latestSha}<code>{short(data.latestSha)}</code>, {t('checked as this page opened')}{:else}{t('not reachable from the app')}{/if}</dd>
+          <dt>GitHub {u.branch}</dt><dd>{#if latestSha}<code>{short(latestSha)}</code>, {t('checked as this page opened')}{:else}{t('not reachable from the app')}{/if}</dd>
           <dt>{t('Last check')}</dt><dd>{u.checkedAt ? when(u.checkedAt) : t('not reported')}</dd>
           {#if u.actions && state !== 'updating'}<dt>{t('Last actions')}</dt><dd><code>{u.actions}</code></dd>{/if}
         </dl>

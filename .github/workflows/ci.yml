@@ -1,0 +1,100 @@
+# Checks every push and pull request (audit report T1). The same checks as scripts/hooks/pre-commit, plus
+# the migrations against a real Postgres and the ready-made extensions built and tested against this core.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Web app (tests, types)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run check
+
+  scripts:
+    name: Scripts, terminal, updater
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Shell scripts parse
+        run: for f in $(git ls-files '*.sh' scripts/hooks); do sh -n "$f"; done
+      - name: Updater plan, ACLs, funnel
+        run: sh scripts/update.test.sh
+      - name: Terminal sidecar (ticket, WebSocket, pty)
+        run: node --test services/terminal/*.test.mjs
+
+  migrations:
+    name: Migrations on Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: assistant
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: assistant
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U assistant" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: localhost
+      POSTGRES_USER: assistant
+      POSTGRES_PASSWORD: ci
+      POSTGRES_DB: assistant
+      APP_DB_PASSWORD: ci-app
+      CLAUDE_DB_PASSWORD: ci-claude
+      MIGRATIONS_DIR: db/migrations
+      ROLES_SQL: db/roles.sql
+      EXT_ROLE_SQL: db/extension-role.sql
+      EXTENSIONS_DIR: extensions
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply every migration and the roles
+        run: sh db/migrate.sh
+      - name: Apply them again (they must be idempotent)
+        run: sh db/migrate.sh
+
+  extensions:
+    name: Ready-made extensions on this core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: b-niamin/assistant-extensions
+          path: .ext
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: apps/web
+      - name: ext check (manifests, imports, routes)
+        run: EXTENSIONS_DIR=$PWD/.ext/extensions node scripts/ext.mjs check --languages pl
+      - name: Tests with the extensions
+        run: EXTENSIONS_DIR=$PWD/../../.ext/extensions npm test
+        working-directory: apps/web
+      - name: Types with the extensions
+        run: EXTENSIONS_DIR=$PWD/../../.ext/extensions npm run check
+        working-directory: apps/web

@@ -1,0 +1,20 @@
+# Dependency and base image updates as pull requests (audit report T4). Major versions of the big
+# libraries (TypeScript, xterm, postgres) are bumped by hand, one at a time.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directories: [/docker/terminal, /docker/browser]
+    schedule: { interval: weekly }
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

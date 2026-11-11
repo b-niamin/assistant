@@ -1,4 +1,4 @@
-import { agentCommand, type Agent } from '#lib/settings/guide.ts';
+import { agentCommand, shellQuote, type Agent } from '#lib/settings/guide.ts';
 
 /**
  * The dock at the bottom of every page (Dock.svelte): the one terminal in the app. Pages hand it work;
@@ -53,4 +53,13 @@ export function pickAgent(status: DockStatus | null = dock.status): Agent {
 export async function askAgent(prompt: string) {
   if (!dock.status) await refreshDock();
   runInDock(agentCommand(pickAgent(), prompt));
+}
+
+/**
+ * Start the AI CLI in a new tmux window and type a draft into its input box without Enter, for the owner
+ * to finish. scripts/agent-draft.sh waits until the CLI is up, so no key reaches the shell.
+ */
+export async function draftForAgent(draft: string) {
+  if (!dock.status) await refreshDock();
+  runInDock(`sh scripts/agent-draft.sh ${pickAgent()} ${shellQuote(draft)}`);
 }

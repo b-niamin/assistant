@@ -1,6 +1,8 @@
 /** Serves a onefile extension's HTML, with its stored data and the storage shim injected. */
 import { error } from '@sveltejs/kit';
 import { readFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
+import { gzip } from 'node:zlib';
 import path from 'node:path';
 import type { RequestHandler } from './$types';
 import { EXTENSIONS_DIR } from '#lib/extensions/generated/registry.ts';
@@ -11,15 +13,21 @@ import { themeTags } from '#lib/extensions/theme.ts';
 import { accessoryOf } from '#lib/mascot.ts';
 import { extensionById, visibleTo } from '#lib/extensions/registry.server.ts';
 
-export const GET: RequestHandler = async ({ params, locals, url }) => {
+const gzipAsync = promisify(gzip);
+
+export const GET: RequestHandler = async ({ params, locals, url, request }) => {
   const ext = await extensionById(params.id);
   if (!ext || ext.kind !== 'onefile' || !visibleTo(ext, locals.profileId)) throw error(404, 'Not found');
   if (!ext.entry) throw error(404, 'Not found');
   const html = await readFile(path.join(EXTENSIONS_DIR, ext.id, ext.entry), 'utf8');
   const [{ data, versions }, settings] = await Promise.all([kvAllVersioned(ext, locals.profileId), readSettings(ext)]);
   const body = injectShim(html, data, url.origin, settings, themeTags(undefined, undefined, accessoryOf(ext)), locals.lang, versions);
-  return new Response(body, {
+  // A onefile app can be large (Gym is ~900 KB with its pictures) and is sent on every open: compress it
+  // (adapter-node compresses only static files).
+  const gz = /\bgzip\b/.test(request.headers.get('accept-encoding') ?? '') && body.length > 4096;
+  return new Response(gz ? await gzipAsync(body) : body, {
     headers: {
+      ...(gz ? { 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' } : {}),
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Security-Policy': ONEFILE_CSP,
       'Cache-Control': 'no-store',

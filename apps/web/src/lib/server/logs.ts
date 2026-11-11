@@ -69,6 +69,12 @@ export async function readLogs(
   const found = new Map([...(await list(workerDir)), ...(await list(dir))]);
   const names = [...found.keys()].sort();
   const lines: Record<string, LogLine[]> = {};
-  for (const n of names) lines[n] = parseLog(n, await tail(found.get(n)!).catch(() => ''));
+  for (const n of names) lines[n] = parseLog(
+      n,
+      await tail(found.get(n)!).catch((e) => {
+        console.warn(`[logs] cannot read ${n}: ${e instanceof Error ? e.message : e}`);
+        return '';
+      })
+    );
   return { files: names, lines };
 }

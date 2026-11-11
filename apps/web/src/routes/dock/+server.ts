@@ -18,7 +18,10 @@ export const GET: RequestHandler = async ({ cookies, locals }) => {
     isElevated(cookies.get(SESSION_COOKIE)),
     updaterStatus(),
     updaterControl(),
-    defaultAgent().catch(() => 'claude' as const)
+    defaultAgent().catch((e) => {
+      console.warn(`[dock] default agent unreadable, using claude: ${e instanceof Error ? e.message : e}`);
+      return 'claude' as const;
+    })
   ]);
   // The host's updater: shown while it updates, when an update was interrupted, or when it has stopped.
   const update = u

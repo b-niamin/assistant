@@ -114,7 +114,12 @@ export async function saveSourceFields(
 export async function secretItemHints(ext: ExtensionInfo): Promise<Record<string, string[]>> {
   const out: Record<string, string[]> = {};
   for (const f of ext.settings.filter((f) => f.type === 'secret' && f.multiple)) {
-    out[f.name] = splitItems(await readSecret(ext, f.name).catch(() => null)).map(itemHint);
+    out[f.name] = splitItems(
+      await readSecret(ext, f.name).catch((e) => {
+        console.warn(`[sources] ${ext.id}: secret ${f.name} unreadable: ${e instanceof Error ? e.message : e}`);
+        return null;
+      })
+    ).map(itemHint);
   }
   return out;
 }

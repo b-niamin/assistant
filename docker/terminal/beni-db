@@ -1,0 +1,11 @@
+#!/bin/sh
+# psql on the app's database, as the agents should reach it:
+#   beni-db [psql args]           read-only (claude_ro): every table but secrets, sessions, connector tokens
+#   beni-db --write [psql args]   read-write (agent_rw): INSERT/UPDATE freely; DELETE and schema changes ask
+#                                 the owner first (beni-guard.mjs for Claude, beni.rules for Codex)
+# e.g. beni-db -c 'SELECT * FROM gym.sets LIMIT 5'
+if [ "${1:-}" = --write ]; then
+  shift
+  exec psql "${AGENT_DATABASE_URL:?no AGENT_DATABASE_URL}" "$@"
+fi
+exec psql "${CLAUDE_RO_DATABASE_URL:?no CLAUDE_RO_DATABASE_URL}" "$@"

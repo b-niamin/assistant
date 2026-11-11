@@ -85,10 +85,14 @@ and nothing is built. Every step runs under a time limit (90 minutes for a build
 | `docker/browser/**` | rebuild and recreate `browser` |
 | `apps/web/scripts/live-reload.mjs` | restart `web` |
 | `services/terminal/**` (not tests) | restart `terminal` |
-| `db/watch-extensions.sh` | restart `ext-migrate` |
-| `db/{migrate.sh,roles.sql,extension-role.sql}` | re-run `migrate`, restart `ext-migrate` |
+| `db/watch-extensions.sh` | rebuild and recreate `ext-migrate` |
+| `db/migrations/*.sql`, `db/{migrate.sh,roles.sql,extension-role.sql}`, `docker/migrate/**` | rebuild `migrate` and `ext-migrate` (the db scripts are baked into their image), re-run `migrate` |
 | `db/backup.sh` | restart `backup` |
-| anything else (`apps/web`, migrations, docs) | nothing: live already (live-reload, `ext-migrate`) |
+| anything else (`apps/web`, docs) | nothing: live already (live-reload) |
+
+Core migrations and the scripts that run as the database superuser come only from main, never from the
+checkout the agents edit: `docker/migrate/Dockerfile` copies `db/` into the image, built here from the
+mirror. Extension migrations still come from `extensions/` and run as each extension's owner role.
 
 Extensions are not part of this repo (`extensions/` is git-ignored), so auto-update never touches them;
 `ext update <id>` does, and a changed extension `compose.yml` needs `./install.sh`.

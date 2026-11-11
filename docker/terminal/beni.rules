@@ -1,0 +1,16 @@
+# Codex execpolicy rules of the terminal (spec 004): the same critical changes Claude's beni-guard.mjs asks
+# about. Copied to ~/.codex/rules/beni.rules on every start (codex-config.mjs); edit this file, not that one.
+# "prompt" = Codex asks the owner before it runs the command, whatever the sandbox mode.
+prefix_rule(pattern = ["git", "push"], decision = "prompt", justification = "A push can reach main, which the host's updater deploys as root.")
+prefix_rule(pattern = ["git", "reset", "--hard"], decision = "prompt", justification = "Throws uncommitted work away.")
+prefix_rule(pattern = ["git", "clean"], decision = "prompt", justification = "Deletes untracked files.")
+prefix_rule(pattern = ["git", "branch", ["-D", "--delete"]], decision = "prompt", justification = "Deletes a branch.")
+prefix_rule(pattern = ["git", "stash", ["drop", "clear"]], decision = "prompt", justification = "Drops stashed work.")
+prefix_rule(pattern = ["git", ["filter-branch", "filter-repo"]], decision = "prompt", justification = "Rewrites history.")
+prefix_rule(pattern = ["gh", "pr", "merge"], decision = "prompt", justification = "Merging reaches main, which the updater deploys.")
+prefix_rule(pattern = ["gh", ["repo", "release"], "delete"], decision = "prompt", justification = "Deletes on GitHub.")
+prefix_rule(pattern = ["rm", ["-r", "-R", "-rf", "-fr", "-Rf", "-fR", "--recursive"]], decision = "prompt", justification = "Recursive delete.")
+prefix_rule(pattern = ["psql"], decision = "prompt", justification = "Raw SQL: read with `beni-db`, write with `beni-db --write`.")
+prefix_rule(pattern = ["beni-db", "--write"], decision = "prompt", justification = "Writes to the database.")
+prefix_rule(pattern = [["dropdb", "pg_restore"]], decision = "prompt", justification = "Deletes or replaces database data.")
+prefix_rule(pattern = ["node", "scripts/ext.mjs", "remove"], decision = "prompt", justification = "Removes an extension.")

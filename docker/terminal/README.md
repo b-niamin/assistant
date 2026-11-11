@@ -28,8 +28,8 @@ Login state lives in the `claude-home` volume (`/home/claude`), so it survives r
 3. Forwards `localhost:9222` to the browser container's CDP (`browser` MCP server in `.mcp.json`).
 4. Copies the CLIs into `~/.npm-global` when needed (`cli-home.mjs`, see below).
 5. Writes the `assistant` and `browser` MCP servers into `~/.codex/config.toml` (`codex-config.mjs`, its own
-   marked blocks only), plus `sandbox_mode = "danger-full-access"`: Codex's bubblewrap sandbox cannot run in
-   a container, and the container is the sandbox.
+   marked blocks only), plus `sandbox_mode = "danger-full-access"` (Codex's bubblewrap sandbox cannot run in
+   a container) and `approval_policy = "on-request"`, and copies `beni.rules` to `~/.codex/rules/`.
 6. Starts the terminal server (`services/terminal/server.mjs`).
 
 ## Updates of the CLIs
@@ -37,18 +37,43 @@ Login state lives in the `claude-home` volume (`/home/claude`), so it survives r
 Claude Code and Codex update themselves (`npm install -g`, as Claude's auto-update and Codex's "Update now"
 run it). The image installs them as root into `/usr/local`, which the container user cannot write, so global
 npm installs go to `~/.npm-global` in the `claude-home` volume instead (`NPM_CONFIG_PREFIX`, first on `PATH`).
+The terminal server passes `NPM_CONFIG_PREFIX` into the shell it starts (and `/etc/profile.d/beni-path.sh`
+sets it for login shells): without it the CLIs see root's `/usr/local` and fail with "no write permission
+to npm prefix".
 On every start the entrypoint copies each CLI from the image there when the home copy is missing or older
 (`cli-home.mjs`), so a rebuilt image with a newer version still wins over an older self-update. `claude doctor`
 should show `npm-global` with a path under `~/.npm-global`.
 
-## What it can and cannot do
+## What the agents may do
 
-| Can | Cannot |
+Everything, without asking, except critical changes, which wait for the owner's approval in the terminal.
+
+| Without asking | Asks the owner first |
 |---|---|
-| edit any file in the repo checkout (`/workspace`) and commit | reach the Docker socket (no stopping, removing or rebuilding containers) |
-| query data with `psql "$CLAUDE_RO_DATABASE_URL"` (read-only role) | read `.env` (shadowed by an empty file) or `secrets` / an extension's `secret_*` tables |
-| call the apps' tools through the `assistant` MCP server | write to the database except through those tools |
-| push commits, if `CLAUDE_GITHUB_TOKEN` is set or `gh` is signed in | change running infrastructure: a `docker-compose.yml` edit applies once it is on GitHub main (spec 006) |
+| edit any file in the checkout (`/workspace`), extensions included, and commit | a push that can reach `main` (the host's updater deploys it as root), a force push, deleting a branch, `gh pr merge`, deleting a repo or release |
+| read data: `beni-db -c 'SELECT ...'` (role `claude_ro`) | SQL that deletes data or changes schema or roles: `DELETE`, `DROP`, `TRUNCATE`, `ALTER`, `GRANT`... |
+| write data: `beni-db --write -c 'INSERT/UPDATE ...'` (role `agent_rw`; Codex asks for every `--write`) | `git reset --hard`, `git clean -f`, `git branch -D`, `git stash drop`, history rewrites |
+| use every extension through the `assistant` MCP server, `node scripts/ext.mjs install/update/new/check` | `rm -r` outside `/tmp` and build folders, `node scripts/ext.mjs remove` |
+| push a feature branch, open a PR | changing their own permission settings (`~/.claude/settings*.json`, `~/.codex/config.toml`, `~/.codex/rules/`) |
+
+How: Claude Code reads `/etc/claude-code/managed-settings.json` (allow list, `bypassPermissions` off) and
+runs `beni-guard.mjs` before every shell command and file edit; the guard answers "ask" for the list above.
+Codex runs with `approval_policy = "on-request"` and the execpolicy rules in `beni.rules`. Both files are
+root-owned in the image, so an agent cannot loosen them; change them here, in the repo.
+
+Hard limits, which no approval prompt can be talked past:
+
+| Limit | Where |
+|---|---|
+| no Docker socket, no `.env` (an empty file shadows it) | `docker-compose.yml` |
+| `agent_rw` owns nothing: no `CREATE`/`ALTER`/`DROP`, no `TRUNCATE`, no `secrets`, `core.sessions` or connector tokens | `db/roles.sql`, `db/extension-role.sql` |
+| nothing from the checkout runs as the database superuser: core migrations and db scripts are baked into the migrate image from `main` | `docker/migrate/Dockerfile`, spec 006 |
+| the updater deploys only GitHub `main`, builds from its own mirror, and refuses a checkout `docker-compose.yml` that differs from main | `scripts/update.sh` |
+| an extension's `compose.yml` that could reach the host (privileged, `cap_add`, devices, host namespaces, Docker socket, host paths but `/proc` and `/sys` read-only) is not started | `scripts/compose-policy.sh`, `install.sh` |
+
+Still open: code the agents edit in `apps/web` and `extensions/` runs live in `web`, which holds the app's
+secrets; and a commit on `main` (pushed after approval) is deployed by the updater as root, including a new
+updater. Signed commits and a separate dev stack would close those (security audit, K1).
 
 Every commit goes through `scripts/hooks/pre-commit`. A bad change is undone with `git revert`.
 

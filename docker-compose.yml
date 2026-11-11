@@ -26,9 +26,10 @@ services:
       retries: 20
     mem_limit: 1g
 
-  # One-shot: applies db/migrations/*.sql and the least-privilege roles, then exits.
+  # One-shot: applies db/migrations/*.sql and the least-privilege roles, then exits. The scripts and core
+  # migrations are baked into the image from main (docker/migrate/Dockerfile), never read from the checkout.
   migrate:
-    image: postgres:16-alpine
+    build: { context: ., dockerfile: docker/migrate/Dockerfile }
     restart: 'no'
     depends_on:
       db: { condition: service_healthy }
@@ -43,18 +44,15 @@ services:
       # Owner of the files web writes in the logs volume (web.log).
       HOST_UID: ${HOST_UID:-1000}
     volumes:
-      - ./db/migrations:/migrations:ro
-      - ./db/roles.sql:/roles.sql:ro
-      - ./db/migrate.sh:/migrate.sh:ro
-      - ./db/extension-role.sql:/extension-role.sql:ro
       # Installed extensions: their db/migrations and per-extension roles (spec 002).
       - ./extensions:/extensions:ro
       - logs:/logs
     entrypoint: ['sh', '/migrate.sh']
 
   # Re-applies migrations when Claude installs or updates an extension, so that needs no human step.
+  # Same image as migrate: core migrations only from main, extension ones from extensions/.
   ext-migrate:
-    image: postgres:16-alpine
+    build: { context: ., dockerfile: docker/migrate/Dockerfile }
     restart: unless-stopped
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -66,11 +64,6 @@ services:
       SERVICES_DB_PASSWORD: ${SERVICES_DB_PASSWORD:-}
       CLAUDE_DB_PASSWORD: ${CLAUDE_DB_PASSWORD}
     volumes:
-      - ./db/migrations:/migrations:ro
-      - ./db/roles.sql:/roles.sql:ro
-      - ./db/migrate.sh:/migrate.sh:ro
-      - ./db/watch-extensions.sh:/watch-extensions.sh:ro
-      - ./db/extension-role.sql:/extension-role.sql:ro
       - ./extensions:/extensions:ro
       - logs:/logs
     entrypoint: ['sh', '-c', 'sh /watch-extensions.sh 2>&1 | tee -a /logs/ext-migrate.log']
@@ -144,6 +137,8 @@ services:
     environment:
       SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
       CLAUDE_RO_DATABASE_URL: postgresql://claude_ro:${CLAUDE_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
+      # The agents' read-write role (db/roles.sql): data of core and every extension, no DDL, no secrets.
+      AGENT_DATABASE_URL: postgresql://agent_rw:${CLAUDE_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
       # Tools for the agents (spec 005): the `assistant` MCP server in .mcp.json calls the web app's /mcp with this.
       CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
       ASSISTANT_URL: http://web:3000

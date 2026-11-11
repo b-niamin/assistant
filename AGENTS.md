@@ -45,8 +45,12 @@ itself) becomes a new extension: see the `add-extension` and `new-extension` ski
 ## Talking to the data
 
 ```sh
-psql "$CLAUDE_RO_DATABASE_URL"        # read-only role claude_ro, 30 s statement timeout
+beni-db -c 'SELECT ...'                 # read-only role claude_ro, 30 s statement timeout
+beni-db --write -c 'UPDATE ...'         # read-write role agent_rw: rows of core and every extension
 ```
+
+`agent_rw` cannot change the schema or roles, truncate, or see secrets, sessions or connector tokens.
+Prefer an extension's MCP tools for writes it offers; use SQL for what they do not cover.
 
 Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AGENTS.md` in
 `extensions/<id>/` describes them. Look at raw JSON columns before assuming a field name. Logs: `/logs/`
@@ -57,8 +61,10 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AG
 1. **Commit every change** with a clear English message. `scripts/hooks/pre-commit` runs the checks;
    never bypass it (`--no-verify` is off-limits). If a change breaks something, `git revert` it.
 2. **Migrations are additive**: new numbered file in `db/migrations/`, never edit an applied one, no
-   `DROP`/`TRUNCATE`. The `ext-migrate` service applies new ones (shell and extensions) within ~15 s;
-   check `/logs/ext-migrate.log`.
+   `DROP`/`TRUNCATE`. An extension's migrations (`extensions/<id>/db/migrations/`) are applied by
+   `ext-migrate` within ~15 s; check `/logs/ext-migrate.log`. The shell's own `db/migrations/` go live only
+   from GitHub `main` (the updater rebuilds the migrate image), so a core migration needs a push the owner
+   approves.
 3. **A new area is an extension** (`node scripts/ext.mjs new <id>`, see the `new-extension` skill):
    `extensions/<id>/`, its own schema and migrations, role `ext_<id>`. It imports only `$shell` from the
    shell and must not touch other extensions' tables. It adds its MCP tools in `web/tools.server.ts`
@@ -77,9 +83,17 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AG
    services whose files changed. It deploys only what is on GitHub, so local commits must be pushed (and
    the checkout must stay on `main` with nothing unpushed, or updates pause). Status: `/logs/updater.log`.
 
+## What needs the owner's approval
+
+You may do everything in the terminal without asking, except critical changes, which the terminal makes
+you ask for (Claude Code: `beni-guard.mjs`; Codex: `beni.rules`; list in `docker/terminal/README.md`): a
+push that can reach `main`, force pushes and branch deletions, merging a PR, deleting data or changing the
+schema in SQL, `git reset --hard`/`clean -f`, `rm -r` outside scratch folders, removing an extension, and
+changing your own permission settings. Ask in words first, say what and why, then run it.
+
 ## Never
 
 - Read or print secrets (`.env`, tokens, passwords). Passwords for outside accounts are typed by the
   owner in a terminal only.
 - `rm -rf` outside a scratch directory, `git push --force`, rewriting history on `main`.
-- Write to the database outside the app's own code paths.
+- Change the database schema or roles outside a migration.

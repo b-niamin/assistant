@@ -16,7 +16,16 @@ RUN python3 -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir cryptography "psycopg[binary]" pytest
 ENV PATH=/opt/venv/bin:$PATH
 # Login shells (`bash -l`, e.g. the terminal after an agent exits) reset PATH in /etc/profile; put ours back.
-RUN printf '%s\n' 'PATH="$HOME/.npm-global/bin:/opt/venv/bin:$PATH"' >/etc/profile.d/beni-path.sh
+RUN printf '%s\n' 'PATH="$HOME/.npm-global/bin:/opt/venv/bin:$PATH"' 'export NPM_CONFIG_PREFIX="$HOME/.npm-global"' >/etc/profile.d/beni-path.sh
+
+# What the agents may do without asking: everything, except critical changes, which wait for the owner's
+# approval (beni-guard.mjs for Claude Code, beni.rules for Codex; see README.md). Root-owned, so the agents
+# cannot loosen them; Claude Code reads managed settings before any of its own.
+COPY managed-settings.json /etc/claude-code/managed-settings.json
+COPY beni-guard.mjs beni.rules /usr/local/lib/
+COPY beni-db /usr/local/bin/beni-db
+RUN chmod 644 /etc/claude-code/managed-settings.json /usr/local/lib/beni-guard.mjs /usr/local/lib/beni.rules \
+ && chmod 755 /usr/local/bin/beni-db
 
 # Non-root. Match the host owner of the checkout with --build-arg UID=$(id -u) if they differ.
 ARG UID=1000

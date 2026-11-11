@@ -62,19 +62,22 @@ short() { printf '%.7s' "$1"; }
 # build:<svc>      rebuild that image and recreate the service
 # restart:<svc>    the service runs long-lived code from the checkout: restart it
 # migrate          re-run the one-shot migrate service (roles, migrate.sh)
-# Everything else is live without help: apps/web (live-reload), db/migrations (ext-migrate), docs.
+# Everything else is live without help: apps/web (live-reload), docs.
+# Core migrations and the db scripts are baked into the migrate image (docker/migrate), so they go live only
+# from main, through a rebuild here; nothing in the checkout runs as the database superuser.
 # Extensions are not in this repo: `ext update` changes them, and live-reload/ext-migrate pick that up.
 plan() {
   while IFS= read -r p; do
     case $p in
       docker-compose.yml) echo all ;;
+      services/terminal/*.test.mjs | docker/terminal/*.test.mjs) ;;
       docker/terminal/*) echo build:terminal ;;
       docker/browser/*) echo build:browser ;;
       apps/web/scripts/live-reload.mjs) echo restart:web ;;
-      services/terminal/*.test.mjs) ;;
       services/terminal/*) echo restart:terminal ;;
-      db/watch-extensions.sh) echo restart:ext-migrate ;;
-      db/migrate.sh | db/roles.sql | db/extension-role.sql) echo migrate; echo restart:ext-migrate ;;
+      db/watch-extensions.sh) echo build:ext-migrate ;;
+      docker/migrate/* | db/migrations/*.sql | db/migrate.sh | db/roles.sql | db/extension-role.sql)
+        echo build:migrate; echo build:ext-migrate; echo migrate ;;
       db/backup.sh) echo restart:backup ;;
     esac
   done | awk '!seen[$0]++'
@@ -559,12 +562,16 @@ restart_now() {
   [ "$TTY" != 1 ] || printf '\r\033[K'
 }
 
-# docker/ and docker-compose.yml of $SHA, from the mirror: the only build contexts and compose file used.
+# docker/, db/ and docker-compose.yml of $SHA, from the mirror: the only build contexts and compose file used.
 export_src() {
   [ -z "$SRC" ] || [ ! -f "$SRC/.sha" ] || [ "$(cat "$SRC/.sha")" != "$SHA" ] || return 0
   [ -z "$SRC" ] || rm -rf "$SRC"
   SRC=$(mktemp -d "$HOME_DIR/src.XXXXXX")
-  mirror_git archive "$SHA" docker-compose.yml docker | tar -x -C "$SRC" && echo "$SHA" > "$SRC/.sha"
+  # db/ and .dockerignore are the migrate image's context (older commits have no .dockerignore).
+  paths="docker-compose.yml docker"
+  for p in db .dockerignore; do mirror_git cat-file -e "$SHA:$p" 2>/dev/null && paths="$paths $p"; done
+  # shellcheck disable=SC2086
+  mirror_git archive "$SHA" $paths | tar -x -C "$SRC" && echo "$SHA" > "$SRC/.sha"
 }
 
 run_step() {

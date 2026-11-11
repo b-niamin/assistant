@@ -333,7 +333,12 @@ compose_files() {
   files=docker-compose.yml
   if [ -f extensions/installed.json ]; then
     for id in $(grep -oE '"id"[[:space:]]*:[[:space:]]*"[a-z][a-z0-9-]*"' extensions/installed.json | sed -E 's/.*"([a-z0-9-]+)"$/\1/'); do
-      [ -f "extensions/$id/compose.yml" ] && files="$files:extensions/$id/compose.yml"
+      [ -f "extensions/$id/compose.yml" ] || continue
+      # Started as root: a file that could reach the host (privileged, Docker socket...) stays out.
+      if ! sh scripts/compose-policy.sh "extensions/$id/compose.yml" >&2; then
+        say "not starting $id's service: its compose.yml breaks the rules above (scripts/compose-policy.sh)"; continue
+      fi
+      files="$files:extensions/$id/compose.yml"
     done
   fi
   # Absolute paths: some Compose wrappers (Synology's) do not run in this folder.

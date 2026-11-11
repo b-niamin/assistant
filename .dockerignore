@@ -1,0 +1,5 @@
+# Only docker/migrate/Dockerfile builds with the repo root as its context: send it db/, nothing else.
+*
+!db/migrations/
+!db/*.sql
+!db/*.sh

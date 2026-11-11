@@ -29,6 +29,11 @@ if git diff --cached --name-only | grep -qE '^services/terminal/'; then
   (cd "$root" && node --test services/terminal/*.test.mjs)
 fi
 
+# terminal approvals: what the agents' guard asks about.
+if git diff --cached --name-only | grep -qE '^docker/terminal/beni-guard'; then
+  (cd "$root" && node --test docker/terminal/*.test.mjs)
+fi
+
 # updater: which services a change touches, the lock, the journal.
 if git diff --cached --name-only | grep -qE '^scripts/(update|auto-update)'; then
   sh "$root/scripts/update.test.sh"

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "NotebookEdit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "mcp__assistant",
+      "mcp__browser"
+    ],
+    "deny": ["Read(//workspace/.env)", "Read(//workspace/.env.*)"],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [{ "type": "command", "command": "node /usr/local/lib/beni-guard.mjs", "timeout": 10 }]
+      }
+    ]
+  }
+}

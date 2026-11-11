@@ -7,8 +7,13 @@
  * Also turns Codex's own sandbox off: it needs user namespaces (bubblewrap), which a container does not
  * get, so every command failed. This container is the sandbox (no docker socket, no .env), as for Claude.
  * A `sandbox_mode` already in the file wins.
+ *
+ * Without the sandbox, approvals do the guarding: `approval_policy = "on-request"` (unless the file sets
+ * one) and the execpolicy rules in /usr/local/lib/beni.rules, copied to ~/.codex/rules/beni.rules, make
+ * Codex ask the owner before a critical command (a push, a recursive delete, raw SQL...), as
+ * beni-guard.mjs does for Claude.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const HOME = process.env.HOME ?? '/home/claude';
@@ -35,7 +40,11 @@ text = kept.join('\n').trim();
 
 const firstTable = text.search(/^\s*\[/m);
 const topLevel = firstTable === -1 ? text : text.slice(0, firstTable);
-const top = /^\s*sandbox_mode\s*=/m.test(topLevel) ? '' : `${BEGIN}\nsandbox_mode = "danger-full-access"\n${END}\n`;
+const topKeys = [
+  /^\s*sandbox_mode\s*=/m.test(topLevel) ? '' : 'sandbox_mode = "danger-full-access"\n',
+  /^\s*approval_policy\s*=/m.test(topLevel) ? '' : 'approval_policy = "on-request"\n'
+].join('');
+const top = topKeys ? `${BEGIN}\n${topKeys}${END}\n` : '';
 const tables = `${BEGIN}
 [mcp_servers.assistant]
 command = "node"
@@ -50,3 +59,9 @@ ${END}
 
 mkdirSync(dir, { recursive: true });
 writeFileSync(file, `${top}${text ? `${text}\n\n` : ''}${tables}`);
+
+const RULES = process.env.BENI_CODEX_RULES ?? '/usr/local/lib/beni.rules';
+if (existsSync(RULES)) {
+  mkdirSync(path.join(dir, 'rules'), { recursive: true });
+  copyFileSync(RULES, path.join(dir, 'rules', 'beni.rules'));
+}

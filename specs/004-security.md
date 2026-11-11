@@ -77,6 +77,19 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
   while the session is unlocked (the lock in the header). `GET /dock` (any logged-in session) returns
   sign-in booleans, never file contents, plus whether the session is unlocked. Opening a shell needs the
   unlock and a ticket. Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
+- **Agents in the terminal: full access, critical changes approved.** Claude Code and Codex may edit any
+  file, use every extension (MCP tools, `ext`), and read and write data (`beni-db`, role `agent_rw`)
+  without asking. They ask the owner first before a critical change: a push that can reach main, a force
+  push or branch deletion, merging a PR, `git reset --hard`/`clean -f`, SQL that deletes data or changes
+  schema or roles, `rm -r` outside scratch folders, removing an extension, or changing their own permission
+  settings. Claude: `/etc/claude-code/managed-settings.json` (allow list, bypass mode off) and its
+  PreToolUse hook `beni-guard.mjs`, both root-owned in the image. Codex: `approval_policy = "on-request"`
+  and the execpolicy rules `beni.rules`. Hard limits behind them, which no prompt can talk past:
+  `agent_rw` owns nothing (no DDL, no `TRUNCATE`, no `secrets`, sessions or connector tokens); nothing from
+  the checkout runs as the database superuser (core migrations are baked into the migrate image from main,
+  spec 006); the updater deploys only main, and an extension's `compose.yml` that could reach the host
+  (privileged, Docker socket, host paths...) is not started (`scripts/compose-policy.sh`). See
+  `docker/terminal/README.md`.
 - **Browser**: Chromium with a persistent profile on a virtual display. x11vnc listens on loopback
   only (no VNC password); websockify (noVNC) accepts only handshakes with `Origin: $PUBLIC_ORIGIN`, which
   the web proxy sends and a page inside this browser cannot; websockify and a CDP bridge listen on the internal `sidecars` network, which only web,
@@ -118,7 +131,7 @@ defence against the owner's own Claude.
 
 | # | Finding | Severity | Status |
 |---|---|---|---|
-| A1 | Claude (and anything that injects a prompt into it) is effectively admin: it edits code that runs live in `web` (has `SECRETS_KEY`, `SIDECAR_TICKET_SECRET`, `app_rw`) and in extension services (e.g. `garmin-sync`: root, `TOKEN_ENCRYPTION_KEY`), and `ext-migrate` applies new `db/migrations/*.sql` as the Postgres superuser within 15 s. Hiding `.env` stops accidents, not a determined prompt injection | High (by design) | Accepted: it is the "Claude builds the app" feature. Limits: review Claude's commits, keep the browser signed in only where needed, do not let Claude browse untrusted pages and edit code in the same session without reading what it did |
+| A1 | Claude (and anything that injects a prompt into it) is effectively admin: it edits code that runs live in `web` (has `SECRETS_KEY`, `SIDECAR_TICKET_SECRET`, `app_rw`) and in extension services (e.g. `garmin-sync`: root, `TOKEN_ENCRYPTION_KEY`), and `ext-migrate` applied new `db/migrations/*.sql` as the Postgres superuser within 15 s. Hiding `.env` stops accidents, not a determined prompt injection | High (by design) | Partly fixed 2026-11-12: core migrations only from main (migrate image), critical agent actions need the owner's approval (see "Agents in the terminal"). Accepted: it is the "Claude builds the app" feature. Limits: review Claude's commits, keep the browser signed in only where needed, do not let Claude browse untrusted pages and edit code in the same session without reading what it did |
 | A2 | `<id>__query` ran the SQL as `app_rw` after `SET LOCAL ROLE ext_<id>`; `set_config('role','none',true)` + `query_to_xml(...)` in one SELECT climbed back to `app_rw` and read `core.sessions` (session ids, so an elevated session and a terminal ticket), the password hash and extension secret ciphertexts. Reproduced on Postgres 16 | High | Fixed: the SQL runs inside `ext_query.<schema>(text)`, a security-definer function owned by `ext_<id>` (migration 009, `db/extension-role.sql`); Postgres refuses any role change inside it |
 | A3 | noVNC (websockify :6080) had no origin check and VNC has no password: any web page open in the in-app browser (or one Claude visits) could open `ws://localhost:6080` and drive the signed-in browser | High | Fixed: websockify `ExpectOrigin` = `PUBLIC_ORIGIN`, the web proxy sends that Origin (needs a browser image rebuild) |
 | A4 | Changing the app password left every other session logged in for up to 30 days | Medium | Fixed: the password action deletes every other session |

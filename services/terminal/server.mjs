@@ -45,8 +45,12 @@ const shellEnv = () => ({
   LANG: 'C.UTF-8',
   PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
   TZ: process.env.TZ ?? 'UTC',
+  // Where `npm install -g` writes: without it Claude Code's and Codex's self-update see root's /usr/local
+  // ("no write permission to npm prefix"). See docker/terminal/cli-home.mjs.
+  ...(process.env.NPM_CONFIG_PREFIX ? { NPM_CONFIG_PREFIX: process.env.NPM_CONFIG_PREFIX } : {}),
   ...(process.env.TMUX_TMPDIR ? { TMUX_TMPDIR: process.env.TMUX_TMPDIR } : {}),
   ...(process.env.CLAUDE_RO_DATABASE_URL ? { CLAUDE_RO_DATABASE_URL: process.env.CLAUDE_RO_DATABASE_URL } : {}),
+  ...(process.env.AGENT_DATABASE_URL ? { AGENT_DATABASE_URL: process.env.AGENT_DATABASE_URL } : {}),
   // Tools for Claude (spec 005), used by the `assistant` MCP server.
   ...(process.env.CLAUDE_TOOLS_TOKEN ? { CLAUDE_TOOLS_TOKEN: process.env.CLAUDE_TOOLS_TOKEN, ASSISTANT_URL: process.env.ASSISTANT_URL ?? 'http://web:3000' } : {})
 });

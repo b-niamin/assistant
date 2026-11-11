@@ -80,9 +80,10 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
 - Sign in once from System settings -> Terminal (`claude` + `/login`, `codex login`, `gh auth login`).
   The CLIs run only in the dock's shell, started by hand or by the app (Update, Build it, Install); nothing
   keeps them running in the background. From outside, Claude uses the Claude connector instead.
-- Data chat: `psql "$CLAUDE_RO_DATABASE_URL"`. `claude_ro` has `SELECT` on core and extension schemas,
+- Data chat: `beni-db` (= `psql "$CLAUDE_RO_DATABASE_URL"`). `claude_ro` has `SELECT` on core and extension schemas,
   `default_transaction_read_only = on`, a 30 s statement timeout, and no access to `secrets` or to an
-  extension's `secret_*` tables.
+  extension's `secret_*` tables. The agents in the terminal also write data with `beni-db --write`
+  (role `agent_rw`: rows only, no DDL, same exclusions); deletes ask the owner first (spec 004).
 
 ## Keeping Claude from breaking things
 

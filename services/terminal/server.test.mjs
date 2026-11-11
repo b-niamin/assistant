@@ -52,7 +52,7 @@ test('server: rejects without ticket, runs a shell with one', async (t) => {
   // A private tmux socket dir, so the test never touches anyone's real tmux server.
   const TMUX_TMPDIR = mkdtempSync(path.join(tmpdir(), 'term-test-'));
   const srv = spawn('node', [new URL('./server.mjs', import.meta.url).pathname], {
-    env: { ...process.env, TERMINAL_PORT: String(port), SIDECAR_TICKET_SECRET: SECRET, HOME: TMUX_TMPDIR, TMUX_TMPDIR },
+    env: { ...process.env, TERMINAL_PORT: String(port), SIDECAR_TICKET_SECRET: SECRET, HOME: TMUX_TMPDIR, TMUX_TMPDIR, NPM_CONFIG_PREFIX: '/npm-home' },
     stdio: ['ignore', 'pipe', 'inherit']
   });
   t.after(() => {
@@ -92,12 +92,13 @@ test('server: rejects without ticket, runs a shell with one', async (t) => {
   const done = new Promise((resolve) =>
     ok.s.on('data', (d) => {
       out += d.toString('latin1');
-      if (out.includes('pty-ok-42')) resolve();
+      if (out.includes('pty-ok-42:/npm-home')) resolve();
     })
   );
-  ok.s.write(masked(1, '0echo pty-ok-$((40+2))\r'));
+  // The CLIs' self-update needs the npm prefix in the shell (cli-home.mjs).
+  ok.s.write(masked(1, '0echo pty-ok-$((40+2)):$NPM_CONFIG_PREFIX\r'));
   await Promise.race([done, new Promise((r) => setTimeout(r, 4000))]);
   ok.s.destroy();
-  if (spawnSync('tmux', ['-V']).status === 0) assert.match(out, /pty-ok-42/);
+  if (spawnSync('tmux', ['-V']).status === 0) assert.match(out, /pty-ok-42:\/npm-home/);
   else t.diagnostic('no tmux here: shell output not checked');
 });

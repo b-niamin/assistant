@@ -134,6 +134,14 @@ const server = createServer((req, res) => {
       res.end();
       return;
     }
+    // The daemon runs in llm; its socket (a link into /tmp/codex-daemon-<uid>, shared by compose) is there only while it runs.
+    const sock = path.join(process.env.CODEX_HOME || path.join(HOME, '.codex'), 'app-server-control/app-server-control.sock');
+    if (!existsSync(sock)) {
+      log('codex pairing code requested: daemon not running');
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, text: 'Codex Remote Control is not running yet. Sign in to Codex, wait for it to show as running, then try again.' }));
+      return;
+    }
     const r = spawnSync('codex', ['remote-control', 'pair'], { cwd: WORKSPACE, env: shellEnv(), encoding: 'utf8', timeout: 20_000 });
     // eslint-disable-next-line no-control-regex
     const text = `${r.stdout ?? ''}${r.stderr ?? ''}`.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').trim().slice(0, 2000);

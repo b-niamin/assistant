@@ -23,7 +23,8 @@ Both show up as `beni-assistant` (`ASSISTANT_HOSTNAME` in `.env` changes it),
 not under a random container id. Claude runs in a detached tmux session (`remote-claude`); its first-run question "Enable Remote Control?
 (y/n)" is answered y by the entrypoint. Codex runs as its own daemon (`codex remote-control start`, log in
 `~/.codex/app-server-daemon/daemon.stderr.log`), which `codex remote-control pair` and the app's Remote menu
-("Pair a device") need. Codex's enrollment needs a ChatGPT account with multi-factor authentication. Output: the
+("Pair a device") need. Its control socket lives in `/tmp/codex-daemon-<uid>`, not in the home volume, so compose
+shares that folder with the terminal (the `codex-daemon` volume), where the pairing code is asked for. Codex's enrollment needs a ChatGPT account with multi-factor authentication. Output: the
 container log and `~/.beni/remote/<agent>.log`; live with `docker compose exec llm tmux attach -t remote-claude`.
 
 Logs: `docker compose logs -f llm`.

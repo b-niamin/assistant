@@ -155,6 +155,8 @@ services:
       # Shadow the secrets file: the container sees an empty .env.
       - /dev/null:/workspace/.env:ro
       - claude-home:/home/claude
+      # The Codex daemon's control socket (~/.codex/app-server-control links here), shared with the terminal.
+      - codex-daemon:/tmp/codex-daemon-${HOST_UID:-1000}
       - logs:/logs:ro
     # sidecars: drives the in-app browser over CDP (browser:9223, see .mcp.json).
     networks: [default, sidecars]
@@ -184,6 +186,8 @@ services:
       - .:/workspace
       - /dev/null:/workspace/.env:ro
       - claude-home:/home/claude
+      # So `codex remote-control pair` (the Remote menu's "Pair a device") reaches the daemon in llm.
+      - codex-daemon:/tmp/codex-daemon-${HOST_UID:-1000}
     networks: [default, sidecars]
     mem_limit: 768m
 
@@ -233,5 +237,12 @@ volumes:
   db-data:
   # The agents' home (logins of Claude, Codex, gh): still named claude-home, so the rename to llm kept them.
   claude-home:
+  # Codex keeps its daemon's socket in /tmp/codex-daemon-<uid>, outside the home volume: llm runs the daemon,
+  # the terminal asks it for pairing codes. In memory, so a restart never leaves a stale socket behind.
+  codex-daemon:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: uid=${HOST_UID:-1000},gid=${HOST_UID:-1000},mode=0700
   logs:
   backups:

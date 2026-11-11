@@ -637,5 +637,7 @@
   "The worker is not running, so it cannot take requests.": "Worker nie działa, więc nie przyjmie polecenia.",
   "Restarting {unit}: it takes a few seconds.": "Restart {unit}: potrwa kilka sekund.",
   "{unit} starts within a few seconds.": "{unit} wystartuje w ciągu kilku sekund.",
-  "Your apps' background work: services, scheduled runs, and what they can reach": "Praca w tle aplikacji: usługi, zaplanowane uruchomienia i do czego mają dostęp"
+  "Your apps' background work: services, scheduled runs, and what they can reach": "Praca w tle aplikacji: usługi, zaplanowane uruchomienia i do czego mają dostęp",
+  "Motion: reduced": "Ruch: ograniczony",
+  "Reduce motion": "Ogranicz ruch"
 }

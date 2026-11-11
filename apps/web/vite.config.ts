@@ -31,7 +31,8 @@ export default defineConfig({
           const rel = path.relative(gen, EXT_DIR);
           // tsconfig.json has no `include` of its own, so this list is the whole project.
           cfg.include = ['../../src', '../../vite.config.ts', `${rel}/*/web/**/*.ts`, `${rel}/*/web/**/*.svelte`];
-          cfg.exclude = [...(cfg.exclude ?? []), `${rel}/*/node_modules/**`];
+          // The service worker runs in another global scope (webworker): checked on its own, not with the app.
+          cfg.exclude = [...(cfg.exclude ?? []), `${rel}/*/node_modules/**`, '../../src/service-worker.js'];
           // Extension files sit outside this package: resolve their bare imports to our node_modules.
           const nm = (p: string) => [path.relative(gen, path.resolve('node_modules', p))];
           cfg.compilerOptions.paths ??= {};

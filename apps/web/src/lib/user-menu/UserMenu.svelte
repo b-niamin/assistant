@@ -5,7 +5,7 @@
    * Profile settings, System settings and Log out.
    */
   import { page } from '$app/state';
-  import { THEME_COOKIE, type Theme } from '#lib/theme.ts';
+  import { MOTION_COOKIE, THEME_COOKIE, type Theme } from '#lib/theme.ts';
   import { LANG_COOKIE, useT } from '#lib/i18n/index.ts';
 
   let {
@@ -45,6 +45,15 @@
     if (code === lang) return;
     document.cookie = `${LANG_COOKIE}=${code};path=/;max-age=${365 * 24 * 3600};samesite=lax${location.protocol === 'https:' ? ';secure' : ''}`;
     location.reload();
+  }
+
+  let calm = $state(typeof document !== 'undefined' && document.documentElement.dataset.motion === 'reduce');
+  function toggleMotion() {
+    calm = !calm;
+    if (calm) document.documentElement.dataset.motion = 'reduce';
+    else delete document.documentElement.dataset.motion;
+    const age = calm ? 365 * 24 * 3600 : 0;
+    document.cookie = `${MOTION_COOKIE}=reduce;path=/;max-age=${age};samesite=lax${location.protocol === 'https:' ? ';secure' : ''}`;
   }
 
   function setTheme(t: Theme) {
@@ -102,6 +111,8 @@
           <button type="button" role="radio" aria-checked={current === th.id} class:on={current === th.id} onclick={() => setTheme(th.id)}>{th.label}</button>
         {/each}
       </div>
+
+      <button type="button" class="item" aria-pressed={calm} onclick={toggleMotion}>{calm ? t('Motion: reduced') : t('Reduce motion')}</button>
 
       {#if languages.length > 1}
         <p class="label" id="lang-label">{t('Language')}</p>

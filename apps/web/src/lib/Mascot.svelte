@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reducedMotion } from '#lib/motion.ts';
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { accessoryFor, type Accessory, type Mood } from './mascot';
@@ -52,7 +53,7 @@
 
   onMount(() => {
     watchSecrets();
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (reducedMotion()) return;
     let frame = 0;
     const onMove = (e: PointerEvent) => {
       cancelAnimationFrame(frame);

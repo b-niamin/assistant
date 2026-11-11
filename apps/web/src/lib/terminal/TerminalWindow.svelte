@@ -6,6 +6,7 @@
    * runs it in an installed extension's folder.
    */
   import { onMount } from 'svelte';
+  import { reducedMotion } from '#lib/motion.ts';
   import Mascot from '#lib/Mascot.svelte';
   import { useT } from '#lib/i18n/index.ts';
   import '@xterm/xterm/css/xterm.css';
@@ -222,7 +223,7 @@
         new Promise((r) => setTimeout(r, 1500))
       ]).catch(() => {});
       if (disposed) return;
-      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reduced = reducedMotion();
       term = new Terminal({
         cursorBlink: !reduced,
         screenReaderMode: readerMode,

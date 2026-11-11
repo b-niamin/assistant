@@ -1,3 +1,5 @@
+import { reducedMotion } from './motion';
+
 /**
  * Svelte action: counts an integer up from zero on first paint. The server-rendered text is the
  * final value, so without JS (or with reduced motion) nothing changes. It writes into the existing text
@@ -6,7 +8,7 @@
  */
 export function countUp(node: HTMLElement, value: number | null) {
   if (value == null || !Number.isFinite(value)) return;
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (reducedMotion()) return;
   const text = node.firstChild;
   if (!text || text.nodeType !== Node.TEXT_NODE) return;
   const final = (text as Text).data;

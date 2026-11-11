@@ -102,13 +102,20 @@
   });
 </script>
 
+<!-- While the terminal is open the page behind it is blurred and dimmed; a click there collapses it. -->
+<div class="backdrop" class:shown={dock.open} aria-hidden="true" onclick={() => (dock.open = false)}></div>
+
 <section class="dock" class:open={dock.open} aria-label="Terminal">
-  <div class="strip">
-    <button class="toggle" type="button" onclick={toggle} aria-expanded={dock.open} aria-controls="dock-panel">
+  <!-- The whole bar toggles the terminal for a mouse; the keyboard has the buttons inside it. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="strip" onclick={(e) => !(e.target as Element).closest('a, button') && toggle()}>
+    <span class="handle" aria-hidden="true" title={dock.open ? 'Collapse' : 'Expand'}></span>
+    <button class="toggle" type="button" onclick={toggle} aria-expanded={dock.open} aria-controls="dock-panel" title={dock.open ? 'Collapse the terminal' : 'Open the terminal'}>
       <span class="mark" aria-hidden="true">›_</span>
       <span class="label">Terminal</span>
       {#if started}<span class="status small" class:good={phase === 'open'} title={phase === 'open' ? 'Connected' : 'Not connected'}><span class="sr">{phase === 'open' ? 'Connected' : 'Not connected'}</span></span>{/if}
       <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
+      {#if dock.open}<span class="hint">Collapse</span>{/if}
     </button>
     {#if status?.update?.state === 'updating'}
       <a class="chip" href="/settings#up-h" title="Rebuilding: {status.update.actions}">
@@ -156,6 +163,30 @@
 </section>
 
 <style>
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 29;
+    background: color-mix(in srgb, var(--page) 35%, rgb(0 0 0 / 18%));
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    visibility: hidden;
+  }
+  .backdrop.shown {
+    opacity: 1;
+    visibility: visible;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .backdrop {
+      transition:
+        opacity 180ms ease,
+        visibility 0s linear 180ms;
+    }
+    .backdrop.shown {
+      transition: opacity 180ms ease;
+    }
+  }
   .dock {
     position: fixed;
     left: 0;
@@ -168,6 +199,7 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .strip {
+    position: relative;
     max-width: 1120px;
     margin: 0 auto;
     display: flex;
@@ -175,6 +207,43 @@
     gap: var(--space-4);
     height: 40px;
     padding: 0 var(--space-4);
+    cursor: pointer;
+  }
+  /* Open, the bar reads as the drawer's lid: its own surface, a line under it, a grab handle on top. */
+  .open .strip {
+    max-width: none;
+    padding-inline: max(var(--space-4), calc((100% - 1120px) / 2 + var(--space-4)));
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--ring);
+  }
+  .open .strip:hover {
+    background: color-mix(in srgb, var(--surface-2) 70%, var(--axis));
+  }
+  .handle {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    translate: -50% 0;
+    width: 56px;
+    height: 14px;
+  }
+  .handle::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 5px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--axis);
+  }
+  .strip:hover .handle::before {
+    background: var(--ink-3);
+  }
+  .hint {
+    color: var(--ink-2);
+    font-weight: 500;
+    font-size: 0.8125rem;
   }
   .toggle {
     display: inline-flex;
@@ -193,6 +262,9 @@
   }
   .toggle:hover {
     background: var(--surface-2);
+  }
+  .open .toggle:hover {
+    background: var(--surface);
   }
   .mark {
     display: grid;
@@ -245,6 +317,9 @@
     margin: 0 auto;
     padding: 0 var(--space-4) var(--space-3);
   }
+  .open .panel {
+    padding-top: var(--space-3);
+  }
   .panel[hidden] {
     display: none;
   }
@@ -281,6 +356,9 @@
     .strip {
       gap: var(--space-2);
       padding: 0 var(--space-3);
+    }
+    .open .strip {
+      padding-inline: var(--space-3);
     }
     .panel {
       padding: 0 var(--space-2) var(--space-2);

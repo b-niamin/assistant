@@ -206,13 +206,13 @@ Visibility is separate from scope: `profiles` in `installed.json` decides who se
 
 - `db/migrate.sh` applies the shell's `db/migrations/*.sql`, then for every id in `installed.json` its
   `db/migrations/*.sql`, recorded as `<id>/<file>` in `core.schema_migrations`. Same rules as now:
-  additive only, applied on `docker compose up` (a human step).
+  additive only, applied by the `ext-migrate` service within about 15 s of a change (no human step).
 - Then it applies `roles.sql` and, per extension with a `db/` folder, `db/extension-role.sql`: role
   `ext_<id>` (NOLOGIN) with rights on schema `<id>` and `SELECT` on `core.profiles`, granted to `app_rw`;
-  `claude_ro` can read the schema for data chat.
+  `claude_ro` can read the schema (the terminal's `query` tool).
 - Extension secrets (e.g. a Home Assistant token) must not go in `core.extension_kv`, which `claude_ro`
-  can read. Next step: `secrets.extension_secrets`, written from a shell settings page, exposed as
-  `ctx.secrets`, invisible to `claude_ro`.
+  can read. They live in `secrets.extension_secrets` (migration 005), written from System settings,
+  read with `ctx.secrets.get`, invisible to `claude_ro`.
 - Tables an extension names `secret_*` (e.g. health's encrypted Garmin logins) are revoked from
   `ext_<id>`, `app_rw` and `claude_ro`: only the extension's service role reads them.
 
@@ -381,8 +381,9 @@ So:
   The runtime role `ext_<id>` gets DML only (no DDL, no TRUNCATE). A line
   `CREATE SCHEMA IF NOT EXISTS <own schema>;` is skipped, because the schema already exists and the owner
   may not create schemas.
-- Keys: AI calls go through `ctx.ai` (the key never leaves the shell). Other secrets need a manifest
-  entry and an admin grant, and only native extensions can receive them (see above for what that means).
+- Keys: extensions never call an AI themselves; the AI calls them, through their MCP tools (spec 005).
+  Secrets need a manifest entry and an admin grant, and only native extensions can receive them (see
+  above for what that means).
 
 ## Next
 

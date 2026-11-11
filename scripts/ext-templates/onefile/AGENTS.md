@@ -34,5 +34,6 @@ app's data summed up in plain fields, from `ctx.kv`, the same localStorage) and 
 keeps the app's data format. The shell adds raw `read_data` / `write_data`; `ext check` warns without them.
 
 Check after a change: `node scripts/ext.mjs check {{id}}` in the shell repo root, then open `/{{id}}`.
-Commit it in the assistant repo, with `extensions/installed.json`. Settings from its panel in System
-settings arrive as `window.assistantSettings` (read-only).
+`extensions/` is this instance's own folder (git-ignored in the assistant repo, kept by the daily backup):
+nothing to commit. Settings from its panel in System settings arrive as `window.assistantSettings`
+(read-only). Reference: docs/extensions.md in the shell repo.

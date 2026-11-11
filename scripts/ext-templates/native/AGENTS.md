@@ -25,5 +25,6 @@ This folder is an extension of the assistant shell. Read the shell's `AGENTS.md`
 - Look (required): the shell's layout and tokens (`.card`, `.btn`, `.muted`, `--ink-*`, `--accent`,
   `--hue-*`, `--space-*`; the shell's `specs/001-design.md`) and Beni (`Mascot` from `$shell/ui`) in the
   header and every empty or error state. No UI libraries, no raw hex.
-- Commit it in the assistant repo, with `extensions/installed.json`. Before that, run the
-  shell's checks: `cd apps/web && npm test && npm run check`, and look for `build ok` in `/logs/web.log`.
+- `extensions/` is this instance's own folder (git-ignored in the assistant repo, kept by the daily
+  backup): nothing to commit. Before handing it over, run the shell's checks:
+  `cd apps/web && npm test && npm run check`, and look for `build ok` in `/logs/web.log`.

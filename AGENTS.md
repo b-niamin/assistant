@@ -10,7 +10,7 @@ the checkout you edit at `/workspace` is the code that is running.
 
 Architecture: [specs/000-architecture.md](specs/000-architecture.md). The app is a **shell with installable
 extensions**: [specs/002-extensions.md](specs/002-extensions.md). To build a new app/area, use the
-`new-extension` skill (`.ai/skills/new-extension`).
+`new-extension` skill (`.ai/skills/new-extension`); reference: [docs/extensions.md](docs/extensions.md).
 
 ## Language
 

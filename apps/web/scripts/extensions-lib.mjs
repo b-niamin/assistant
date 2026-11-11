@@ -22,8 +22,8 @@ export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)
 export const SHELL_API = 1;
 /** First path segments the shell owns; an extension id can never take one. */
 export const RESERVED_IDS = new Set([
-  'api', 'app', 'apps', 'assets', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'profile',
-  'settings', 'shell', 'static', 'x', '_app'
+  'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',
+  'profile', 'settings', 'setup', 'shell', 'static', 'x', '_app'
 ]);
 export const ID_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const KINDS = ['native', 'onefile'];

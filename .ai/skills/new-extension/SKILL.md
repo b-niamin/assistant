@@ -14,7 +14,7 @@ working checklist.
   timer, gym log). One HTML file, sandboxed, no network. Check https://github.com/b-niamin/onefile-apps
   first (`catalog.json`): if something close exists, start from it.
 - **native**: needs SQL queries, server-side calls (Home Assistant, a calendar API), data that other
-  extensions or Claude's data chat should query, or real sharing between profiles.
+  extensions or Claude (through MCP tools) should query, or real sharing between profiles.
 
 Scope: **profile** (each profile has its own data: learning, training) or **shared** (one data set: house,
 family calendar). Visibility is separate: `node scripts/ext.mjs profiles <id> alex,sam`.
@@ -45,8 +45,11 @@ Native:
 - Tools for the AI (required, both kinds): `web/tools.server.ts` (`export const tools: ExtTool[]`) with a
   read-only `overview` and one tool per write (validate input; write via `ctx.db`, or `ctx.kv` for a
   onefile app's localStorage), each with `title` and `readOnly: true|false` (`destructive: true` when it
-  overwrites or deletes). The templates start one; `ext check` warns without it. Examples:
-  `extensions/health/web/tools.server.ts`, `extensions/gym/web/tools.server.ts`; spec 005.
+  overwrites or deletes). The templates start one; `ext check` warns without it. Examples (in the
+  extensions repo, not necessarily installed here):
+  https://github.com/b-niamin/assistant-extensions/blob/main/extensions/health/web/tools.server.ts and
+  .../extensions/gym/web/tools.server.ts; spec 005. Reference of the manifest, SDK and classes:
+  docs/extensions.md.
 - Look (required): the shell's layout and tokens (`specs/001-design.md`) and Beni from `$shell/ui` in the
   header and every empty or error state, and its `"accessory"` in `extension.json` (what Beni wears, list in
   `specs/001-design.md`). No UI libraries, no raw hex. See the `add-extension` skill, step 4.

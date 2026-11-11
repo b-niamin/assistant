@@ -116,7 +116,8 @@
     <h2>{t('Secrets')}</h2>
     <p class="muted">{t('Stored encrypted. Nobody can read a value back here, only replace or remove it.')}</p>
     {#if !data.secretsAvailable}
-      <p class="note bad">{t('Set SECRETS_KEY in .env first: it encrypts these values.')}</p>
+      <p class="note bad">{t('This server has no key to encrypt secrets with yet.')}</p>
+      <details class="tech"><summary>{t('Technical details')}</summary>{t('Set SECRETS_KEY in .env first: it encrypts these values.')}</details>
     {/if}
     <div class="stack">
       {#each secretNames as name (name)}

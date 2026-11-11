@@ -238,7 +238,8 @@
       <button type="button" class="meta linkish" onclick={openDock}>{t('Open the terminal')}</button>
     </div>
     {#if !data.terminal.configured}
-      <p class="muted">{t('The terminal is off. Set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</p>
+      <p class="muted">{t('The terminal is not set up on this server yet.')}</p>
+      <details class="tech"><summary>{t('Technical details')}</summary>{t('The terminal is off. Set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</details>
     {:else}
       <ul class="menu card">
         {#each TOOLS as tool (tool.id)}
@@ -322,7 +323,8 @@
             {b.lastOk ? t('Last good backup {when} · {n} kept · daily at {hour}:00', { when: new Date(b.lastOk).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }), n: b.count, hour: b.hour }) : t('No good backup yet.')}
             {#if b.status === 'failed'}<br />{b.message}{/if}
           </span>
-          <span class="meta">{t('Database, .env and the installed extensions, in BACKUP_DIR next to the checkout. Copy that folder off this machine too (Hyper Backup, Time Machine). Restore: sudo ./beni.sh restore <folder>.')}</span>
+          <span class="meta">{t('Everything needed to bring the assistant back on a new machine: your data, its keys and the installed apps. Copy the backup folder off this machine too (Hyper Backup, Time Machine).')}</span>
+          <details class="tech"><summary>{t('Technical details')}</summary>{t('Database, .env and the installed extensions, in BACKUP_DIR next to the checkout. Copy that folder off this machine too (Hyper Backup, Time Machine). Restore: sudo ./beni.sh restore <folder>.')}</details>
         </span>
       {:else}
         <span class="what"><strong>{t('No backup status yet')}</strong><span class="meta">{t('The backup service writes it after its first run.')}</span></span>

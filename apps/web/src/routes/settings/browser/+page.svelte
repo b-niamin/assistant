@@ -71,7 +71,8 @@
 
 {#if !data.configured}
   <p class="card warn">
-    {t('The browser is off: set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}
+    {t('The browser is not set up on this server yet.')}
+    <details class="tech"><summary>{t('Technical details')}</summary>{t('The browser is off: set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</details>
   </p>
 {:else if !data.reachable}
   <p class="card warn">{t('The browser container is not running. Start it with')} <code>docker compose up -d browser</code>.</p>

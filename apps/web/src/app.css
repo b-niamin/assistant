@@ -270,6 +270,15 @@ p.muted,
 .num {
   font-variant-numeric: tabular-nums;
 }
+/* The technical side of a message (file names, settings, commands), one click away. */
+details.tech {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+details.tech summary {
+  cursor: pointer;
+  width: fit-content;
+}
 
 /* Segmented control (range presets, tabs). Built from links so it works without JS. */
 .segmented {

@@ -322,7 +322,8 @@
           <p>{t('Opening a session…')}</p>
         {:else if !configured}
           <Mascot mood="asleep" size={64} decorative />
-          <p>{t('The terminal is off: set SIDECAR_TICKET_SECRET in .env.')}</p>
+          <p>{t('The terminal is not set up on this server yet.')}</p>
+          <details class="tech"><summary>{t('Technical details')}</summary>{t('The terminal is off: set SIDECAR_TICKET_SECRET in .env.')}</details>
         {:else}
           <Mascot mood={phase === 'closed' ? 'asleep' : 'tired'} size={64} decorative />
           <p class="big">{phase === 'closed' ? t('Session disconnected') : t('Could not connect')}</p>

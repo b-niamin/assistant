@@ -108,7 +108,8 @@
   {#if menuOpen && !unlocked}
     <div class="menu card" id="lock-menu" role="dialog" aria-label={t('Unlock')}>
       {#if status && !status.configured}
-        <p class="meta">{t('The terminal is off. Set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</p>
+        <p class="meta">{t('The terminal is not set up on this server yet.')}</p>
+        <details class="tech"><summary>{t('Technical details')}</summary><span class="meta">{t('The terminal is off. Set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</span></details>
       {:else}
         <form onsubmit={submit}>
           <label for="lock-pw">{t('The terminal opens a shell, so it asks for the app password again.')}</label>

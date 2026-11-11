@@ -4,84 +4,79 @@
 
 # Beni Assistant
 
-### Your private assistant, self-hosted at home.
+A self-hosted web app for a NAS or a Linux server. Apps are added as extensions.
+Claude Code and Codex run in the same stack: they read the extensions' data and write new extensions.
+Runs on Linux or a Synology NAS with Docker Compose. You reach it over your Tailscale network with HTTPS.
 
-A small app for your NAS that grows with extensions, and Claude inside to run them and build new ones.
-
-[Install](#-quick-start) · [Screenshots](#-screenshots) · [Extensions](https://github.com/b-niamin/assistant-extensions) · [Docs](#-learn-more)
-
-![Self-hosted](https://img.shields.io/badge/self--hosted-Docker_Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Synology](https://img.shields.io/badge/runs_on-Synology_%C2%B7_Linux-B5B5B6?style=flat-square&logo=synology&logoColor=white)
-![Tailscale](https://img.shields.io/badge/access-Tailscale_HTTPS-242424?style=flat-square&logo=tailscale&logoColor=white)
-![Claude Code](https://img.shields.io/badge/AI_inside-Claude_Code_%C2%B7_Codex-D97757?style=flat-square&logo=anthropic&logoColor=white)
+[Install](#quick-start) · [Screenshots](#screenshots) · [Extensions](https://github.com/b-niamin/assistant-extensions) · [Docs](#docs)
 
 <img src="docs/screenshots/tour.gif" alt="A tour of the app: dashboard, Training &amp; Health, an activity, the gym tracker, Home, System settings and the terminal" width="900" />
 
 </div>
 
-## ✨ What you get
+## What it does
 
 <table>
   <tr>
-    <td width="33%" valign="top"><h3>🏠 Yours, at home</h3>One Docker Compose stack on your NAS or Linux box. Your data never leaves your hardware.</td>
-    <td width="33%" valign="top"><h3>🧩 Apps as extensions</h3>Training &amp; health, a gym tracker, a home board, or anything you ask for, added from System settings.</td>
-    <td width="33%" valign="top"><h3>🤖 Claude inside</h3>Claude Code and Codex live in the stack: they read every app's data and build new extensions on request.</td>
+    <td width="33%" valign="top"><h3>Runs on your machine</h3>One Docker Compose stack on a Synology NAS or any Linux host with Docker. The data is in Postgres on that host.</td>
+    <td width="33%" valign="top"><h3>Extensions</h3>Each app is an extension with its own page, dashboard tiles and database schema. Install one from System settings or ask Claude to write one.</td>
+    <td width="33%" valign="top"><h3>Agents in the stack</h3>Claude Code and Codex run in a container next to the app. They query extension data through tools and commit code to the checkout.</td>
   </tr>
   <tr>
-    <td valign="top"><h3>👨‍👩‍👧 One password, many profiles</h3>Each person gets their own data behind one app password. No accounts to manage.</td>
-    <td valign="top"><h3>🔒 Private by design</h3>Reached only over your Tailscale tailnet with HTTPS. Nothing open to the internet or the LAN.</td>
-    <td valign="top"><h3>🔄 Keeps itself current</h3>Updates from GitHub <code>main</code> on a schedule or with one click in System settings.</td>
+    <td valign="top"><h3>Profiles</h3>One app password for the whole app. Each profile has its own data.</td>
+    <td valign="top"><h3>Tailnet only</h3>The app listens on 127.0.0.1. Tailscale Serve puts HTTPS in front of it; nothing is published to the LAN or the internet.</td>
+    <td valign="top"><h3>Updates</h3>An updater pulls GitHub <code>main</code> and rebuilds only the services whose files changed, on a schedule or from System settings.</td>
   </tr>
 </table>
 
-## 🚀 Quick start
+## Quick start
 
-On a Synology NAS or any Linux machine with Docker and Compose:
+On a Synology NAS or any Linux host with Docker and Compose:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh | sudo sh
 ```
 
-1. Answer the questions with Enter (folder, port, extensions, auto-update).
-2. Open the printed address + `/setup`, type the setup code, pick a password and your profile.
-3. Done. Check the install any time with `sudo ./beni.sh doctor`.
+1. Accept the defaults with Enter: folder, port, extensions, auto-update.
+2. Open the printed address + `/setup`, enter the setup code, set the app password and the first profile.
+3. Check the install with `sudo ./beni.sh doctor`.
 
-Synology step by step, every installer option and the `beni.sh` commands: [docs/install.md](docs/install.md).
+Synology steps, installer options and `beni.sh` commands: [docs/install.md](docs/install.md).
 
-## 📸 Screenshots
+## Screenshots
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Dashboard with tiles from the extensions" /><p align="center"><b>Dashboard</b>: tiles from every extension</p></td>
-    <td width="50%"><img src="docs/screenshots/home.png" alt="The Home extension: weather, lights, doors and today's calendar" /><p align="center"><b>Home</b>: an extension on a wall tablet</p></td>
+    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Dashboard with tiles from the extensions" /><p align="center"><b>Dashboard</b>: tiles from the installed extensions</p></td>
+    <td width="50%"><img src="docs/screenshots/home.png" alt="The Home extension: weather, lights, doors and today's calendar" /><p align="center"><b>Home</b>: an extension, Home Assistant data and weather</p></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/settings.png" alt="System settings: apps, profiles and the terminal" /><p align="center"><b>System settings</b>: apps, people, updates</p></td>
-    <td><img src="docs/screenshots/terminal.png" alt="The terminal docked at the bottom of a page" /><p align="center"><b>Terminal</b>: Claude Code, Codex, a shell</p></td>
+    <td><img src="docs/screenshots/settings.png" alt="System settings: apps, profiles and the terminal" /><p align="center"><b>System settings</b>: extensions, profiles, updates</p></td>
+    <td><img src="docs/screenshots/terminal.png" alt="The terminal docked at the bottom of a page" /><p align="center"><b>Terminal</b>: a shell with Claude Code and Codex</p></td>
   </tr>
 </table>
 
-<p align="center">Light and dark (<a href="docs/screenshots/dashboard-dark.png">dark dashboard</a>). All screenshots use demo data.</p>
+<p align="center">Light and dark theme (<a href="docs/screenshots/dashboard-dark.png">dark dashboard</a>). Screenshots use demo data.</p>
 
-## 🧭 How it works
+## How it works
 
 ```mermaid
 flowchart LR
-  you(["📱 You<br/>phone · laptop · tablet"]) -- "Tailscale HTTPS" --> web
-  subgraph box ["🏠 Your NAS or Linux box · Docker Compose"]
-    llm["🤖 llm<br/>Claude Code · Codex"] -- "tools" --> web["🌐 web<br/>the app + extensions"]
-    web --> db[("🐘 Postgres<br/>a schema per extension")]
-    svc["⚙️ extension services<br/>e.g. garmin-sync"] --> db
+  you(["Browser<br/>phone, laptop, tablet"]) -- "Tailscale HTTPS" --> web
+  subgraph box ["NAS or Linux host, Docker Compose"]
+    llm["llm<br/>Claude Code, Codex"] -- "tools" --> web["web<br/>app and extensions"]
+    web --> db[("Postgres<br/>one schema per extension")]
+    svc["extension services<br/>background jobs"] --> db
   end
 ```
 
-The core is a shell: login, profiles, dashboard, System settings, terminal. Everything else is an
-extension from [assistant-extensions](https://github.com/b-niamin/assistant-extensions) or one Claude
-built for you. The stack updates itself from GitHub `main`. More in the [architecture spec](specs/000-architecture.md).
+The core provides login, profiles, the dashboard, System settings and the terminal. Everything else is an
+extension, either from [assistant-extensions](https://github.com/b-niamin/assistant-extensions) or
+written by Claude in your instance. Details: [architecture spec](specs/000-architecture.md).
 
-## 📚 Learn more
+## Docs
 
-- 🧩 **[Extensions repo](https://github.com/b-niamin/assistant-extensions)**: ready-made apps and inspirations to build from
-- 🛠️ **[Install and run](docs/install.md)**: installer details, Synology walkthrough, `beni.sh`, development
-- 🏗️ **[Architecture](specs/000-architecture.md) · [Extensions](specs/002-extensions.md) · [Security](specs/004-security.md)**: how it is built ([all specs](specs))
-- 🤝 **[AGENTS.md](AGENTS.md)**: rules for people and AI agents working in this repo
+- [Extensions repo](https://github.com/b-niamin/assistant-extensions): ready-made extensions and inspirations
+- [Install and run](docs/install.md): installer, Synology steps, `beni.sh`, development
+- [Architecture](specs/000-architecture.md), [extensions](specs/002-extensions.md), [security](specs/004-security.md), [all specs](specs)
+- [AGENTS.md](AGENTS.md): rules for people and AI agents working in this repo

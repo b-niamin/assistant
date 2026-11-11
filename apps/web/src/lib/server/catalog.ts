@@ -19,10 +19,10 @@ export interface CatalogExtension {
   needs?: string;
   /** What Beni wears for it (its manifest "accessory"). */
   accessory?: Accessory;
-  /** Name and description in other languages (spec 007): {"pl": {"name": ..., "description": ...}}. */
+  /** Name, description and needs in other languages (spec 007): {"pl": {"name": ..., "description": ...}}. */
   i18n?: CatalogTexts;
 }
-export type CatalogTexts = Record<string, { name?: string; description?: string }>;
+export type CatalogTexts = Record<string, { name?: string; description?: string; needs?: string }>;
 export interface CatalogInspiration {
   id: string;
   name: string;
@@ -52,15 +52,20 @@ function textsOf(v: unknown): { i18n?: CatalogTexts } {
   for (const [lang, t] of Object.entries(v as Record<string, unknown>).slice(0, 20)) {
     if (!/^[a-z]{2}$/.test(lang) || !t || typeof t !== 'object') continue;
     const o = t as Record<string, unknown>;
-    out[lang] = { ...(str(o.name, 40) ? { name: str(o.name, 40) } : {}), ...(str(o.description, 200) ? { description: str(o.description, 200) } : {}) };
+    out[lang] = {
+      ...(str(o.name, 40) ? { name: str(o.name, 40) } : {}),
+      ...(str(o.description, 200) ? { description: str(o.description, 200) } : {}),
+      ...(str(o.needs, 80) ? { needs: str(o.needs, 80) } : {})
+    };
   }
   return Object.keys(out).length ? { i18n: out } : {};
 }
 
 /** A catalog entry's name and description in a language, when the catalog has them. */
-export function localizeEntry<T extends { name: string; description: string; i18n?: CatalogTexts }>(e: T, lang: string): T {
+export function localizeEntry<T extends { name: string; description: string; needs?: string; i18n?: CatalogTexts }>(e: T, lang: string): T {
   const t = e.i18n?.[lang];
-  return t ? { ...e, name: t.name || e.name, description: t.description || e.description } : e;
+  if (!t) return e;
+  return { ...e, name: t.name || e.name, description: t.description || e.description, ...(e.needs && t.needs ? { needs: t.needs } : {}) };
 }
 
 /** Keep only well-formed entries: the file comes from another repo. */

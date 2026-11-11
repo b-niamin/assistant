@@ -77,7 +77,7 @@ language (`one`, `few`, `many`, `other` for Polish; `one`, `other` for German).
 - System settings -> Language shows the apps that lack a language and an "Ask Claude to translate"
   button that starts Claude in the dock's terminal with that request.
 - Extensions in the extensions repo ship their translations, so most installs need nothing.
-- Its catalog entries may carry `"i18n": {"pl": {"name": "...", "description": "..."}}` for "Extend the system".
+- Its catalog entries may carry `"i18n": {"pl": {"name": "...", "description": "...", "needs": "..."}}` for "Extend the system".
 
 ## Adding a language
 

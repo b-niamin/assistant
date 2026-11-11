@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { enhance } from '#lib/forms.ts';
+  import { enhance, saveOnChoose } from '#lib/forms.ts';
   import { invalidate } from '$app/navigation';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
@@ -262,11 +262,11 @@
           </li>
         {/each}
       </ul>
-      <form method="POST" action="?/defaultAgent" class="mode agent" aria-label={t('Default AI')}
+      <form method="POST" action="?/defaultAgent" class="mode agent" aria-label={t('Default AI')} use:saveOnChoose
         use:enhance={() => async ({ update }) => (await update({ reset: false }), refreshDock())}>
         <span class="meta">{t('Default AI, for Update, Build it and Install:')}</span>
         {#each ['claude', 'codex'] as const as a (a)}
-          <label><input type="radio" name="agent" value={a} checked={data.defaultAgent === a} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {AGENT_NAMES[a]}</label>
+          <label><input type="radio" name="agent" value={a} checked={data.defaultAgent === a} /> {AGENT_NAMES[a]}</label>
         {/each}
         <noscript><button class="btn">{t('Save')}</button></noscript>
       </form>
@@ -436,14 +436,14 @@
           <dt>{t('Last check')}</dt><dd>{u.checkedAt ? when(u.checkedAt) : t('not reported')}</dd>
           {#if u.actions && state !== 'updating'}<dt>{t('Last actions')}</dt><dd><code>{u.actions}</code></dd>{/if}
         </dl>
-        <form method="POST" action="?/updateMode" use:enhance class="mode" aria-label={t('Update mode')}>
-          <label><input type="radio" name="mode" value="auto" checked={data.updateControl.mode === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Automatic')}</label>
-          <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Manual: show new versions, update when I click')}</label>
+        <form method="POST" action="?/updateMode" use:enhance use:saveOnChoose class="mode" aria-label={t('Update mode')}>
+          <label><input type="radio" name="mode" value="auto" checked={data.updateControl.mode === 'auto'} /> {t('Automatic')}</label>
+          <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} /> {t('Manual: show new versions, update when I click')}</label>
           <noscript><button class="btn">{t('Save')}</button></noscript>
         </form>
-        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label={t('Restarts of the terminal')}>
-          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Ask before restarting the terminal (it ends what runs in it)')}</label>
-          <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Restart it by itself')}</label>
+        <form method="POST" action="?/updateRestarts" use:enhance use:saveOnChoose class="mode" aria-label={t('Restarts of the terminal')}>
+          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} /> {t('Ask before restarting the terminal (it ends what runs in it)')}</label>
+          <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} /> {t('Restart it by itself')}</label>
           <noscript><button class="btn">{t('Save')}</button></noscript>
         </form>
         <p class="meta">

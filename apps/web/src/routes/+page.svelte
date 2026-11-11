@@ -5,7 +5,7 @@
   import Mascot from '#lib/Mascot.svelte';
   import { moodForHour, type Mood } from '#lib/mascot.ts';
   import { useT } from '#lib/i18n/index.ts';
-  let { data } = $props();
+  let { data, form } = $props();
   const t = useT();
 
   // The server renders its own clock; the browser re-reads its local time after hydration.
@@ -61,6 +61,7 @@
       }}
   >
     <h2>{t('Arrange the dashboard')}</h2>
+    {#if form?.error}<p class="status critical" role="alert">{form.error}</p>{/if}
     <p class="muted">{t('Order and hidden tiles are saved for {name} only.', { name: profileName })}</p>
     <ol>
       {#each draft as d, i (d.key)}

@@ -56,6 +56,13 @@ export interface SourceStatus {
   /** A command to run in the terminal (System settings -> Terminal) to connect. */
   command?: string;
   sync?: SourceSync;
+  /**
+   * Fields of the extension's own settings (manifest "settings", text/number/secret) that connect this
+   * source, e.g. ["url", "token"]: the card shows them as a form and the generic Settings and Secrets
+   * sections leave them out. After a save the shell calls `act(ctx, source, 'saved', {})`, if there is
+   * an `act`, so the extension can check the connection and answer with a confirmation.
+   */
+  fields?: string[];
   /** Up to 6 small numbers: "Activities 412", "Data since 2 Mar 2021". */
   facts?: SourceFact[];
   actions?: SourceAction[];
@@ -76,11 +83,12 @@ export interface ExtSources {
 /** What the panel gets for one extension. */
 export type SourcesResult = { ok: true; sources: SourceStatus[] } | { ok: false; reason: 'hidden' | 'error' | 'timeout' };
 
-export const SOURCE_LIMITS = { sources: 8, facts: 6, actions: 4 } as const;
+export const SOURCE_LIMITS = { sources: 8, facts: 6, actions: 4, fields: 6 } as const;
 const STATES: SourceState[] = ['connected', 'not_connected', 'reconnect', 'planned'];
 const SYNC_STATES: SyncState[] = ['idle', 'queued', 'running', 'failed'];
 const ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const FIELD = /^[a-z][a-z0-9_]{0,39}$/;
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const iso = (v: unknown): string | null => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : null);
@@ -136,6 +144,10 @@ export function normalizeSources(v: unknown): SourceStatus[] {
     if (command) src.command = command;
     const sy = sync(s.sync);
     if (sy) src.sync = sy;
+    if (Array.isArray(s.fields)) {
+      const fields = [...new Set(s.fields.filter((f): f is string => typeof f === 'string' && FIELD.test(f)))].slice(0, SOURCE_LIMITS.fields);
+      if (fields.length) src.fields = fields;
+    }
     if (Array.isArray(s.facts)) {
       const facts = s.facts
         .filter(isObj)
@@ -156,6 +168,9 @@ export function normalizeSources(v: unknown): SourceStatus[] {
   }
   return out;
 }
+
+/** Settings fields that a source edits in its own card (left out of the generic Settings and Secrets). */
+export const claimedFields = (list: SourceStatus[]) => new Set(list.flatMap((s) => s.fields ?? []));
 
 /** Is any source busy? The panel then polls for progress. */
 export const busy = (list: SourceStatus[]) => list.some((s) => s.sync?.state === 'running' || s.sync?.state === 'queued');

@@ -259,6 +259,11 @@ of it sits behind a step-up: the app password is asked again and the session sta
   seconds while a sync is queued or running. Logins are never typed into the web app: `command` names
   the terminal command that connects an account. The extension's background service does the fetching;
   an action only queues work for it (health: `health.sync_requests`).
+  A source reached with an address and an API token (Home Assistant) names its settings `fields`
+  instead (e.g. `["url", "token"]`, declared in the manifest as text/number/secret): the card shows them
+  as a Connect form (secrets write-only, as in Secrets), the generic Settings and Secrets sections leave
+  them out, and after a save the shell runs `act(ctx, source, 'saved', {})` so the extension can test the
+  connection and answer. Account passwords still never go through the web app.
 
 **System**: the terminal and the browser (spec 004; Claude and Codex run in the terminal on the owner's
 subscriptions, no AI API keys in the app), the app password (when not pinned by `APP_PASSWORD_HASH`) and

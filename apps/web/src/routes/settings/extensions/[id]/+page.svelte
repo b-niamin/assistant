@@ -2,10 +2,14 @@
   import { enhance } from '$app/forms';
   import { AGENT_NAMES, askAgent, pickAgent } from '#lib/dock/dock.svelte.ts';
   import SourcesPanel from '#lib/settings/SourcesPanel.svelte';
+  import { claimedFields } from '#lib/extensions/sources.ts';
   import { buildChangePrompt, hueFor, initials } from '#lib/settings/guide.ts';
   let { data, form } = $props();
   const ext = $derived(data.ext);
-  const plain = $derived(ext.settings.filter((f) => f.type !== 'secret'));
+  // Fields a connected account edits in its own card stay out of the generic sections below.
+  const claimed = $derived(data.sources?.ok ? claimedFields(data.sources.sources) : new Set<string>());
+  const plain = $derived(ext.settings.filter((f) => f.type !== 'secret' && !claimed.has(f.name)));
+  const secretNames = $derived(ext.secrets.filter((n) => !claimed.has(n)));
   const slot = (name: string) => data.secrets.find((s) => s.name === name);
   const fieldsById = $derived(new Map(ext.settings.map((f) => [f.name, f])));
   const agentName = $derived(AGENT_NAMES[pickAgent()]);
@@ -49,7 +53,15 @@
 </header>
 
 {#if data.sources}
-  <SourcesPanel extId={ext.id} result={data.sources} {form} />
+  <SourcesPanel
+    extId={ext.id}
+    result={data.sources}
+    {form}
+    settings={ext.settings}
+    values={data.values}
+    secrets={data.secrets}
+    secretsAvailable={data.secretsAvailable}
+  />
 {/if}
 
 {#if changing}
@@ -118,7 +130,7 @@
   </section>
 {/if}
 
-{#if ext.secrets.length}
+{#if secretNames.length}
   <section>
     <h2>Secrets</h2>
     <p class="muted">Stored encrypted. Nobody can read a value back here, only replace or remove it.</p>
@@ -126,7 +138,7 @@
       <p class="note bad">Set <code>SECRETS_KEY</code> in <code>.env</code> first: it encrypts these values.</p>
     {/if}
     <div class="stack">
-      {#each ext.secrets as name (name)}
+      {#each secretNames as name (name)}
         {@const s = slot(name)}
         <div class="card secret">
           <div class="what">
@@ -161,7 +173,7 @@
   </section>
 {/if}
 
-{#if !plain.length && !ext.secrets.length && !ext.settingsPage && !data.sources}
+{#if !plain.length && !secretNames.length && !ext.settingsPage && !data.sources}
   <p class="muted">{ext.name} has no settings of its own.</p>
 {/if}
 

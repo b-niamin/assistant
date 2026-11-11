@@ -35,9 +35,9 @@ export function coerce(field: SettingField, raw: string | null): SettingValue {
   return v;
 }
 
-/** Save the plain fields from a settings form. */
-export async function saveSettings(ext: ExtensionInfo, form: FormData): Promise<void> {
-  const values = plain(ext).map((f) => ({ name: f.name, value: coerce(f, form.get(`field:${f.name}`)?.toString() ?? null) }));
+/** Save the plain fields from a settings form; with `only`, just those (a source's own card). */
+export async function saveSettings(ext: ExtensionInfo, form: FormData, only?: string[]): Promise<void> {
+  const values = plain(ext).filter((f) => !only || only.includes(f.name)).map((f) => ({ name: f.name, value: coerce(f, form.get(`field:${f.name}`)?.toString() ?? null) }));
   await db().begin(async (sql) => {
     for (const { name, value } of values) {
       if (value === null) await sql`DELETE FROM core.extension_config WHERE extension_id = ${ext.id} AND name = ${name}`;

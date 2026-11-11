@@ -7,6 +7,8 @@ import { contextFor } from './runtime.server';
 import { SOURCE_MODULES } from './generated/sources.server';
 import { normalizeSources, type ExtSources, type SourceActionInput, type SourcesResult } from './sources';
 import type { ExtensionInfo } from './types';
+import { saveSettings } from './config.server';
+import { setSecret } from '#lib/server/extension-secrets.ts';
 
 const TIMEOUT_MS = 4000;
 
@@ -65,4 +67,36 @@ export async function runSourceAction(
     if ((offered.date.min && d < offered.date.min) || (offered.date.max && d > offered.date.max)) throw new Error('That date is out of range.');
   }
   return (await mod.act(ctx, source, action, offered.date ? { date: input.date } : {})) || 'Done.';
+}
+
+/**
+ * Saves the settings fields a source edits in its own card (its `fields`, checked against its own list
+ * and the manifest): plain values as in the Settings section, secrets only when a new value was typed.
+ * Then, if the extension has `act`, runs `act(ctx, source, 'saved', {})` so it can check the connection;
+ * its answer is the confirmation. Throws Error with a message for the owner.
+ */
+export async function saveSourceFields(
+  ext: ExtensionInfo,
+  event: Pick<RequestEvent, 'locals'>,
+  source: string,
+  form: FormData
+): Promise<string> {
+  const mod = await moduleOf(ext);
+  if (!mod) throw new Error('This extension has no accounts.');
+  const ctx = await contextFor(ext.id, event);
+  const names = normalizeSources(await mod.list(ctx)).find((s) => s.id === source)?.fields ?? [];
+  const fields = ext.settings.filter((f) => names.includes(f.name) && ['text', 'number', 'secret'].includes(f.type));
+  if (!fields.length) throw new Error('Nothing to save here.');
+  const plainNames = fields.filter((f) => f.type !== 'secret').map((f) => f.name);
+  if (plainNames.length) await saveSettings(ext, form, plainNames);
+  for (const f of fields.filter((f) => f.type === 'secret')) {
+    const v = form.get(`field:${f.name}`)?.toString() ?? '';
+    if (v) await setSecret(ext, f.name, v);
+  }
+  if (!mod.act) return 'Saved.';
+  try {
+    return (await mod.act(await contextFor(ext.id, event), source, 'saved', {})) || 'Saved.';
+  } catch (e) {
+    throw new Error(`Saved, but: ${(e as Error).message}`);
+  }
 }

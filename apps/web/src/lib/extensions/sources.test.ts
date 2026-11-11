@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { busy, normalizeSources } from './sources';
+import { busy, claimedFields, normalizeSources } from './sources';
 
 describe('normalizeSources', () => {
   it('keeps a well-formed source and clamps the progress', () => {
@@ -36,6 +36,16 @@ describe('normalizeSources', () => {
       { id: 'g', name: 'G', state: 'connected', actions: [{ id: 'older', label: 'Older', date: { label: 'Back to', default: 'soon', max: '2026-11-09' } }] }
     ]);
     expect(s.actions?.[0].date).toEqual({ label: 'Back to', default: undefined, min: undefined, max: '2026-11-09' });
+  });
+
+  it('keeps the settings fields a source edits, valid names only, once each', () => {
+    const list = normalizeSources([
+      { id: 'ha', name: 'Home Assistant', state: 'not_connected', fields: ['url', 'token', 'url', 'Bad-Name', 42, '../x'] },
+      { id: 'b', name: 'B', state: 'connected', fields: 'url' }
+    ]);
+    expect(list[0].fields).toEqual(['url', 'token']);
+    expect(list[1].fields).toBeUndefined();
+    expect([...claimedFields(list)]).toEqual(['url', 'token']);
   });
 
   it('is busy while a sync runs or waits', () => {

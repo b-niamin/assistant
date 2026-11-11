@@ -5,7 +5,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { readSettings, saveSettings } from '#lib/extensions/config.server.ts';
-import { runSourceAction, sourcesOf } from '#lib/extensions/sources.server.ts';
+import { runSourceAction, saveSourceFields, sourcesOf } from '#lib/extensions/sources.server.ts';
 import { extensionById, saveExtensionSwitches } from '#lib/extensions/registry.server.ts';
 import { deleteSecret, listSecretSlots, secretsAvailable, setSecret } from '#lib/server/extension-secrets.ts';
 import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
@@ -75,6 +75,22 @@ export const actions: Actions = {
     try {
       const ok = await runSourceAction(ext, { locals }, source, action, typeof date === 'string' && date ? { date } : {});
       log(`extension ${ext.id} source ${source}: ${action}`);
+      return { ok, source };
+    } catch (e) {
+      return fail(400, { error: (e as Error).message, source });
+    }
+  },
+  connect: async ({ params, request, cookies, locals }) => {
+    await guard(cookies.get(SESSION_COOKIE));
+    const ext = await extOf(params.id);
+    const f = await request.formData();
+    const source = String(f.get('source') ?? '');
+    if (!secretsAvailable() && ext.settings.some((x) => x.type === 'secret' && f.get(`field:${x.name}`))) {
+      return fail(503, { error: 'Set SECRETS_KEY in .env first.', source });
+    }
+    try {
+      const ok = await saveSourceFields(ext, { locals }, source, f);
+      log(`extension ${ext.id} source ${source}: fields saved`);
       return { ok, source };
     } catch (e) {
       return fail(400, { error: (e as Error).message, source });

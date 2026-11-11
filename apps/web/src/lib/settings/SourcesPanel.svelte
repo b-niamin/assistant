@@ -2,22 +2,39 @@
   import { enhance } from '$app/forms';
   import { onDestroy } from 'svelte';
   import { dock } from '#lib/dock/dock.svelte.ts';
-  import { busy, type SourceState, type SourcesResult } from '#lib/extensions/sources.ts';
+  import { busy, type SourceState, type SourceStatus, type SourcesResult } from '#lib/extensions/sources.ts';
+  import type { SettingField } from '#lib/extensions/types.ts';
   import { hueFor } from './guide.ts';
 
   /**
    * Connected accounts of one extension (spec 002): each source with its state, the sync with a
-   * progress bar while it runs (polled every few seconds), a few facts and the actions it offers.
+   * progress bar while it runs (polled every few seconds), a few facts, the actions it offers and, for a
+   * source that names settings `fields` (an address and a token), a form to connect it right here.
    */
   let {
     extId,
     result,
-    form
+    form,
+    settings = [],
+    values = {},
+    secrets = [],
+    secretsAvailable = true
   }: {
     extId: string;
     result: SourcesResult;
     form?: { ok?: string; error?: string; source?: string } | null;
+    settings?: SettingField[];
+    values?: Record<string, string | number | boolean | null>;
+    secrets?: { name: string; keyHint: string | null; updatedAt: Date | string | null }[];
+    secretsAvailable?: boolean;
   } = $props();
+
+  /** The manifest fields a source edits in its card, in the source's order (text, number, secret only). */
+  const fieldsOf = (s: SourceStatus) =>
+    (s.fields ?? [])
+      .map((n) => settings.find((f) => f.name === n))
+      .filter((f): f is SettingField => !!f && (f.type === 'text' || f.type === 'number' || f.type === 'secret'));
+  const slot = (name: string) => secrets.find((x) => x.name === name);
 
   let polled = $state<SourcesResult | null>(null);
   // A fresh page load (after an action) wins over an older poll.
@@ -82,6 +99,7 @@
     <div class="sources">
       {#each list as s (s.id)}
         {@const st = STATE[s.state]}
+        {@const own = fieldsOf(s)}
         {@const running = s.sync?.state === 'running' || s.sync?.state === 'queued'}
         <article class="card source" class:planned={s.state === 'planned'} aria-labelledby="src-{s.id}">
           <div class="top">
@@ -100,6 +118,26 @@
                 <p class="cmd"><code>{s.command}</code> <button type="button" class="small linkish" onclick={() => (dock.open = true)}>Open the terminal</button></p>
               {/if}
             </div>
+          {/if}
+
+          {#if own.length}
+            <form method="POST" action="?/connect" use:enhance class="fields">
+              <input type="hidden" name="source" value={s.id} />
+              {#each own as f (f.name)}
+                {@const sl = f.type === 'secret' ? slot(f.name) : undefined}
+                <label class="field wide">
+                  <span>{f.label}{#if f.type === 'secret'} <span class="muted">({sl?.updatedAt ? `set${sl.keyHint ? `, ends in …${sl.keyHint}` : ''}; type to replace` : 'not set'})</span>{/if}</span>
+                  {#if f.type === 'secret'}
+                    <input name="field:{f.name}" type="password" autocomplete="off" disabled={!secretsAvailable}
+                      placeholder={sl?.updatedAt ? 'Unchanged' : ''} required={!sl?.updatedAt} />
+                  {:else}
+                    <input name="field:{f.name}" inputmode={f.type === 'number' ? 'decimal' : undefined} value={values[f.name] ?? ''} />
+                  {/if}
+                  {#if f.help}<span class="help">{f.help}</span>{/if}
+                </label>
+              {/each}
+              <div><button class="btn">{s.state === 'connected' ? 'Save' : 'Connect'}</button></div>
+            </form>
           {/if}
 
           {#if s.sync}
@@ -339,6 +377,21 @@
     gap: 2px;
     font-size: 0.8125rem;
     color: var(--ink-2);
+  }
+  .fields {
+    display: grid;
+    gap: var(--space-3);
+    max-width: 520px;
+  }
+  .field.wide {
+    gap: 4px;
+  }
+  .field.wide input {
+    width: 100%;
+  }
+  .field .help {
+    font-size: 0.75rem;
+    color: var(--ink-3);
   }
   .note {
     padding: var(--space-2) var(--space-3);

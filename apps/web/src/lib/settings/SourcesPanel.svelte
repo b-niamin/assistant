@@ -20,6 +20,7 @@
     settings = [],
     values = {},
     secrets = [],
+    items = {},
     secretsAvailable = true
   }: {
     extId: string;
@@ -28,6 +29,8 @@
     settings?: SettingField[];
     values?: Record<string, string | number | boolean | null>;
     secrets?: { name: string; keyHint: string | null; updatedAt: Date | string | null }[];
+    /** Each list secret's ("multiple") items, by hint only. */
+    items?: Record<string, string[]>;
     secretsAvailable?: boolean;
   } = $props();
 
@@ -127,6 +130,29 @@
               <input type="hidden" name="source" value={s.id} />
               {#each own as f (f.name)}
                 {@const sl = f.type === 'secret' ? slot(f.name) : undefined}
+                {#if f.multiple}
+                  {@const list = items[f.name] ?? []}
+                  <div class="field wide" role="group" aria-labelledby="lbl-{s.id}-{f.name}">
+                    <span id="lbl-{s.id}-{f.name}">{f.label}</span>
+                    {#if list.length}
+                      <ul class="items">
+                        {#each list as it, i (i)}
+                          <li>
+                            <span class="num">{it}</span>
+                            <button class="x" form="rm-{s.id}-{f.name}" name="index" value={i} disabled={!secretsAvailable}
+                              aria-label={t('Remove {item}', { item: it })} title={t('Remove')}>×</button>
+                          </li>
+                        {/each}
+                      </ul>
+                    {/if}
+                    <div class="add">
+                      <input name="field:{f.name}" type="password" autocomplete="off" disabled={!secretsAvailable}
+                        required={own.every((x) => x.multiple)} aria-label={t('Add to {label}', { label: f.label })} placeholder={t('Paste one and press +')} />
+                      <button class="btn plus" disabled={!secretsAvailable} aria-label={t('Add')} title={t('Add')}>+</button>
+                    </div>
+                    {#if f.help}<span class="help">{f.help}</span>{/if}
+                  </div>
+                {:else}
                 <label class="field wide">
                   <span>{f.label}{#if f.type === 'secret'} <span class="muted">({sl?.updatedAt ? `${t('set')}${sl.keyHint ? `, ${t('ends in …{hint}', { hint: sl.keyHint })}` : ''}; ${t('type to replace')}` : t('not set')})</span>{/if}</span>
                   {#if f.type === 'secret'}
@@ -137,9 +163,19 @@
                   {/if}
                   {#if f.help}<span class="help">{f.help}</span>{/if}
                 </label>
+                {/if}
               {/each}
-              <div><button class="btn">{s.state === 'connected' ? t('Save') : t('Connect')}</button></div>
+              {#if own.some((f) => !f.multiple)}
+                <div><button class="btn">{s.state === 'connected' ? t('Save') : t('Connect')}</button></div>
+              {/if}
             </form>
+            <!-- A list's [x] buttons belong to these forms, so Enter in the form above never removes an item. -->
+            {#each own.filter((f) => f.multiple) as f (f.name)}
+              <form id="rm-{s.id}-{f.name}" method="POST" action="?/connect" use:enhance hidden>
+                <input type="hidden" name="source" value={s.id} />
+                <input type="hidden" name="remove" value={f.name} />
+              </form>
+            {/each}
           {/if}
 
           {#if s.sync}
@@ -390,6 +426,58 @@
   }
   .field.wide input {
     width: 100%;
+  }
+  .items {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .items li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+    border: 1px solid var(--grid);
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+  }
+  .items li span {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .x {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--ink-3);
+    font-size: 1.125rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .x:hover,
+  .x:focus-visible {
+    background: var(--surface-2);
+    color: var(--critical);
+  }
+  .add {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .add input {
+    flex: 1;
+    min-width: 0;
+  }
+  .plus {
+    flex: none;
+    min-width: 40px;
+    font-size: 1.125rem;
+    line-height: 1;
   }
   .field .help {
     font-size: 0.75rem;

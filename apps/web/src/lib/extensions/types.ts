@@ -36,4 +36,6 @@ export interface SettingField {
   help?: string;
   options?: string[];
   default?: string | number | boolean;
+  /** Secrets only: a list (calendar links, keys), one item per row with [x] and a [+] to add one. */
+  multiple?: boolean;
 }

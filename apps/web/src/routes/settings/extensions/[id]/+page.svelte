@@ -55,6 +55,7 @@
     settings={ext.settings}
     values={data.values}
     secrets={data.secrets}
+    items={data.secretItems}
     secretsAvailable={data.secretsAvailable}
   />
 {/if}

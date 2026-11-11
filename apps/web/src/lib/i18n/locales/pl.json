@@ -452,5 +452,10 @@
   "Unchanged": "Bez zmian",
   "Connect": "Połącz",
   "This extension has no accounts.": "To rozszerzenie nie ma kont.",
-  "Nothing to save here.": "Nie ma tu nic do zapisania."
+  "Nothing to save here.": "Nie ma tu nic do zapisania.",
+  "Remove {item}": "Usuń {item}",
+  "Add to {label}": "Dodaj do: {label}",
+  "Paste one and press +": "Wklej jeden i naciśnij +",
+  "Too many items (at most 20).": "Za dużo pozycji (najwyżej 20).",
+  "That item is already gone.": "Tej pozycji już nie ma."
 }

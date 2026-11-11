@@ -106,7 +106,8 @@ describe('settings fields', () => {
       { name: 'url', label: 'Address', type: 'text' },
       { name: 'token', label: 'Token', type: 'secret' },
       { name: 'every', label: 'Refresh', type: 'select', options: ['1 min', '5 min'], default: '5 min' },
-      { name: 'energy', label: 'Energy', type: 'boolean', default: true }
+      { name: 'energy', label: 'Energy', type: 'boolean', default: true },
+      { name: 'links', label: 'Links', type: 'secret', multiple: true }
     ];
     expect(lib.validateManifest({ ...base, settings }, 'home')).toEqual([]);
     expect(lib.settingsOf({ ...base, secrets: ['api_key'] })).toEqual([{ name: 'api_key', label: 'api key', type: 'secret' }]);
@@ -115,9 +116,10 @@ describe('settings fields', () => {
     const bad = [
       { name: 'Bad Name', label: 'x', type: 'text' },
       { name: 'pick', label: 'Pick', type: 'select' },
-      { name: 'kind', label: 'Kind', type: 'color' }
+      { name: 'kind', label: 'Kind', type: 'color' },
+      { name: 'many', label: 'Many', type: 'text', multiple: true }
     ];
-    expect(lib.validateManifest({ ...base, settings: bad }, 'home')).toHaveLength(3);
+    expect(lib.validateManifest({ ...base, settings: bad }, 'home')).toHaveLength(4);
     expect(lib.validateManifest({ ...base, kind: 'onefile', entry: 'app.html', settings: [{ name: 't', label: 'T', type: 'secret' }] }, 'home').join()).toMatch(/only native/);
   });
 });

@@ -8,7 +8,8 @@ import { SOURCE_MODULES } from './generated/sources.server';
 import { normalizeSources, type ExtSources, type SourceActionInput, type SourcesResult } from './sources';
 import type { ExtensionInfo } from './types';
 import { saveSettings } from './config.server';
-import { setSecret } from '#lib/server/extension-secrets.ts';
+import { deleteSecret, readSecret, setSecret } from '#lib/server/extension-secrets.ts';
+import { addItems, itemHint, removeItem, splitItems } from './secret-items';
 
 const TIMEOUT_MS = 4000;
 
@@ -89,9 +90,17 @@ export async function saveSourceFields(
   if (!fields.length) throw new Error('Nothing to save here.');
   const plainNames = fields.filter((f) => f.type !== 'secret').map((f) => f.name);
   if (plainNames.length) await saveSettings(ext, form, plainNames);
+  // A list (manifest "multiple"): the card's [x] sends `remove` (the field) and `index`; nothing else changes.
+  const removing = fields.find((f) => f.multiple && f.name === form.get('remove'));
+  if (removing) {
+    const left = removeItem(await readSecret(ext, removing.name), Number(form.get('index')));
+    if (left) await setSecret(ext, removing.name, left);
+    else await deleteSecret(ext, removing.name);
+    return 'Removed.';
+  }
   for (const f of fields.filter((f) => f.type === 'secret')) {
-    const v = form.get(`field:${f.name}`)?.toString() ?? '';
-    if (v) await setSecret(ext, f.name, v);
+    const v = form.get(`field:${f.name}`)?.toString().trim() ?? '';
+    if (v) await setSecret(ext, f.name, f.multiple ? addItems(await readSecret(ext, f.name), v) : v);
   }
   if (!mod.act) return 'Saved.';
   try {
@@ -99,4 +108,13 @@ export async function saveSourceFields(
   } catch (e) {
     throw new Error(`Saved, but: ${(e as Error).message}`);
   }
+}
+
+/** For the card: each item of every list secret ("multiple"), by its hint only, in stored order. */
+export async function secretItemHints(ext: ExtensionInfo): Promise<Record<string, string[]>> {
+  const out: Record<string, string[]> = {};
+  for (const f of ext.settings.filter((f) => f.type === 'secret' && f.multiple)) {
+    out[f.name] = splitItems(await readSecret(ext, f.name).catch(() => null)).map(itemHint);
+  }
+  return out;
 }

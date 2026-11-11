@@ -270,6 +270,10 @@ of it sits behind a step-up: the app password is asked again and the session sta
   as a Connect form (secrets write-only, as in Secrets), the generic Settings and Secrets sections leave
   them out, and after a save the shell runs `act(ctx, source, 'saved', {})` so the extension can test the
   connection and answer. Account passwords still never go through the web app.
+  A secret that holds a list (calendar subscription links) is declared with `"multiple": true`: the card
+  shows one row per item (only its host and last characters) with a remove button, and a field with
+  [+] that adds one. It stays one secret, one item per line, so `ctx.secrets.get` returns a string
+  (older values separated by spaces read the same).
 
 **System**: the terminal and the browser (spec 004; Claude and Codex run in the terminal on the owner's
 subscriptions, no AI API keys in the app), the app password (when not pinned by `APP_PASSWORD_HASH`) and

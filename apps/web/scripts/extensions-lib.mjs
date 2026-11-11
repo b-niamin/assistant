@@ -145,6 +145,8 @@ export function settingsProblems(list, kind, dirName) {
       errors.push(`${where}: a select needs options (a list of strings)`);
     if (f.type === 'secret' && kind !== 'native') errors.push(`${where}: only native extensions can have secrets`);
     if (f.type === 'secret' && f.default !== undefined) errors.push(`${where}: a secret has no default`);
+    if (f.multiple !== undefined && (f.multiple !== true || f.type !== 'secret'))
+      errors.push(`${where}: "multiple": true is for secrets only (a list of links or keys)`);
   }
   return errors;
 }

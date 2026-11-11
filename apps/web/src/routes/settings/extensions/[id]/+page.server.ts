@@ -5,7 +5,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { readSettings, saveSettings } from '#lib/extensions/config.server.ts';
-import { runSourceAction, saveSourceFields, sourcesOf } from '#lib/extensions/sources.server.ts';
+import { runSourceAction, saveSourceFields, secretItemHints, sourcesOf } from '#lib/extensions/sources.server.ts';
 import { extensionById, saveExtensionSwitches } from '#lib/extensions/registry.server.ts';
 import { deleteSecret, listSecretSlots, secretsAvailable, setSecret } from '#lib/server/extension-secrets.ts';
 import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
@@ -24,11 +24,12 @@ async function extOf(id: string) {
 export const load: PageServerLoad = async ({ params, cookies, locals }) => {
   await guard(cookies.get(SESSION_COOKIE), params.id);
   const ext = await extOf(params.id);
-  const [values, secrets, profiles, sources] = await Promise.all([
+  const [values, secrets, profiles, sources, secretItems] = await Promise.all([
     readSettings(ext),
     listSecretSlots([ext]),
     listProfiles(),
-    sourcesOf(ext, { locals })
+    sourcesOf(ext, { locals }),
+    secretsAvailable() ? secretItemHints(ext) : {}
   ]);
   return {
     // Name, description and field labels in the page's language (the extension's i18n/<lang>.json).
@@ -37,6 +38,7 @@ export const load: PageServerLoad = async ({ params, cookies, locals }) => {
     secrets,
     profiles,
     sources,
+    secretItems,
     secretsAvailable: secretsAvailable()
   };
 };
@@ -91,7 +93,7 @@ export const actions: Actions = {
     const t = tFor(locals.lang, ext.id);
     const f = await request.formData();
     const source = String(f.get('source') ?? '');
-    if (!secretsAvailable() && ext.settings.some((x) => x.type === 'secret' && f.get(`field:${x.name}`))) {
+    if (!secretsAvailable() && (f.get('remove') || ext.settings.some((x) => x.type === 'secret' && f.get(`field:${x.name}`)))) {
       return fail(503, { error: t('Set SECRETS_KEY in .env first.'), source });
     }
     try {

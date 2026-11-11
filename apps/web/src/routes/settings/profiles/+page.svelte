@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
+  import { enhance } from '#lib/forms.ts';
   import Mascot from '#lib/Mascot.svelte';
   import { hueFor, initials, uniqueProfileId } from '#lib/settings/guide.ts';
   import { useT } from '#lib/i18n/index.ts';

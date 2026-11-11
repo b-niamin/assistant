@@ -197,6 +197,13 @@ textarea {
 button {
   cursor: pointer;
 }
+/* A form on its way (lib/forms.ts): its button is disabled until the answer is in. */
+form[aria-busy='true'] {
+  cursor: progress;
+}
+form[aria-busy='true'] button:disabled {
+  cursor: progress;
+}
 /* Phones and tablets: 16px fields (iOS zooms the page into anything smaller) and 44px touch targets. */
 @media (pointer: coarse) {
   input,
@@ -229,8 +236,10 @@ button {
   color: var(--ink-2);
   padding: 0 6px;
 }
-.btn-ghost:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .btn-ghost:hover {
+    color: var(--ink);
+  }
 }
 .btn:disabled,
 .btn-ghost:disabled {
@@ -253,6 +262,11 @@ button {
 .muted {
   color: var(--ink-3);
 }
+/* Running text reads best at about 70 characters a line, even on a wide screen. */
+p.muted,
+.card > p {
+  max-width: 68ch;
+}
 .num {
   font-variant-numeric: tabular-nums;
 }
@@ -273,8 +287,10 @@ button {
   font-size: 0.875rem;
   font-weight: 500;
 }
-.segmented a:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .segmented a:hover {
+    color: var(--ink);
+  }
 }
 .segmented a[aria-current='true'] {
   background: var(--surface);

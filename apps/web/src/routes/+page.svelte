@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { enhance } from '$app/forms';
+  import { enhance } from '#lib/forms.ts';
   import Tile from '#lib/dashboard/Tile.svelte';
   import Mascot from '#lib/Mascot.svelte';
   import { moodForHour, type Mood } from '#lib/mascot.ts';

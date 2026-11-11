@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
+  import { enhance } from '#lib/forms.ts';
   import { AGENT_NAMES, draftForAgent, pickAgent } from '#lib/dock/dock.svelte.ts';
   import SourcesPanel from '#lib/settings/SourcesPanel.svelte';
   import { claimedFields } from '#lib/extensions/sources.ts';

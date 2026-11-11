@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
+  import { enhance } from '#lib/forms.ts';
   import { onDestroy } from 'svelte';
   import { openDock } from '#lib/dock/dock.svelte.ts';
   import { busy, type SourceState, type SourceStatus, type SourcesResult } from '#lib/extensions/sources.ts';

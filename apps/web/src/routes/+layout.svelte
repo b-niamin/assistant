@@ -5,14 +5,27 @@
   import LockMenu from '#lib/dock/LockMenu.svelte';
   import { dock, dockShown } from '#lib/dock/dock.svelte.ts';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
-  import { page } from '$app/state';
+  import { navigating, page } from '$app/state';
   import { provideLanguage, useT } from '#lib/i18n/index.ts';
   let { data, children } = $props();
   provideLanguage(() => data.lang);
   const t = useT();
+
+  // A thin bar at the top while a page loads, shown only after 150 ms so quick ones do not flicker.
+  let loading = $state(false);
+  $effect(() => {
+    if (!navigating.to) {
+      loading = false;
+      return;
+    }
+    const timer = setTimeout(() => (loading = true), 150);
+    return () => clearTimeout(timer);
+  });
 </script>
 
 <svelte:head><title>{t('Assistant')}</title></svelte:head>
+
+{#if loading}<div class="loading" role="progressbar" aria-label={t('Loading')}></div>{/if}
 
 <a class="skip" href="#main">{t('Skip to content')}</a>
 
@@ -42,6 +55,29 @@
 {#if data.authenticated}<Dock />{/if}
 
 <style>
+  .loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 200;
+    background: var(--accent);
+    transform-origin: left;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .loading {
+      animation: grow 8s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+    }
+  }
+  @keyframes grow {
+    from {
+      transform: scaleX(0.05);
+    }
+    to {
+      transform: scaleX(0.9);
+    }
+  }
   .skip {
     position: absolute;
     left: var(--space-3);

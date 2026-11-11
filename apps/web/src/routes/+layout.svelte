@@ -170,7 +170,13 @@
   }
   /* Room for the dock's bar at the bottom. */
   main.docked {
+    /* The dock bar's height (Dock.svelte .strip, 1px border, the phone's safe area). */
+    --dock-h: calc(41px + env(safe-area-inset-bottom, 0px));
     padding-bottom: calc(var(--space-7) + 48px);
+  }
+  /* A onefile app fills the page down to the dock bar instead of running under it. */
+  main.docked:has(:global(.onefile-host)) {
+    padding-bottom: var(--space-7);
   }
   @media (max-width: 560px) {
     .bar {

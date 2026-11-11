@@ -115,7 +115,7 @@
 
 <svelte:head><title>{tFor(t.lang, id)(name)} · {t('Assistant')}</title></svelte:head>
 
-<div class="host">
+<div class="host onefile-host">
   {#key reloads}
     <iframe bind:this={frame} src="/api/onefile/{id}" title={tFor(t.lang, id)(name)} sandbox={ONEFILE_SANDBOX}></iframe>
   {/key}
@@ -139,7 +139,7 @@
   iframe {
     display: block;
     width: 100%;
-    height: calc(100dvh - 57px);
+    height: calc(100dvh - 57px - var(--dock-h, 0px));
     border: 0;
     background: var(--surface);
   }

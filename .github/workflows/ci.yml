@@ -33,11 +33,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - name: Shell scripts parse
         run: for f in $(git ls-files '*.sh' scripts/hooks); do sh -n "$f"; done
+      - name: Migrations do not collide
+        run: sh scripts/check-migrations.sh "${{ github.event.before || github.event.pull_request.base.sha }}"
       - name: Updater plan, ACLs, funnel
         run: sh scripts/update.test.sh
       - name: Terminal sidecar (ticket, WebSocket, pty)

@@ -61,7 +61,8 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AG
 
 1. **Commit every change** with a clear English message. `scripts/hooks/pre-commit` runs the checks;
    never bypass it (`--no-verify` is off-limits). If a change breaks something, `git revert` it.
-2. **Migrations are additive**: new numbered file in `db/migrations/`, never edit an applied one, no
+2. **Migrations are additive**: new numbered file in `db/migrations/` (the next free number after
+   `main`'s last one; CI refuses a duplicate or one that sorts earlier), never edit an applied one, no
    `DROP`/`TRUNCATE`. An extension's migrations (`extensions/<id>/db/migrations/`) are applied by
    `ext-migrate` within ~15 s; check `/logs/ext-migrate.log`. The shell's own `db/migrations/` go live only
    from GitHub `main` (the updater rebuilds the migrate image), so a core migration needs a push the owner

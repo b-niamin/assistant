@@ -1,0 +1,121 @@
+# Install and run
+
+The details behind the quick install in the [README](../README.md): what the installer asks and does, a
+Synology walkthrough, the everyday `beni.sh` commands, extensions and development.
+
+## What the installer does
+
+It asks a few questions, each with a suggestion you take with Enter: the folder
+(`/volume1/docker/assistant` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS
+port on your tailnet (443, or 8443 when something is already served there), the extensions to install
+(checkboxes from the extensions repo's `catalog.json`) and whether to update itself from `main` ([spec 006](../specs/006-auto-update.md)). Then it
+clones this repo, writes `.env` with random secrets, installs the extensions, starts the stack, runs
+`tailscale serve` and prints the address plus a one-time setup code. Open `/setup` there, set the app
+password and your profile; everything else is in **System settings** (`/settings`).
+
+In a terminal it then walks you through the rest step by step: it waits for the app, shows the setup
+address and code, reminds you of the Synology schedule, and offers to log in to Claude and Garmin.
+
+It shows numbered progress for each phase. The last question is how to start: by the installer
+(default), or by yourself, e.g. in Synology Container Manager or Portainer: then it prepares
+`stack/docker-compose.yml` (extensions merged in) and `stack/.env` and tells you where to point the tool.
+
+Unattended: `... | sudo ASSISTANT_YES=1 sh` takes the suggestions; `ASSISTANT_DIR`, `WEB_PORT`,
+`ASSISTANT_HTTPS_PORT`, `ASSISTANT_EXTENSIONS`, `ASSISTANT_AUTO_UPDATE=0|1`, `ASSISTANT_START=now|manual`
+and `ASSISTANT_PROJECT` (the compose project name) answer up front.
+
+Containers and volumes are named after the compose project: the folder name, pinned in `.env` as
+`COMPOSE_PROJECT_NAME` so the folder can move later. When another folder's stack already uses that name
+(the older single-repo install also lived in a folder called `assistant`), a new install takes the next
+free one (`assistant-2`) and says so.
+
+Two steps stay in a terminal because they log in to outside accounts:
+
+```sh
+docker compose exec -it llm claude                      # /login once; Remote Control then runs by itself
+docker compose exec -it garmin-sync python -m sync login   # only with the health extension (password never stored)
+```
+
+Re-running `./install.sh` is safe: it keeps `.env` and your extensions. Run it again after adding an
+extension that brings a background service.
+
+## Step by step on a Synology NAS
+
+1. **Packages** (DSM, Package Center): *Container Manager*; *Git* (or *Git Server*), for `git`; and
+   *Tailscale*, signed in to your tailnet, to reach the app over HTTPS.
+2. **SSH**: Control Panel → Terminal & SNMP → enable SSH. From your computer: `ssh <you>@<nas>`.
+3. **Install**: the command above, answering with Enter. Next to another app it suggests a free port
+   and another tailnet port, and its own compose project name keeps its containers and volumes separate. The checkout
+   belongs to you (the user who ran `sudo`); the first build takes 10-20 minutes on a small NAS.
+4. **Updates**: the installer prints a Task Scheduler entry. Control Panel → Task Scheduler → Create
+   → Scheduled Task → User-defined script, user `root`, daily, every minute from 00:00 to **23:59** (the *Last run time*; the default 00:59 stops it after the first hour), with the printed command
+   (`sh /volume1/docker/assistant-updater/update.sh`). It updates by itself, or only when you click
+   Update in System settings if you chose manual updates.
+5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and
+   your profile.
+6. **Claude**: `cd /volume1/docker/assistant && docker compose exec -it llm claude`, then `/login`
+   and `/exit`. Remote Control keeps running from then on (or log in from the terminal in the bar at the bottom of the app; Codex too, which then starts its own Remote Control).
+7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
+   `docker compose exec garmin-sync python -m sync backfill`.
+
+Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
+Scheduler entry). The new install has its own compose project, so fresh volumes, and the old data stays
+until you remove it (`docker compose down -v` in the old folder).
+
+Installs made before the default folder became `/volume1/docker/assistant` live in
+`/volume1/docker/assistant-core`. To move one (the data stays; the containers and volumes keep the
+`assistant-core` names):
+
+```sh
+cd /volume1/docker/assistant-core && sudo ./beni.sh move /volume1/docker/assistant
+```
+
+It stops the stack, moves the folder and the updater next to it, and runs the installer there. Then change
+the update task's command in DSM Task Scheduler to the one it prints.
+
+## Everyday: `beni.sh`
+
+One command for the host (Synology: `sudo` in front):
+
+```sh
+./beni.sh status                 # containers and whether the app answers
+./beni.sh doctor                 # checks permissions, git, .env, the database password; says what to run
+./beni.sh start | stop | restart # the whole stack, or one service
+./beni.sh logs web               # follow a service's log
+./beni.sh update                 # update to GitHub main now, with a progress bar (--status, --cancel)
+./beni.sh ext available          # extensions: available, install <id>, update <id>, list
+./beni.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
+./beni.sh fix-db-password        # the database keeps its data, takes the password in .env
+./beni.sh move <new-folder>      # move the install elsewhere, data kept
+```
+
+Run `git` in the checkout as yourself, not with sudo: files git writes as root stop the containers
+and your next `git pull`. `sudo ./beni.sh update` updates as the checkout's owner and repairs what an
+earlier `sudo git pull` left behind. It is the same update the scheduled task runs (and System settings
+→ Updates shows): run it again, or click Resume, if one was interrupted ([spec 006](../specs/006-auto-update.md)).
+
+A database volume keeps the password it was created with. A new `.env` next to an old volume (a fresh
+clone into the same folder name) makes the installer stop instead of failing later with "password
+authentication failed": put the old `.env` back, run `sudo ./beni.sh fix-db-password`, or remove the
+`<project>_db-data` volume to start empty.
+
+`install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
+Its tool output goes to `install.log`; only the tail is shown when a step fails.
+
+## Extensions
+
+```sh
+docker compose exec llm node scripts/ext.mjs available       # what the extensions repo offers
+docker compose exec llm node scripts/ext.mjs install <id>    # then ./install.sh if it has a service
+docker compose exec llm node scripts/ext.mjs update <id>
+```
+
+Or just ask Claude: "add the gym tracker", "build me a habit tracker inspired by <link>".
+`extensions/` is git-ignored: what is installed belongs to your instance, not to this repo.
+
+## Develop
+
+```sh
+git config core.hooksPath scripts/hooks
+cd apps/web && npm ci && npm test && npm run check && npm run dev
+```

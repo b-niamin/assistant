@@ -32,6 +32,16 @@ container log and `~/.beni/remote/<agent>.log`; live with `docker compose exec l
 
 Logs: `docker compose logs -f llm`.
 
+## Updates of the CLIs
+
+Claude Code and Codex update themselves (`npm install -g`, as Claude's auto-update and Codex's "Update now"
+run it). The image installs them as root into `/usr/local`, which the container user cannot write, so global
+npm installs go to `~/.npm-global` in the `claude-home` volume instead (`NPM_CONFIG_PREFIX`, first on `PATH`).
+On every start the entrypoint copies each CLI from the image there when the home copy is missing or older
+(`cli-home.mjs`), so a rebuilt image with a newer version still wins over an older self-update. An update made
+in `llm` is the one the terminal runs too (same volume). `claude doctor` should show `npm-global` with a
+path under `~/.npm-global`.
+
 ## What it can and cannot do
 
 | Can | Cannot |

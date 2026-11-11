@@ -23,6 +23,10 @@ if command -v socat >/dev/null; then
   socat TCP-LISTEN:9222,fork,reuseaddr,bind=127.0.0.1 TCP:browser:9223 2>/dev/null &
 fi
 
+# The CLIs run from ~/.npm-global (home volume), where they can update themselves; see cli-home.mjs.
+node /usr/local/lib/cli-home.mjs || echo "[cli-home] failed; the image's CLIs run without updates"
+hash -r 2>/dev/null || true
+
 STATE_DIR="$HOME/.beni/remote"
 mkdir -p "$STATE_DIR"
 rm -f "$STATE_DIR"/*.json

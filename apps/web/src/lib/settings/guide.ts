@@ -161,8 +161,12 @@ export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'"'"'`)}'`;
 }
 
+/** The AI CLIs the dock's terminal can start. */
+export type Agent = 'claude' | 'codex';
+export const isAgent = (v: unknown): v is Agent => v === 'claude' || v === 'codex';
+
 /** The command the dock's terminal types: start Claude Code or Codex with the prompt as its first message. */
-export const agentCommand = (tool: 'claude' | 'codex', prompt: string): string => `${tool} ${shellQuote(oneLine(prompt))}`;
+export const agentCommand = (tool: Agent, prompt: string): string => `${tool} ${shellQuote(oneLine(prompt))}`;
 export const claudeCommand = (prompt: string): string => agentCommand('claude', prompt);
 
 /** Install ready-made extensions from the extensions repo (the same CLI Claude uses). */

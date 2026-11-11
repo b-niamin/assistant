@@ -1,3 +1,5 @@
+import { agentCommand, type Agent } from '#lib/settings/guide.ts';
+
 /**
  * The dock at the bottom of every page (Dock.svelte): the one terminal in the app. Pages hand it work;
  * it opens and does it once the terminal is connected. The Remote menu in the header
@@ -16,6 +18,7 @@ export interface DockStatus {
   remote: { claude: Remote; codex: Remote };
   background: { claude: boolean; codex: boolean };
   outdated: boolean;
+  defaultAgent?: Agent;
   update: { state: string; sha: string; actions: string; step: number; steps: number; pendingRestart: string } | null;
 }
 
@@ -37,8 +40,17 @@ export function runInDock(cmd: string) {
   dock.open = true;
 }
 
-/** Open the dock and type text where the cursor is (e.g. to Claude), without pressing Enter. */
-export function typeInDock(text: string) {
-  dock.queue = [...dock.queue, { type: text }];
-  dock.open = true;
+export const AGENT_NAMES: Record<Agent, string> = { claude: 'Claude Code', codex: 'Codex' };
+
+/** The default AI CLI (System settings > Terminal), or the other one when only that one is signed in. */
+export function pickAgent(status: DockStatus | null = dock.status): Agent {
+  const want = status?.defaultAgent ?? 'claude';
+  const other: Agent = want === 'claude' ? 'codex' : 'claude';
+  return status && !status[want] && status[other] ? other : want;
+}
+
+/** Start the AI CLI in a new tmux window with the prompt as its first message (not typed into a bare shell). */
+export async function askAgent(prompt: string) {
+  if (!dock.status) await refreshDock();
+  runInDock(agentCommand(pickAgent(), prompt));
 }

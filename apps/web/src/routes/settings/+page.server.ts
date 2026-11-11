@@ -7,7 +7,7 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { allExtensions } from '#lib/extensions/registry.server.ts';
-import { passwordFromEnv, passwordHash, passwordProblem, setPassword } from '#lib/server/app-config.ts';
+import { defaultAgent, isAgent, passwordFromEnv, passwordHash, passwordProblem, setDefaultAgent, setPassword } from '#lib/server/app-config.ts';
 import { verifyPassword } from '#lib/server/password.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
@@ -20,7 +20,14 @@ const NEXT_RE = /^[a-z0-9-]+(\/[a-z0-9-]+)?$/;
 
 export const load: PageServerLoad = async ({ cookies }) => {
   if (!(await isElevated(cookies.get(SESSION_COOKIE)))) return { locked: true as const };
-  const [extensions, profiles, updates, terminal, updateControl] = await Promise.all([allExtensions(), listProfiles(), updaterStatus(), terminalStatus(), updaterControl()]);
+  const [extensions, profiles, updates, terminal, updateControl, agent] = await Promise.all([
+    allExtensions(),
+    listProfiles(),
+    updaterStatus(),
+    terminalStatus(),
+    updaterControl(),
+    defaultAgent()
+  ]);
   return {
     locked: false as const,
     extensions,
@@ -32,6 +39,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
     updateControl,
     buildTail: updates?.status === 'updating' || updates?.status === 'failed' ? await buildTail() : [],
     terminal: { ...terminal, configured: sidecarsConfigured() },
+    defaultAgent: agent,
     passwordFromEnv: passwordFromEnv()
   };
 };
@@ -84,6 +92,15 @@ export const actions: Actions = {
     const restarts = str(await request.formData(), 'restarts') === 'auto' ? 'auto' : 'ask';
     await setUpdaterControl({ ...(await updaterControl()), restarts });
     return { ok: restarts === 'auto' ? 'Updates restart llm and terminal by themselves.' : 'Updates ask before restarting llm and terminal.' };
+  },
+
+  /** The AI CLI that Update, Build it and Install start in the dock's terminal. */
+  defaultAgent: async ({ request, cookies }) => {
+    if (!(await guard(cookies))) return fail(403, { error: 'Unlock first.' });
+    const agent = str(await request.formData(), 'agent');
+    if (!isAgent(agent)) return fail(400, { error: 'Pick Claude Code or Codex.' });
+    await setDefaultAgent(agent);
+    return { ok: `${agent === 'codex' ? 'Codex' : 'Claude Code'} is the default AI.` };
   },
 
   /** "Restart now": the updater recreates the services that wait for it, within a minute. */

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Mascot from '#lib/Mascot.svelte';
-  import { runInDock } from '#lib/dock/dock.svelte.ts';
-  import { claudeCommand, hueFor, inspirationPrompt, installCommand } from '#lib/settings/guide.ts';
+  import { askAgent, runInDock } from '#lib/dock/dock.svelte.ts';
+  import { hueFor, inspirationPrompt, installCommand } from '#lib/settings/guide.ts';
   import { guessAccessory } from '#lib/mascot.ts';
 
   let { data } = $props();
@@ -87,7 +87,7 @@
           <h3>{e.name}</h3>
           <p class="meta grow">{e.description}</p>
           <button type="button" class="btn btn-primary"
-            onclick={() => runInDock(claudeCommand(`Install the ready-made extension ${e.id}: run ${installCommand(e.id)}, then tell me what to set up.`))}>
+            onclick={() => askAgent(`Install the ready-made extension ${e.id}: run ${installCommand(e.id)}, then tell me what to set up.`)}>
             Install
           </button>
           {#if e.service}<p class="meta small">Then <code>sudo ./install.sh</code> on the host, once.</p>{/if}
@@ -113,7 +113,7 @@
           <span class="mark" aria-hidden="true"><Mascot mood="steady" size={34} accessory={i.accessory ?? guessAccessory(i.id, i.name)} decorative /></span>
           <h3>{i.name}</h3>
           <p class="meta grow">{i.description}</p>
-          <button type="button" class="btn btn-primary" onclick={() => runInDock(claudeCommand(p))}>Build it</button>
+          <button type="button" class="btn btn-primary" onclick={() => askAgent(p)}>Build it</button>
         </li>
       {/each}
     </ul>

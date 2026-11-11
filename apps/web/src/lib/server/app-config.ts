@@ -7,6 +7,9 @@ import { timingSafeEqual } from 'node:crypto';
 import * as env from '$app/env/private';
 import { db } from './db';
 import { hashPassword } from './password';
+import { isAgent, type Agent } from '#lib/settings/guide.ts';
+
+export { isAgent, type Agent };
 
 let cached: string | null = null;
 
@@ -28,6 +31,17 @@ export async function setPassword(password: string): Promise<void> {
   await db()`INSERT INTO secrets.app_config (key, value) VALUES ('app_password_hash', ${hash})
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
   cached = hash;
+}
+
+/** The AI CLI the app's buttons (Update, Build it, Install) start in the dock's terminal; Claude unless set. */
+export async function defaultAgent(): Promise<Agent> {
+  const [row] = await db()<{ value: string }[]>`SELECT value FROM secrets.app_config WHERE key = 'default_agent'`;
+  return isAgent(row?.value) ? row.value : 'claude';
+}
+
+export async function setDefaultAgent(agent: Agent): Promise<void> {
+  await db()`INSERT INTO secrets.app_config (key, value) VALUES ('default_agent', ${agent})
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
 }
 
 export function passwordProblem(password: string, repeat: string): string | null {

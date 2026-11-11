@@ -141,8 +141,11 @@ every 30 s; normally the `llm` container keeps the sessions up on its own. Expan
 the app's only terminal (created on first open, kept connected while collapsed, open or closed
 remembered per browser). Locked, it asks for the app password inline (the System settings unlock).
 Pages hand it work: `runInDock` runs a command in a new tmux window ("Extend the system", the sign-ins
-in System settings → Terminal), `typeInDock` types without Enter (an extension panel's "Update" types
-`Update extension <name> (extensions/<id>): ` for the owner to finish).
+in System settings → Terminal), `askAgent` starts the default AI CLI there with a prompt as its first
+message (`claude '<prompt>'` or `codex '<prompt>'`): an extension panel's "Update" asks what should change
+first, "Build it" and "Install" send their request. The default AI is picked in System settings → Terminal
+(`secrets.app_config` key `default_agent`, served by `GET /dock`); when only the other CLI is signed in,
+that one starts.
 
 The terminal is a dark window in both themes, like a code block in an editor.
 

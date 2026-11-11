@@ -1,13 +1,24 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { typeInDock } from '#lib/dock/dock.svelte.ts';
+  import { AGENT_NAMES, askAgent, pickAgent } from '#lib/dock/dock.svelte.ts';
   import SourcesPanel from '#lib/settings/SourcesPanel.svelte';
-  import { hueFor, initials } from '#lib/settings/guide.ts';
+  import { buildChangePrompt, hueFor, initials } from '#lib/settings/guide.ts';
   let { data, form } = $props();
   const ext = $derived(data.ext);
   const plain = $derived(ext.settings.filter((f) => f.type !== 'secret'));
   const slot = (name: string) => data.secrets.find((s) => s.name === name);
   const fieldsById = $derived(new Map(ext.settings.map((f) => [f.name, f])));
+  const agentName = $derived(AGENT_NAMES[pickAgent()]);
+  // "Update": ask what should change, then start the default AI CLI with it in a new terminal window.
+  let changing = $state(false);
+  let change = $state('');
+  function startChange(e: Event) {
+    e.preventDefault();
+    if (!change.trim()) return;
+    askAgent(buildChangePrompt(ext.id, ext.name, change));
+    change = '';
+    changing = false;
+  }
 </script>
 
 <svelte:head><title>{ext.name} · System settings</title></svelte:head>
@@ -41,10 +52,25 @@
   <SourcesPanel extId={ext.id} result={data.sources} {form} />
 {/if}
 
-<p class="card change">
-  <span class="meta">To change {ext.name}, use the terminal at the bottom: ask Claude or Codex there.</span>
-  <button type="button" class="btn" onclick={() => typeInDock(`Update extension ${ext.name} (extensions/${ext.id}): `)}>Update</button>
-</p>
+{#if changing}
+  <form class="card change" onsubmit={startChange}>
+    <label class="ask">
+      <span class="meta">What should change in {ext.name}? {agentName} starts in the terminal at the bottom with it.</span>
+      <!-- svelte-ignore a11y_autofocus -->
+      <textarea name="change" rows="3" bind:value={change} autofocus required
+        onkeydown={(e) => (e.ctrlKey || e.metaKey) && e.key === 'Enter' && startChange(e)} placeholder="e.g. add a rest timer"></textarea>
+    </label>
+    <div class="actions">
+      <button type="button" class="btn-ghost" onclick={() => (changing = false)}>Cancel</button>
+      <button class="btn btn-primary" disabled={!change.trim()}>Ask {agentName}</button>
+    </div>
+  </form>
+{:else}
+  <p class="card change">
+    <span class="meta">To change {ext.name}, say what you want and {agentName} does it in the terminal at the bottom.</span>
+    <button type="button" class="btn" onclick={() => (changing = true)}>Update</button>
+  </p>
+{/if}
 
 {#if form?.error && !form.source}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok && !form.source}<p class="note good" role="status">{form.ok}</p>{/if}
@@ -148,6 +174,25 @@
     gap: var(--space-3);
     margin: 0 0 var(--space-5);
     padding: var(--space-3) var(--space-4);
+  }
+  .ask {
+    display: grid;
+    gap: var(--space-2);
+    flex: 1 1 100%;
+  }
+  .ask textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--ring);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    resize: vertical;
+  }
+  .change .actions {
+    flex: 1 1 100%;
+    gap: var(--space-2);
   }
   .head {
     display: grid;

@@ -3,7 +3,7 @@
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
-  import { dock, runInDock } from '#lib/dock/dock.svelte.ts';
+  import { AGENT_NAMES, dock, refreshDock, runInDock } from '#lib/dock/dock.svelte.ts';
   import { hueFor, initials } from '#lib/settings/guide.ts';
 
   let { data, form } = $props();
@@ -187,6 +187,14 @@
           </li>
         {/each}
       </ul>
+      <form method="POST" action="?/defaultAgent" class="mode agent" aria-label="Default AI"
+        use:enhance={() => async ({ update }) => (await update({ reset: false }), refreshDock())}>
+        <span class="meta">Default AI, for Update, Build it and Install:</span>
+        {#each ['claude', 'codex'] as const as a (a)}
+          <label><input type="radio" name="agent" value={a} checked={data.defaultAgent === a} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {AGENT_NAMES[a]}</label>
+        {/each}
+        <noscript><button class="btn">Save</button></noscript>
+      </form>
     {/if}
   </section>
 
@@ -663,6 +671,10 @@
     flex-wrap: wrap;
     gap: var(--space-2) var(--space-4);
     font-size: 0.875rem;
+  }
+  .mode.agent {
+    align-items: center;
+    margin-top: var(--space-3);
   }
   .mode label {
     display: inline-flex;

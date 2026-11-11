@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, it } from 'vitest';
@@ -57,6 +57,22 @@ it('keeps the manual mode and the update request for the host', async () => {
   await setUpdaterControl(c, file);
   expect(await updaterControl(file)).toEqual(c);
   expect(parseControl('mode=manual\nrequest=$(reboot)\nrestart=;rm\nfunnel=yes\n')).toEqual({ mode: 'manual', request: '', cancel: '', restarts: 'ask', restart: '', funnel: 'off' });
+});
+
+it('writes the requests to their own volume, and reads the old file until then', async () => {
+  const logs = mkdtempSync(path.join(tmpdir(), 'upd-logs-'));
+  const own = path.join(mkdtempSync(path.join(tmpdir(), 'upd-ctl-')), 'control');
+  const file = path.join(logs, 'updater-status.json');
+  writeFileSync(path.join(logs, 'updater-control'), 'mode=manual\nfunnel=on\n');
+  process.env.UPDATER_CONTROL_FILE = own;
+  try {
+    expect(await updaterControl(file)).toMatchObject({ mode: 'manual', funnel: 'on' });
+    await setUpdaterControl({ ...(await updaterControl(file)), restarts: 'auto' }, file);
+    expect(readFileSync(own, 'utf8')).toContain('funnel=on');
+    expect(readFileSync(path.join(logs, 'updater-control'), 'utf8')).not.toContain('restarts');
+  } finally {
+    delete process.env.UPDATER_CONTROL_FILE;
+  }
 });
 
 it('reads the Claude connector state the updater applied, and nothing else', () => {

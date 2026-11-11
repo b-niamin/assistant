@@ -47,6 +47,8 @@ services:
       # Installed extensions: their db/migrations and per-extension roles (spec 002).
       - ./extensions:/extensions:ro
       - logs:/logs
+      # Handed to HOST_UID here, for web (see the web service).
+      - updater-control:/updater
     entrypoint: ['sh', '/migrate.sh']
 
   # Re-applies migrations when Claude installs or updates an extension, so that needs no human step.
@@ -140,6 +142,7 @@ services:
       SECRETS_KEY: ${SECRETS_KEY:-}
       # Signs the single-use tickets for the terminal and browser sidecars (spec 004). Empty = both off.
       SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
+      UPDATER_CONTROL_FILE: /updater/control
       # Lets the AI CLIs in the terminal call the extensions' tools at /mcp (spec 005). Empty = off.
       CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
       # More hosts that may receive the connector's OAuth codes, besides claude.ai and claude.com (spec 005).
@@ -153,6 +156,8 @@ services:
       - logs:/logs
       # The worker's status and logs (System settings -> Worker); requests go to /worker/control.
       - worker:/worker
+      # The app's requests to the updater (mode, Update now, Funnel): no other container sees them.
+      - updater-control:/updater
     # sidecars: the internal network of the terminal and browser containers (spec 004).
     networks: [default, sidecars]
     mem_limit: 1536m
@@ -254,6 +259,8 @@ networks:
   browser-egress:
 
 volumes:
+  # The app's requests to the host's updater (spec 006): only web mounts it, the updater reads it.
+  updater-control:
   browser-profile:
   db-data:
   # The agents' home (logins of Claude, Codex, gh): still named claude-home, so older installs keep their logins.

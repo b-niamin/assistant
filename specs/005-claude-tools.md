@@ -112,7 +112,7 @@ must be reachable over public HTTPS. The rest of the app must not be.
 - **Tailscale Funnel** publishes that listener at `https://<machine>.<tailnet>.ts.net:8443` (10000 when
   8443 serves something else). The app's own address stays tailnet-only (Tailscale Serve).
 - **The switch** is System settings -> Claude connector (`/settings/connector`). It writes `funnel=on|off`
-  to `/logs/updater-control`; the host's updater (spec 006, runs every minute as root) applies it with
+  to `/updater/control` (a volume only web mounts, spec 006); the host's updater (spec 006, runs every minute as root) applies it with
   `tailscale funnel --bg --https=8443 http://127.0.0.1:<MCP_PORT>` (or `... off`) and reports the state,
   port and URL in `/logs/funnel-status.json`. No container gets the Tailscale socket. On the host,
   `sudo sh <home>/update.sh funnel` applies it at once.

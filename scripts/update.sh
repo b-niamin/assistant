@@ -116,6 +116,9 @@ setup_paths() {
   [ ! -d "$MIRROR" ] || [ "$(cat "$HOME_DIR/checkout" 2>/dev/null)" = "$DIR" ] || echo "$DIR" > "$HOME_DIR/checkout" 2>/dev/null || true
   LOCK=$HOME_DIR/lock
   LOGS_MP=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_logs" 2>/dev/null || true)
+  # The app's requests (control_file): their own volume, mounted only in web; older stacks have none.
+  CONTROL_MP=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_updater-control" 2>/dev/null || true)
+  [ -n "$CONTROL_MP" ] && [ -d "$CONTROL_MP" ] || CONTROL_MP=""
   # Root writes the `logs` volume directly; anyone else through a throwaway container (slower).
   LOGS_DIRECT=0
   [ -n "$LOGS_MP" ] && [ -d "$LOGS_MP" ] && [ -w "$LOGS_MP" ] && LOGS_DIRECT=1
@@ -167,12 +170,31 @@ claude_image() {
 }
 
 # --- output for the app ----------------------------------------------------------------------------
+# The containers write the `logs` volume too, so as root this never opens, appends to, chmods or chowns a
+# path there that a container could have made a symlink: a file is written under a fresh random name
+# (mktemp; the sticky bit keeps it ours) and renamed over the target, which replaces a planted symlink
+# instead of following it (`mv -T`: a symlink to a directory is not entered either). Appended logs keep
+# their master copy in <home>/app-logs, which no container sees.
+logs_publish() {
+  t=$(mktemp "$LOGS_MP/.updater.XXXXXX") || return 1
+  if cat > "$t" && chmod 644 "$t" && mv -fT "$t" "$LOGS_MP/$1" 2>/dev/null; then return 0; fi
+  rm -f "$t"; return 1
+}
+
 # logs_put <name> [append]: stdin to a file in the `logs` volume.
 logs_put() {
   name=$1 mode=${2:-replace}
   if [ "$LOGS_DIRECT" = 1 ]; then
-    if [ "$mode" = append ]; then cat >> "$LOGS_MP/$name"; else cat > "$LOGS_MP/$name.tmp" && mv "$LOGS_MP/$name.tmp" "$LOGS_MP/$name"; fi
-    chmod 644 "$LOGS_MP/$name" 2>/dev/null || true
+    if [ "$mode" = append ]; then
+      m=$HOME_DIR/app-logs/$name
+      [ -d "$HOME_DIR/app-logs" ] || mkdir -p "$HOME_DIR/app-logs"
+      # The first time: carry over what an older updater wrote, if it is still its own plain file.
+      f=$LOGS_MP/$name
+      [ -e "$m" ] || { [ -f "$f" ] && [ ! -L "$f" ] && [ "$(stat -c %u "$f")" = 0 ] && cp "$f" "$m"; } 2>/dev/null || true
+      cat >> "$m"
+      if [ "$(wc -c < "$m")" -gt 1048576 ]; then tail -c 524288 "$m" > "$m.new" && mv "$m.new" "$m"; fi
+      logs_publish "$name" < "$m"
+    else logs_publish "$name"; fi
   else
     op='>'; [ "$mode" = append ] && op='>>'
     docker run --rm -i --network none --user 0 -v "${PROJECT}_logs:/logs" --entrypoint sh "$(claude_image)" \
@@ -188,12 +210,12 @@ log() {
   LOG_BUF="$LOG_BUF$line
 "
 }
-flush_log() { [ -z "$LOG_BUF" ] || { printf '%s' "$LOG_BUF" | logs_put updater.log append; LOG_BUF=""; }; }
+flush_log() { [ -z "$LOG_BUF" ] || { printf '%s' "$LOG_BUF" | logs_put updater.log append; LOG_BUF=""; publish_build_log; }; }
 
 # A sign of life: every run, and every few seconds while an update runs (the app tells a running update
 # from one whose process died by it). Without direct access at most every few minutes (a container each).
 heartbeat() {
-  if [ "$LOGS_DIRECT" = 1 ]; then iso > "$LOGS_MP/updater-heartbeat" && chmod 644 "$LOGS_MP/updater-heartbeat" 2>/dev/null
+  if [ "$LOGS_DIRECT" = 1 ]; then iso | logs_publish updater-heartbeat; publish_build_log
   elif [ -z "$(find "$HOME_DIR/heartbeat" -mmin -"${1:-10}" 2>/dev/null)" ]; then
     iso | logs_put updater-heartbeat && touch "$HOME_DIR/heartbeat"
   fi
@@ -232,14 +254,21 @@ state_save() {
   for k in $STATE_KEYS; do eval "printf '%s=%s\n' $k \"\$S_$k\""; done > "$STATE.tmp" && mv "$STATE.tmp" "$STATE"
 }
 
-# The app's choice (System settings -> Updates), in the logs volume: `mode=auto|manual`,
-# `restarts=ask|auto`, `funnel=on|off` (the Claude connector, see funnel_apply), and the clicks:
-# `request=<id>` ("Update now", "Resume"), `cancel=<id>` ("Cancel"), `restart=<id>` ("Restart now").
-# Read as data, never run.
+# The app's choice (System settings -> Updates): `mode=auto|manual`, `restarts=ask|auto`, `funnel=on|off`
+# (the Claude connector, see funnel_apply), and the clicks: `request=<id>` ("Update now", "Resume"),
+# `cancel=<id>` ("Cancel"), `restart=<id>` ("Restart now"). In the `updater-control` volume, which only web
+# mounts (the other containers write `logs`, and must not turn Funnel on); an older stack, without that
+# volume, or an app that has not written it yet, still has /logs/updater-control. Read as data, never run,
+# and only from a plain file.
+control_file() {
+  if [ -n "$CONTROL_MP" ] && { [ -e "$CONTROL_MP/control" ] || [ -L "$CONTROL_MP/control" ] || [ ! -f "$LOGS_MP/updater-control" ]; }; then
+    echo "$CONTROL_MP/control"
+  elif [ -n "$LOGS_MP" ]; then echo "$LOGS_MP/updater-control"; fi
+}
 read_control() {
   MODE=auto REQUEST="" CANCEL="" RESTARTS="" RESTART_REQ="" FUNNEL=""
-  f=$LOGS_MP/updater-control
-  if [ -n "$LOGS_MP" ] && [ -r "$f" ]; then
+  f=$(control_file)
+  if [ -n "$f" ] && [ -f "$f" ] && [ ! -L "$f" ] && [ -r "$f" ]; then
     FUNNEL=$(sed -n 's/^funnel=//p' "$f" | grep -x -e on -e off | tail -n 1)
     MODE=$(sed -n 's/^mode=//p' "$f" | grep -x -e auto -e manual | tail -n 1)
     RESTARTS=$(sed -n 's/^restarts=//p' "$f" | grep -x -e auto -e ask | tail -n 1)
@@ -326,7 +355,12 @@ render() {
     printf '\r\033[K[%s] %s/%s %s%s  %s' "$(bar "$done" "$m" 24)" "$n" "$m" "$msg" "$el" "$last"
   else printf '\r\033[K%s: %s\n' "$st" "$msg"; fi
 }
-build_log_path() { if [ "$LOGS_DIRECT" = 1 ]; then echo "$LOGS_MP/updater-build.log"; else echo "$HOME_DIR/build.log"; fi; }
+# The build log is written in <home> and copied to the app (/logs/updater-build.log) with every heartbeat.
+build_log_path() { echo "$HOME_DIR/build.log"; }
+publish_build_log() {
+  [ "$LOGS_DIRECT" = 1 ] && [ -f "$HOME_DIR/build.log" ] || return 0
+  tail -c 262144 "$HOME_DIR/build.log" | logs_publish updater-build.log
+}
 
 # While an update runs: a heartbeat every 15 s (root; a minute otherwise) and, in a terminal, the bar.
 start_ticker() {
@@ -350,6 +384,7 @@ progress() {
   write_status updating "$(step_name "$1")"
   [ "$TTY" = 1 ] || say "step $STEP_NO/$STEP_TOTAL: $(step_name "$1")"
   printf '\n== %s step %s/%s: %s\n' "$(date -u +%H:%M:%S)" "$STEP_NO" "$STEP_TOTAL" "$(step_name "$1")" >> "$BUILD_LOG" 2>/dev/null || true
+  publish_build_log
 }
 step_name() {
   case $1 in
@@ -402,7 +437,9 @@ fix_ownership() {
   [ "$n" = 0 ] || log "made $n path(s) writable by their owner"
   if [ -n "$LOGS_MP" ] && [ -d "$LOGS_MP" ]; then
     chmod 1777 "$LOGS_MP"
-    [ ! -e "$LOGS_MP/web.log" ] || { chown "$OWNER_UID" "$LOGS_MP/web.log"; chmod u+rw "$LOGS_MP/web.log"; }
+    # web.log only as a plain file: chown and chmod would follow a symlink to a host file.
+    f=$LOGS_MP/web.log
+    if [ -f "$f" ] && [ ! -L "$f" ]; then chown -h "$OWNER_UID" "$f"; fi
   fi
   return 0
 }
@@ -1018,7 +1055,7 @@ cmd_status() {
   [ -z "$S_pending" ] || say "waiting for a restart: $(pending_services) (sudo ./beni.sh update --restart)"
   say "last run: $(cat "$HOME_DIR/last-run" 2>/dev/null || echo never) (the schedule should run it every minute, all day)"
   [ ! -f "$HOME_DIR/last-error" ] || say "last error: $(cat "$HOME_DIR/last-error")"
-  [ -z "$LOGS_MP" ] || [ ! -r "$LOGS_MP/updater-control" ] || say "mode: $(sed -n 's/^mode=//p' "$LOGS_MP/updater-control" | tail -n 1)"
+  f=$(control_file); [ -z "$f" ] || [ ! -f "$f" ] || [ -L "$f" ] || say "mode: $(sed -n 's/^mode=//p' "$f" | tail -n 1)"
 }
 
 # --- install: once, as root on the NAS (or as the checkout owner on a Linux box in the docker group)
@@ -1079,8 +1116,13 @@ cmd_install() {
     write_status ok "installed for $(printf '%s' "$url" | sed 's#//[^@/]*@#//***@#'); the next update rebuilds everything"
   fi
   # Manual mode on request (install.sh when auto-update was declined), unless the app already chose.
-  if [ "$MANUAL" = 1 ] && { [ -z "$LOGS_MP" ] || [ ! -f "$LOGS_MP/updater-control" ]; }; then
-    echo mode=manual | logs_put updater-control
+  f=$(control_file)
+  if [ "$MANUAL" = 1 ] && { [ -z "$f" ] || [ ! -f "$f" ]; }; then
+    if [ -n "$CONTROL_MP" ]; then
+      # Web (OWNER_UID) rewrites it later: a fresh file of its own, renamed into place.
+      t=$(mktemp "$CONTROL_MP/.updater.XXXXXX") && echo mode=manual > "$t" && chmod 644 "$t" &&
+        chown "$OWNER_UID" "$t" && mv -fT "$t" "$CONTROL_MP/control" || rm -f "$t"
+    else echo mode=manual | logs_put updater-control; fi
     say "updates are manual: the app shows new versions and updates when asked"
   fi
 

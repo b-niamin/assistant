@@ -15,6 +15,8 @@ if [ -d /logs ]; then
   # The sticky bit stops web from appending to a web.log that root once created: hand it back.
   if [ -n "${HOST_UID:-}" ]; then touch /logs/web.log && chown "$HOST_UID" /logs/web.log; fi
 fi
+# The updater-control volume: only web writes it (as HOST_UID).
+if [ -d /updater ] && [ -n "${HOST_UID:-}" ]; then chown "$HOST_UID" /updater && chmod 755 /updater; fi
 export PGHOST="${PGHOST:-db}" PGUSER="$POSTGRES_USER" PGPASSWORD="${POSTGRES_PASSWORD:-}" PGDATABASE="$POSTGRES_DB"
 until pg_isready -q; do sleep 1; done
 

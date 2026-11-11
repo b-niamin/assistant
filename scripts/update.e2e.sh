@@ -312,4 +312,15 @@ ok "a bare run finds its checkout (file, or the home's name) and keeps its error
 sh "$UH/update.sh" status "$CO" > "$T/out" 2>&1; grep -q 'ok: updated to' "$T/out" || fail "status"
 grep -q 'updated to' "$LOGS/updater.log" || fail "no log"
 ok "status and log"
+
+# A container plants symlinks in the logs volume (it can write there): root replaces them, never writes,
+# chmods or chowns through them.
+victim=$T/victim; echo keep > "$victim"; chmod 600 "$victim"
+for n in updater-heartbeat updater-status.json updater.log updater-build.log web.log; do rm -f "$LOGS/$n"; ln -s "$victim" "$LOGS/$n"; done
+asown sh -c "echo v12 > '$T/work/apps/web/page.txt'"; commit S
+run; [ "$RC" = 0 ] || fail "update with planted symlinks failed"
+[ "$(cat "$victim")" = keep ] && [ "$(stat -c '%u %a' "$victim")" = "0 600" ] || fail "a write went through a symlink: $(stat -c '%u %a' "$victim") $(head -c 80 "$victim")"
+for n in updater-heartbeat updater-status.json updater.log; do [ -f "$LOGS/$n" ] && [ ! -L "$LOGS/$n" ] || fail "$n still a symlink"; done
+grep -q 'updated to' "$LOGS/updater.log" || fail "log lost its history"
+ok "symlinks planted in the logs volume are replaced, never followed"
 echo "all passed"

@@ -201,7 +201,8 @@ its old container within a minute, with a line in `updater.log`. Its entry in `C
 first, so `docker compose` in the folder keeps working; an entry whose file is missing only while
 `ext update` copies the extension stays, and that run prunes nothing.
 
-System settings → Updates: Automatic or Manual (`/logs/updater-control`: `mode=auto|manual`, plus
+System settings → Updates: Automatic or Manual (`/updater/control` in web, the `updater-control` volume that no
+other container mounts; older stacks: `/logs/updater-control`. `mode=auto|manual`, plus
 `request=<id>` for "Update now" / "Try again" / "Resume" and `cancel=<id>` for "Cancel"; the updater reads
 them as root and never runs anything from them, and echoes the request it took in its status). While an
 update runs: a progress bar (step n of m, what runs, since when, attempt), the last lines of the build
@@ -210,3 +211,13 @@ run: the panel says so and names `sudo ./beni.sh update`. With no heartbeat for 
 counts as stopped; the dock shows "Updating to <sha> · n/m", "Update interrupted", "Update available" or
 "Updates stopped". `./beni.sh doctor` warns when no run happened for 15 minutes. All logs in `/logs` are
 readable in System settings → Logs.
+
+## Writing into the shared `logs` volume
+
+The containers write `logs` too (web as HOST_UID, extension services as root), so the updater, as root on
+the host, never opens, appends to, chmods or chowns a path there that a container could have turned into a
+symlink: each file is written under a fresh `mktemp` name and renamed over its target with `mv -T`, which
+replaces a planted symlink instead of following it. Appended logs (`updater.log`) and the build log keep
+their master copy in `<home>` (`app-logs/`, `build.log`) and are copied out the same way; `web.log` is
+handed to HOST_UID only as a plain file (`chown -h`). The app's requests live in their own volume
+(`updater-control`), so no container but web can turn the Claude connector's Funnel on.

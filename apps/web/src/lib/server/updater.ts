@@ -1,7 +1,8 @@
 /**
  * The host's updater (scripts/update.sh, spec 006). It writes /logs/updater-status.json in the shared
  * `logs` volume, and a timestamp to /logs/updater-heartbeat on every run and every 15 s while an update
- * runs; this reads them, and writes the app's requests to /logs/updater-control.
+ * runs; this reads them, and writes the app's requests to /updater/control (UPDATER_CONTROL_FILE), a
+ * volume only this container mounts.
  */
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -133,7 +134,9 @@ export interface UpdaterControl {
   funnel?: 'on' | 'off';
 }
 
-const controlFile = (statusFile: string) => path.join(path.dirname(statusFile), 'updater-control');
+// Older stacks (and tests) keep it next to the status file, in the shared `logs` volume.
+const legacyControlFile = (statusFile: string) => path.join(path.dirname(statusFile), 'updater-control');
+const controlFile = (statusFile: string) => process.env.UPDATER_CONTROL_FILE || legacyControlFile(statusFile);
 const STATUS_FILE = () => process.env.UPDATER_STATUS_FILE ?? '/logs/updater-status.json';
 
 export function parseControl(raw: string): UpdaterControl {
@@ -150,7 +153,9 @@ export function parseControl(raw: string): UpdaterControl {
 }
 
 export async function updaterControl(file = STATUS_FILE()): Promise<UpdaterControl> {
-  return parseControl(await readFile(controlFile(file), 'utf8').catch(() => ''));
+  // Until the app first writes the new file, the choices made before (mode, Funnel) are in the old one.
+  const raw = await readFile(controlFile(file), 'utf8').catch(() => null);
+  return parseControl(raw ?? (await readFile(legacyControlFile(file), 'utf8').catch(() => '')));
 }
 
 export async function setUpdaterControl(c: UpdaterControl, file = STATUS_FILE()): Promise<void> {

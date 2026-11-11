@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error plain JS module without types
 import { keysIn } from '../../../scripts/extensions-lib.mjs';
 import { normalizeLanguageSettings, pickLanguage } from './languages';
 import { makeT, type Messages } from './translate';

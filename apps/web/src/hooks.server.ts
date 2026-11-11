@@ -12,7 +12,7 @@ import { languageSettings } from '#lib/server/languages.ts';
 const PUBLIC_PATHS = new Set(['/login', '/healthz', '/setup']);
 
 export const handle: Handle = async ({ event, resolve }) => {
-  // The MCP server and its OAuth (spec 005): their own bearer tokens and passwords, never the session.
+  // The MCP server and its OAuth (spec 005): their own bearer tokens, never the session.
   if (isMcpPath(event.url.pathname)) {
     event.locals.authenticated = false;
     event.locals.profileId = await defaultProfile();
@@ -20,6 +20,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     const response = await resolve(event);
     response.headers.set('X-Content-Type-Options', 'nosniff');
     if (!response.headers.has('Referrer-Policy')) response.headers.set('Referrer-Policy', 'no-referrer');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     return response;
   }
   // server.mjs lets only the paths above in from the internet; anything else from there is a bug.
@@ -60,5 +61,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   // Pages get frame-ancestors 'none' from kit.csp; this covers endpoints too. SAMEORIGIN, not DENY:
   // the onefile host embeds /api/onefile/<id> in a same-origin iframe.
   if (!response.headers.has('X-Frame-Options')) response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  // A private app: nothing here is for search engines.
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   return response;
 };

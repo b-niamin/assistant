@@ -2,7 +2,7 @@
   /**
    * The user menu at the right end of the header: a round badge with the profile's initial. It shows
    * the profile's full name, switches profiles (POST /profile), picks the theme and the language, and leads to
-   * System settings and Log out.
+   * Profile settings, System settings and Log out.
    */
   import { page } from '$app/state';
   import { THEME_COOKIE, type Theme } from '#lib/theme.ts';
@@ -113,7 +113,8 @@
       {/if}
 
       <hr />
-      <a class="item" href="/settings" aria-current={page.url.pathname.startsWith('/settings') ? 'page' : undefined} onclick={() => (open = false)}>{t('System settings')}</a>
+      <a class="item" href="/settings/profile" aria-current={page.url.pathname === '/settings/profile' ? 'page' : undefined} onclick={() => (open = false)}>{t('Profile settings')}</a>
+      <a class="item" href="/settings" aria-current={page.url.pathname.startsWith('/settings') && page.url.pathname !== '/settings/profile' ? 'page' : undefined} onclick={() => (open = false)}>{t('System settings')}</a>
       <form method="POST" action="/logout"><button class="item">{t('Log out')}</button></form>
     </div>
   {/if}

@@ -14,7 +14,7 @@ browser inside the app) are isolated.
 | Actor | Can | Must not |
 |---|---|---|
 | Someone on the internet | nothing, while the Claude connector is off: the app is reachable only on the tailnet (Tailscale Serve). With it on: the MCP listener's discovery files, client registration and the sign-in page (Tailscale Funnel, spec 005) | anything without the app password or a token from it; any other path (the public listener answers 404) |
-| A Claude connector client (OAuth, approved with the app password) | the MCP tools of the extensions, for any profile | the app's pages, settings, terminal, browser; tokens of other connections |
+| A Claude connector client (OAuth, approved in the app on the tailnet) | the MCP tools of the apps of its address, for its profile; writes only where the address allows; never raw SQL or raw saved data | the app's pages, settings, terminal, browser; tokens of other connections |
 | Device on the tailnet without the password | see `/login` | anything else |
 | Profile user (knows the app password) | use extensions | open System settings without re-entering the password; read stored keys |
 | Admin (re-entered the password in the last 10 min) | System settings, terminal, browser, extension secrets | read a stored API key back in the UI (write-only) |
@@ -89,10 +89,10 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
 
 ### Risks we accept, and what limits them
 
-- With the Claude connector on, the sign-in page is on the internet, and the app password is what stands
-  between it and the apps' data. Limits: 10 attempts per 15 minutes for everyone together (which also
-  means someone guessing can make the owner wait), PKCE, short access tokens, the connection list with
-  Remove, and the switch that ends every connection. Use a long app password before turning it on.
+- With the Claude connector on, the sign-in page is on the internet. It asks for nothing: a connection
+  exists only once the owner approves its code in the app on the tailnet, and codes go back only to
+  Claude's own callback hosts. Limits on what it gets: the profile, apps and writes of its MCP address,
+  short access tokens, a 180-day end, the tool call log, Remove, and the switch that ends every connection.
 
 - Whoever has an elevated session has a shell with the owner's CLI logins and the browser's sessions.
   That is the feature. Limits: tailnet only, password re-entry, 10-minute window, logs.

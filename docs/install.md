@@ -113,9 +113,11 @@ so only that server is published, through Tailscale Funnel; the app stays on the
    node attribute; Tailscale's Funnel docs show the snippet). If you skip it, the settings page shows the
    link Tailscale prints to enable it.
 2. System settings → Claude connector → Turn on. The host's updater runs `tailscale funnel` within a
-   minute, and the page shows the address (`https://<machine>.<tailnet>.ts.net:8443/mcp`).
-3. claude.ai → Settings → Connectors → Add custom connector, with that address. Connect, pick the profile,
-   type the app password.
+   minute, and the page shows that it is on.
+3. Profile settings (menu under the avatar) → Claude and MCP: copy an address ("All apps", or add your own
+   with the apps it shows and whether it may change data).
+4. claude.ai → Settings → Connectors → Add custom connector, with that address. Connect opens a page with a
+   code; approve the same code in Profile settings → Claude and MCP.
 
 Turning it off removes the Funnel and every connection. Details: [spec 005](../specs/005-claude-tools.md).
 

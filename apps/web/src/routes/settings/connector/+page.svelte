@@ -6,7 +6,6 @@
 
   let { data, form } = $props();
   const t = useT();
-  let copied = $state(false);
 
   const f = $derived(data.funnel);
   // The switch is applied by the host's updater: until its status says so, the change is on its way.
@@ -35,13 +34,6 @@
     const timer = setInterval(() => invalidateAll(), 5000);
     return () => clearInterval(timer);
   });
-
-  async function copy() {
-    if (!f?.url) return;
-    await navigator.clipboard.writeText(f.url).catch(() => null);
-    copied = true;
-    setTimeout(() => (copied = false), 1500);
-  }
   const when = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : t('never');
 </script>
@@ -58,7 +50,7 @@
   <p class="muted">
     {t('Lets Claude (claude.ai and the Claude apps) use your apps through MCP: read their data and use their tools.')}
     {t('Only the connector goes on the internet, through Tailscale Funnel; the rest of the app stays on your tailnet.')}
-    {t('Every new connection asks for the app password.')}
+    {t("Every new connection is approved in a profile's settings, on your tailnet: the app password never goes over the internet.")}
   </p>
 </div>
 
@@ -87,19 +79,11 @@
   {/if}
 </section>
 
-{#if live && f}
+{#if live}
   <section aria-labelledby="add-h">
     <h2 id="add-h">{t('Add it to Claude')}</h2>
-    <div class="card url">
-      <code>{f.url}</code>
-      <button type="button" class="btn" onclick={copy}>{copied ? t('Copied') : t('Copy')}</button>
-    </div>
-    <ol class="steps">
-      <li>{t('In claude.ai: Settings, Connectors, Add custom connector.')}</li>
-      <li>{t('Name it (for example "Assistant"), paste the address above, and add it. No client ID or secret is needed.')}</li>
-      <li>{t("Connect opens this assistant's sign-in page: pick the profile Claude acts for, type the app password, and allow it.")}</li>
-      <li>{t('In a chat, turn the connector on in the tools menu. The Claude apps on your phone and computer get it too.')}</li>
-    </ol>
+    <p class="muted">{t("Each profile has its own MCP addresses, and approves its own connections: open your profile's settings (the menu under your avatar), Claude and MCP.")}</p>
+    <p><a class="btn" href="/settings/profile">{t('Profile settings')}</a></p>
   </section>
 {/if}
 
@@ -111,7 +95,8 @@
         <li class="row">
           <span class="what">
             <strong>{c.client}</strong>
-            <span class="meta">{t('For {name} · approved {approved} · last used {used}', { name: profileName(c.profileId), approved: when(c.createdAt), used: when(c.lastUsedAt) })}</span>
+            <span class="meta">{t('For {name} · address {endpoint}', { name: profileName(c.profileId), endpoint: c.builtin ? t('All apps') : c.endpoint })}</span>
+            <span class="meta">{t('Approved {approved} · last used {used} · ends {ends}', { approved: when(c.createdAt), used: when(c.lastUsedAt), ends: when(c.expiresAt) })}</span>
           </span>
           <form method="POST" action="?/remove" use:enhance>
             <input type="hidden" name="id" value={c.id} />
@@ -125,12 +110,31 @@
   {/if}
 </section>
 
+<section aria-labelledby="calls-h">
+  <h2 id="calls-h">{t('Latest tool calls')}</h2>
+  {#if data.calls.length}
+    <ul class="calls card">
+      {#each data.calls as c, i (i)}
+        <li>
+          <span class="status small {c.ok ? 'good' : 'critical'}">{c.ok ? t('ok') : t('failed')}</span>
+          <code>{c.tool}</code>
+          <span class="meta">{c.source === 'terminal' ? t('terminal') : `${c.client} (${c.endpoint === 'All apps' ? t('All apps') : c.endpoint})`} · {profileName(c.profileId)} · {when(c.at)}{c.error ? ` · ${c.error}` : ''}</span>
+        </li>
+      {/each}
+    </ul>
+  {:else}
+    <p class="muted">{t('No tool calls yet.')}</p>
+  {/if}
+</section>
+
 <section aria-labelledby="how-h">
   <h2 id="how-h">{t('How it works')}</h2>
   <ul class="facts">
     <li>{t('The address serves only the MCP server and its sign-in: /mcp, /mcp/oauth/* and two discovery files. Every other path answers 404.')}</li>
     <li>{t('Tools are what each app offers (spec 005): an overview, read-only queries, and the writes the app allows. Claude asks before using a tool that changes data.')}</li>
-    <li>{t('Sign-in is OAuth with PKCE. Access tokens last an hour, and refresh tokens 90 days. Only their hashes are stored.')}</li>
+    <li>{t("A connection sees only the profile and apps of its address. It never gets raw SQL or the raw saved data: only each app's overview and own tools, and writes only where the address allows them.")}</li>
+    <li>{t('Sign-in is OAuth with PKCE. Access tokens last an hour, refresh tokens 90 days, and a connection ends after 180 days. Only their hashes are stored.')}</li>
+    <li>{t('Claude reads the tool list when it connects: after installing an app, connect again to see its tools.')}</li>
     <li>{t('The AI CLIs in the terminal use the same tools without the internet, through the assistant server in .mcp.json.')}</li>
   </ul>
 </section>
@@ -178,19 +182,6 @@
   .bad {
     color: var(--critical);
   }
-  .url {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-  }
-  .url code {
-    flex: 1;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    user-select: all;
-  }
-  .steps,
   .facts {
     margin: var(--space-3) 0 0;
     padding-left: 1.25rem;
@@ -211,6 +202,19 @@
   }
   .note {
     margin: 0 0 var(--space-3);
+  }
+  .calls {
+    list-style: none;
+    margin: 0;
+    padding: var(--space-2) var(--space-4);
+    display: grid;
+    gap: var(--space-2);
+  }
+  .calls li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
   }
   .note.good {
     color: var(--good, var(--ink-2));

@@ -17,10 +17,11 @@ GRANT USAGE ON SCHEMA core TO app_rw, claude_ro;
 REVOKE ALL ON SCHEMA secrets FROM app_rw, claude_ro;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA core TO app_rw;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA core TO app_rw;
 GRANT SELECT ON ALL TABLES IN SCHEMA core TO claude_ro;
 REVOKE SELECT ON core.sessions FROM claude_ro;
 -- The Claude connector's OAuth state (migration 010): hashes only, still nothing for a data chat.
-REVOKE SELECT ON core.oauth_clients, core.oauth_grants, core.oauth_tokens FROM claude_ro;
+REVOKE SELECT ON core.oauth_clients, core.oauth_grants, core.oauth_tokens, core.oauth_requests FROM claude_ro;
 -- The web app may use two tables in `secrets`: extension secrets (encrypted; spec 004) and the app
 -- password hash.
 GRANT USAGE ON SCHEMA secrets TO app_rw;

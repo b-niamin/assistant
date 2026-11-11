@@ -22,19 +22,25 @@ terminal: Claude Code, Codex ──stdio──> scripts/assistant-mcp.mjs ──
   (.mcp.json, ~/.codex/config.toml)       (relays JSON-RPC lines)                                    ExtensionContext
 ```
 
-- **`/mcp`** (`routes/mcp/+server.ts`, `lib/mcp/`): MCP over Streamable HTTP without sessions or
+- **`/mcp` and the profiles' MCP addresses `/mcp/x/<id>`** (`lib/mcp/handler.server.ts`): MCP over Streamable HTTP without sessions or
   server-sent events: POST one JSON-RPC message or a batch, get one JSON answer (202 for notifications).
   Tools: `extensions` (the apps, their scope and tools, the profiles) and `<extension>__<tool>` for every
-  tool of every extension the profile sees. Every tool takes an optional `profile`. The list is read on
-  each `tools/list`, so a new extension appears without a restart.
+  tool of every extension the caller may see. The list is read on each `tools/list`, so a new extension
+  appears on the server without a restart (claude.ai reads the list when it connects: reconnect there).
 - **Tools run as the extension**, through the same `ExtensionContext` as its pages: its DB role
   `ext_<id>`, its scope, its KV, its secrets. A tool cannot reach another extension's tables, and the
   `secrets` schema stays invisible.
 - **Two kinds of bearer token**:
   - `CLAUDE_TOOLS_TOKEN` (32+ characters, `.env`, in the web and terminal containers) for the CLIs in the
-    terminal, acting for the default profile. Refused on the public listener: it never leaves the stack.
-  - OAuth access tokens of the Claude connector, acting for the profile chosen when the connection was
-    approved.
+    terminal: every tool, the default profile unless a call passes `profile`. Refused on the public
+    listener: it never leaves the stack.
+  - OAuth access tokens of the Claude connector (`lib/mcp/backend.server.ts`): only the profile, apps and
+    writes of the MCP address its connection was approved on (below). On `/mcp/x/<id>` only that
+    address's connections get in. No `profile` argument (naming another profile is refused), no
+    raw tools (`query`, `describe`, `read_data`, `write_data`: those hand out every profile's rows or the
+    raw saved data), and tools with `readOnly: false` only with the `mcp:write` scope.
+- **Audit**: every `tools/call` adds a row to `core.tool_calls` (time, terminal or connection, profile,
+  tool, ok or the error, duration; never arguments or results), shown on the settings page; 90 days kept.
 
 ## The extension tools contract
 
@@ -118,27 +124,44 @@ must be reachable over public HTTPS. The rest of the app must not be.
     documents (RFC 9728, RFC 8414) put every endpoint under `/mcp/oauth/`. The issuer is the address the
     client used (only the public host name is believed from `Host`).
   - dynamic client registration (`/mcp/oauth/register`, RFC 7591), rate-limited, at most 200 clients.
-    https redirect URIs, or http on the loopback.
-  - `/mcp/oauth/authorize`: a self-contained page (no app scripts or styles, which the public listener
-    does not serve): the client's name and return host, a profile to act for, the app password, Allow or
-    Deny. Always the password, whatever cookie the browser has; 10 attempts per 15 minutes for everyone
-    together (every Funnel request comes from the same address). PKCE S256 is required.
+    Redirect URIs: https on claude.ai or claude.com (plus the hosts in `MCP_REDIRECT_HOSTS`), or http on
+    the loopback. Anything else could collect a code the owner approved for "Claude".
+  - `/mcp/oauth/authorize` (migration 011): a self-contained page (no app scripts or styles, which the
+    public listener does not serve) that asks for nothing. It files a request in `core.oauth_requests`
+    (with the address the client names in `resource`, RFC 8707), sets a cookie tying it to this browser,
+    and shows the client's name, return host and a code such as `KQPT-WMRA`, refreshing itself. The owner
+    approves the request in the app on the tailnet (Profile settings -> Claude and MCP) by picking one of
+    the profile's addresses. The page then sends the browser back with a single-use code (or
+    `access_denied`). The app password never crosses the Funnel, so there
+    is nothing to guess and no shared rate limit to lock the owner out. Requests end after 10 minutes, at
+    most 20 wait at once. PKCE S256 is required.
   - `/mcp/oauth/token`: `authorization_code` and `refresh_token`. Access tokens last 1 hour, refresh
     tokens 90 days and rotate on every use; a code or refresh token used twice removes the whole
-    connection. `/mcp/oauth/revoke` (RFC 7009).
+    connection. A connection ends 180 days after its approval, whatever the refresh tokens say.
+    `/mcp/oauth/revoke` (RFC 7009).
   - Only SHA-256 hashes of codes and tokens are stored (`core.oauth_tokens`); `claude_ro` cannot read the
     OAuth tables.
-- **Connections**: each approval is a row in `core.oauth_grants`, listed on the settings page with its
-  profile and last use, and removable there. Turning the connector off removes them all.
+- **MCP addresses** (`core.mcp_endpoints`, `lib/mcp/endpoints.server.ts`, Profile settings -> Claude and
+  MCP, `/settings/profile`): each profile has a built-in address with every app and writes allowed
+  ("All apps", cannot be removed), and its own ones: a name, the apps ticked, may change data or not. The
+  address to paste into Claude is `<Funnel URL>/mcp/x/<id>`. A connection follows its address: a change
+  of ticks applies at its next call, removing the address removes its connections. The scope a token
+  reports is `mcp:read` or `mcp:read mcp:write` from the address.
+- **Connections**: each approval is a row in `core.oauth_grants` (profile, address, end), listed and
+  removable in the profile's settings; System settings -> Claude connector lists all of them and every
+  tool call. Removing a profile removes its addresses and connections. Turning the
+  connector off removes them all, and every waiting request.
 - **CSRF**: SvelteKit refuses form posts whose Origin is not `ORIGIN`. `server.mjs` sets it for the token,
-  register and revoke endpoints (no cookies there) and for the authorize form when it comes from the
-  same host name (the Funnel port).
+  register and revoke endpoints (no cookies there). The authorize page takes no posts.
 
 ### Adding it to Claude
 
 1. System settings -> Claude connector -> Turn on. Within a minute the page shows the address.
 2. claude.ai -> Settings -> Connectors -> Add custom connector: a name and that address.
-3. Connect: the assistant's page asks for the profile and the app password.
+   Use an address from Profile settings -> Claude and MCP ("All apps", or one of the profile's own).
+3. Connect: a page with a code opens. In the app (on the tailnet), Profile settings -> Claude and MCP
+   shows the same code under "Waiting for approval": pick the address and Approve. The page in Claude
+   moves on by itself.
 4. Turn the connector on in a chat's tools menu. The Claude apps get it from the account.
 
 ## The CLIs in the terminal

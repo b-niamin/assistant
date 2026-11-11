@@ -114,6 +114,8 @@ services:
       SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
       # Lets the AI CLIs in the terminal call the extensions' tools at /mcp (spec 005). Empty = off.
       CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
+      # More hosts that may receive the connector's OAuth codes, besides claude.ai and claude.com (spec 005).
+      MCP_REDIRECT_HOSTS: ${MCP_REDIRECT_HOSTS:-}
       # What "Extend the system" offers; empty = the catalog.json of github.com/b-niamin/assistant-extensions.
       EXTENSIONS_CATALOG_URL: ${EXTENSIONS_CATALOG_URL:-}
     volumes:

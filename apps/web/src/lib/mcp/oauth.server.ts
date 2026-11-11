@@ -1,11 +1,17 @@
 /**
- * OAuth 2.1 for the Claude connector (spec 005), the database side (migration 010). A client registers
- * itself (POST /mcp/oauth/register); the owner approves it once with the app password, which makes a
- * grant (one connection, shown in System settings) and a single-use code; the code becomes an access
- * token (1 hour) and a refresh token (90 days, rotated on every use). Only SHA-256 hashes are stored.
+ * OAuth 2.1 for the Claude connector (spec 005), the database side (migrations 010, 011). A client
+ * registers itself (POST /mcp/oauth/register); the public authorize page files a request, which the
+ * owner approves on the tailnet, in a profile's settings, by picking one of its MCP addresses
+ * (endpoints.server.ts). That makes a grant (one connection, which follows its address) and a single-use code; the code becomes an access token (1 hour)
+ * and a refresh token (90 days, rotated on every use, never past the grant's end). Only SHA-256 hashes
+ * are stored.
  */
 import { db } from '#lib/server/db.ts';
-import { ACCESS_TTL_S, CODE_TTL_S, randomToken, REFRESH_TTL_S, sha256, validRedirectUri } from './oauth';
+import { ACCESS_TTL_S, CODE_TTL_S, randomToken, redirectHosts, REFRESH_TTL_S, REQUEST_TTL_S, scopeFor, sha256, userCode, validRedirectUri } from './oauth';
+
+/** Where codes may go: Claude's callbacks, plus MCP_REDIRECT_HOSTS. */
+export const allowedRedirectHosts = (): string[] => redirectHosts(process.env.MCP_REDIRECT_HOSTS ?? '');
+const redirectOk = (uri: unknown): uri is string => validRedirectUri(uri, allowedRedirectHosts());
 
 export interface OAuthClient {
   id: string;
@@ -24,13 +30,13 @@ export class OAuthError extends Error {
   }
 }
 
-/** Anyone on the internet can register: keep the table small. Approval still needs the app password. */
+/** Anyone on the internet can register: keep the table small. Approval still needs the owner, in the app. */
 const MAX_CLIENTS = 200;
 
 export async function registerClient(body: Record<string, unknown>): Promise<Record<string, unknown>> {
   const uris = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
-  if (!uris.length || uris.length > 10 || !uris.every(validRedirectUri))
-    throw new OAuthError('invalid_redirect_uri', 'redirect_uris: 1-10 https URLs (or http on localhost)');
+  if (!uris.length || uris.length > 10 || !uris.every(redirectOk))
+    throw new OAuthError('invalid_redirect_uri', `redirect_uris: 1-10 https URLs on ${allowedRedirectHosts().join(', ')} (or http on localhost)`);
   const name = String(body.client_name ?? 'MCP client').replace(/[\u0000-\u001f]/g, '').slice(0, 80) || 'MCP client';
   const method = String(body.token_endpoint_auth_method ?? 'none');
   const confidential = method === 'client_secret_post' || method === 'client_secret_basic';
@@ -73,16 +79,96 @@ export async function clientAuthenticates(id: string, secret: string | null): Pr
   return !!secret && sha256(secret) === row.secret_hash;
 }
 
-/** After the owner approved: a new grant and its single-use code. */
-export async function approve(client: OAuthClient, profileId: string, redirectUri: string, codeChallenge: string): Promise<string> {
-  const grant = randomToken('bgr', 12);
-  const code = randomToken('bco');
-  await db().begin(async (sql) => {
-    await sql`INSERT INTO core.oauth_grants (id, client_id, profile_id) VALUES (${grant}, ${client.id}, ${profileId})`;
-    await sql`INSERT INTO core.oauth_tokens (hash, kind, grant_id, redirect_uri, code_challenge, expires_at)
-              VALUES (${sha256(code)}, 'code', ${grant}, ${redirectUri}, ${codeChallenge}, now() + make_interval(secs => ${CODE_TTL_S}))`;
+export interface PendingRequest {
+  id: string;
+  userCode: string;
+  client: string;
+  returnsTo: string;
+  createdAt: string;
+  /** The address the client connected to, when it said (RFC 8707 resource). */
+  askedEndpoint: string | null;
+}
+
+/**
+ * The public authorize page files a request and gets its id plus a browser secret (a cookie on the
+ * public page), so only the browser that asked can collect the code. Old requests are cleaned up here.
+ */
+export async function fileRequest(client: OAuthClient, redirectUri: string, state: string, challenge: string, askedEndpoint: string | null): Promise<{ id: string; secret: string }> {
+  await db()`DELETE FROM core.oauth_requests WHERE expires_at < now() - interval '1 day'`;
+  const [{ n }] = await db()<{ n: number }[]>`SELECT count(*)::int AS n FROM core.oauth_requests WHERE expires_at > now() AND decision IS NULL`;
+  if (n >= 20) throw new OAuthError('temporarily_unavailable', 'too many connections waiting for approval', 503);
+  const id = randomToken('brq', 12);
+  const secret = randomToken('brs');
+  await db()`INSERT INTO core.oauth_requests (id, user_code, browser_hash, client_id, redirect_uri, state, code_challenge, asked_endpoint, expires_at)
+             VALUES (${id}, ${userCode()}, ${sha256(secret)}, ${client.id}, ${redirectUri}, ${state.slice(0, 500)}, ${challenge}, ${askedEndpoint},
+                     now() + make_interval(secs => ${REQUEST_TTL_S}))`;
+  return { id, secret };
+}
+
+export type RequestState =
+  | { state: 'gone' }
+  | { state: 'pending'; userCode: string; client: string; returnsTo: string }
+  | { state: 'denied'; redirectUri: string; stateParam: string }
+  | { state: 'allowed'; redirectUri: string; stateParam: string; code: string };
+
+/**
+ * What the public page shows for a request, for the browser holding its secret. Once allowed, the grant
+ * and its single-use code are made here, once: the request is then done.
+ */
+export async function requestState(id: string, secret: string): Promise<RequestState> {
+  if (!id || id.length > 100 || !secret) return { state: 'gone' };
+  return db().begin(async (sql) => {
+    const [r] = await sql<
+      { user_code: string; client_id: string; name: string; redirect_uri: string; state: string; code_challenge: string; decision: string | null;
+        endpoint_id: string | null; profile_id: string | null; endpoint: string | null; expired: boolean; done: boolean }[]
+    >`SELECT r.user_code, r.client_id, c.name, r.redirect_uri, r.state, r.code_challenge, r.decision, r.endpoint_id, e.profile_id, e.name AS endpoint,
+             r.expires_at < now() AS expired, r.done_at IS NOT NULL AS done
+      FROM core.oauth_requests r JOIN core.oauth_clients c ON c.id = r.client_id
+      LEFT JOIN core.mcp_endpoints e ON e.id = r.endpoint_id
+      WHERE r.id = ${id} AND r.browser_hash = ${sha256(secret)} FOR UPDATE OF r`;
+    if (!r || r.done) return { state: 'gone' };
+    if (r.decision === 'deny') {
+      await sql`UPDATE core.oauth_requests SET done_at = now() WHERE id = ${id}`;
+      return { state: 'denied', redirectUri: r.redirect_uri, stateParam: r.state };
+    }
+    if (r.decision === 'allow' && r.endpoint_id && r.profile_id) {
+      const grant = randomToken('bgr', 12);
+      const code = randomToken('bco');
+      await sql`INSERT INTO core.oauth_grants (id, client_id, profile_id, endpoint_id) VALUES (${grant}, ${r.client_id}, ${r.profile_id}, ${r.endpoint_id})`;
+      await sql`INSERT INTO core.oauth_tokens (hash, kind, grant_id, redirect_uri, code_challenge, expires_at)
+                VALUES (${sha256(code)}, 'code', ${grant}, ${r.redirect_uri}, ${r.code_challenge}, now() + make_interval(secs => ${CODE_TTL_S}))`;
+      await sql`UPDATE core.oauth_requests SET done_at = now() WHERE id = ${id}`;
+      console.log(`[mcp] ${new Date().toISOString()} connection approved for ${r.name} (profile ${r.profile_id}, address ${r.endpoint})`);
+      return { state: 'allowed', redirectUri: r.redirect_uri, stateParam: r.state, code };
+    }
+    if (r.expired) return { state: 'gone' };
+    return { state: 'pending', userCode: r.user_code, client: r.name, returnsTo: new URL(r.redirect_uri).host };
   });
-  return code;
+}
+
+/** Requests waiting for the owner, for System settings. */
+export async function pendingRequests(): Promise<PendingRequest[]> {
+  const rows = await db()<{ id: string; user_code: string; name: string; redirect_uri: string; created_at: Date; asked_endpoint: string | null }[]>`
+    SELECT r.id, r.user_code, c.name, r.redirect_uri, r.created_at, r.asked_endpoint
+    FROM core.oauth_requests r JOIN core.oauth_clients c ON c.id = r.client_id
+    WHERE r.decision IS NULL AND r.expires_at > now() ORDER BY r.created_at DESC`;
+  return rows.map((r) => ({
+    id: r.id,
+    userCode: r.user_code,
+    client: r.name,
+    returnsTo: new URL(r.redirect_uri).host,
+    createdAt: r.created_at.toISOString(),
+    askedEndpoint: r.asked_endpoint
+  }));
+}
+
+/** The owner's decision in a profile's settings. The public page picks it up on its next refresh. */
+export async function decideRequest(id: string, d: { allow: false } | { allow: true; endpointId: string }): Promise<boolean> {
+  const rows = d.allow
+    ? await db()`UPDATE core.oauth_requests SET decision = 'allow', endpoint_id = ${d.endpointId}
+                 WHERE id = ${id} AND decision IS NULL AND expires_at > now() RETURNING 1`
+    : await db()`UPDATE core.oauth_requests SET decision = 'deny' WHERE id = ${id} AND decision IS NULL RETURNING 1`;
+  return rows.length > 0;
 }
 
 export interface TokenSet {
@@ -93,13 +179,19 @@ export interface TokenSet {
   scope: string;
 }
 
+/** New tokens for a grant; none of them outlives the grant itself. */
 async function issue(grantId: string): Promise<TokenSet> {
+  const [g] = await db()<{ can_write: boolean; left_s: number }[]>`
+    SELECT e.can_write, extract(epoch FROM g.expires_at - now())::int AS left_s
+    FROM core.oauth_grants g JOIN core.mcp_endpoints e ON e.id = g.endpoint_id WHERE g.id = ${grantId}`;
+  if (!g || g.left_s <= 60) throw new OAuthError('invalid_grant', 'this connection has ended; connect again');
   const access = randomToken('bat');
   const refresh = randomToken('brt');
+  const accessS = Math.min(ACCESS_TTL_S, g.left_s);
   await db()`INSERT INTO core.oauth_tokens (hash, kind, grant_id, expires_at) VALUES
-             (${sha256(access)}, 'access', ${grantId}, now() + make_interval(secs => ${ACCESS_TTL_S})),
-             (${sha256(refresh)}, 'refresh', ${grantId}, now() + make_interval(secs => ${REFRESH_TTL_S}))`;
-  return { access_token: access, token_type: 'Bearer', expires_in: ACCESS_TTL_S, refresh_token: refresh, scope: 'mcp' };
+             (${sha256(access)}, 'access', ${grantId}, now() + make_interval(secs => ${accessS})),
+             (${sha256(refresh)}, 'refresh', ${grantId}, now() + make_interval(secs => ${Math.min(REFRESH_TTL_S, g.left_s)}))`;
+  return { access_token: access, token_type: 'Bearer', expires_in: accessS, refresh_token: refresh, scope: scopeFor(g.can_write) };
 }
 
 /**
@@ -134,16 +226,39 @@ export async function refresh(clientId: string, token: string): Promise<TokenSet
   return issue(row.grant_id);
 }
 
-/** A bearer token at /mcp: its grant's profile, or null. Touches last_used_at at most once a minute. */
-export async function verifyAccess(token: string): Promise<{ grantId: string; profileId: string } | null> {
+export interface GrantAccess {
+  grantId: string;
+  client: string;
+  profileId: string;
+  endpointId: string;
+  endpoint: string;
+  scope: string;
+  /** The apps it sees (its address's); null = all. */
+  extensions: string[] | null;
+}
+
+/** A bearer token at /mcp: its connection, or null. Touches last_used_at at most once a minute. */
+export async function verifyAccess(token: string): Promise<GrantAccess | null> {
   if (!token.startsWith('bat_') || token.length > 100) return null;
-  const [row] = await db()<{ grant_id: string; profile_id: string; stale: boolean }[]>`
-    SELECT g.id AS grant_id, g.profile_id, (g.last_used_at IS NULL OR g.last_used_at < now() - interval '1 minute') AS stale
-    FROM core.oauth_tokens t JOIN core.oauth_grants g ON g.id = t.grant_id
-    WHERE t.hash = ${sha256(token)} AND t.kind = 'access' AND t.expires_at > now()`;
+  const [row] = await db()<
+    { grant_id: string; name: string; profile_id: string; endpoint_id: string; endpoint: string; can_write: boolean; extensions: string[] | null; stale: boolean }[]
+  >`
+    SELECT g.id AS grant_id, c.name, e.profile_id, e.id AS endpoint_id, e.name AS endpoint, e.can_write, e.extensions,
+           (g.last_used_at IS NULL OR g.last_used_at < now() - interval '1 minute') AS stale
+    FROM core.oauth_tokens t JOIN core.oauth_grants g ON g.id = t.grant_id JOIN core.oauth_clients c ON c.id = g.client_id
+    JOIN core.mcp_endpoints e ON e.id = g.endpoint_id
+    WHERE t.hash = ${sha256(token)} AND t.kind = 'access' AND t.expires_at > now() AND g.expires_at > now()`;
   if (!row) return null;
   if (row.stale) await db()`UPDATE core.oauth_grants SET last_used_at = now() WHERE id = ${row.grant_id}`;
-  return { grantId: row.grant_id, profileId: row.profile_id };
+  return {
+    grantId: row.grant_id,
+    client: row.name,
+    profileId: row.profile_id,
+    endpointId: row.endpoint_id,
+    endpoint: row.endpoint,
+    scope: scopeFor(row.can_write),
+    extensions: row.extensions
+  };
 }
 
 /** RFC 7009: forget one token (and with a refresh token, its whole connection). Unknown tokens are fine. */
@@ -158,32 +273,89 @@ export interface Connection {
   id: string;
   client: string;
   profileId: string;
+  endpointId: string;
+  endpoint: string;
+  builtin: boolean;
   createdAt: string;
   lastUsedAt: string | null;
+  expiresAt: string;
 }
 
-/** The approved connections for System settings (expired ones, whose refresh token ran out, are cleaned up). */
-export async function listConnections(): Promise<Connection[]> {
+/** The approved connections, of one profile or all (expired ones are cleaned up). */
+export async function listConnections(profileId: string | null = null): Promise<Connection[]> {
   await db()`DELETE FROM core.oauth_tokens WHERE expires_at < now() - interval '1 day'`;
   await db()`DELETE FROM core.oauth_grants g WHERE g.created_at < now() - interval '1 day'
              AND NOT EXISTS (SELECT 1 FROM core.oauth_tokens t WHERE t.grant_id = g.id)`;
-  const rows = await db()<{ id: string; name: string; profile_id: string; created_at: Date; last_used_at: Date | null }[]>`
-    SELECT g.id, c.name, g.profile_id, g.created_at, g.last_used_at
-    FROM core.oauth_grants g JOIN core.oauth_clients c ON c.id = g.client_id ORDER BY g.created_at DESC`;
+  await db()`DELETE FROM core.oauth_grants WHERE expires_at < now()`;
+  const rows = await db()<
+    { id: string; name: string; profile_id: string; endpoint_id: string; endpoint: string; builtin: boolean; created_at: Date; last_used_at: Date | null; expires_at: Date }[]
+  >`
+    SELECT g.id, c.name, g.profile_id, e.id AS endpoint_id, e.name AS endpoint, e.builtin, g.created_at, g.last_used_at, g.expires_at
+    FROM core.oauth_grants g JOIN core.oauth_clients c ON c.id = g.client_id JOIN core.mcp_endpoints e ON e.id = g.endpoint_id
+    WHERE ${profileId}::text IS NULL OR g.profile_id = ${profileId}
+    ORDER BY g.created_at DESC`;
   return rows.map((r) => ({
     id: r.id,
     client: r.name,
     profileId: r.profile_id,
+    endpointId: r.endpoint_id,
+    endpoint: r.endpoint,
+    builtin: r.builtin,
     createdAt: r.created_at.toISOString(),
-    lastUsedAt: r.last_used_at ? r.last_used_at.toISOString() : null
+    lastUsedAt: r.last_used_at ? r.last_used_at.toISOString() : null,
+    expiresAt: r.expires_at.toISOString()
   }));
 }
 
-export async function removeConnection(id: string): Promise<boolean> {
-  return (await db()`DELETE FROM core.oauth_grants WHERE id = ${id} RETURNING 1`).length > 0;
+export async function removeConnection(id: string, profileId: string | null = null): Promise<boolean> {
+  return (await db()`DELETE FROM core.oauth_grants WHERE id = ${id} AND (${profileId}::text IS NULL OR profile_id = ${profileId}) RETURNING 1`).length > 0;
 }
 
-/** Turning the connector off ends every connection. */
+/** Turning the connector off ends every connection, and every request still waiting. */
 export async function removeAllConnections(): Promise<number> {
+  await db()`DELETE FROM core.oauth_requests WHERE done_at IS NULL`;
   return (await db()`DELETE FROM core.oauth_grants RETURNING 1`).length;
+}
+
+export interface ToolCall {
+  at: string;
+  source: 'connector' | 'terminal';
+  endpoint: string | null;
+  client: string | null;
+  profileId: string;
+  tool: string;
+  ok: boolean;
+  error: string | null;
+  ms: number;
+}
+
+/** One line in core.tool_calls per tools/call. Never fails the call itself. Rows older than 90 days go. */
+export async function logToolCall(c: Omit<ToolCall, 'at'> & { grantId: string | null }): Promise<void> {
+  try {
+    await db()`INSERT INTO core.tool_calls (source, grant_id, endpoint, client, profile_id, tool, ok, error, ms)
+               VALUES (${c.source}, ${c.grantId}, ${c.endpoint}, ${c.client}, ${c.profileId}, ${c.tool.slice(0, 200)}, ${c.ok}, ${c.error?.slice(0, 300) ?? null}, ${c.ms})`;
+    if (Math.random() < 0.01) await db()`DELETE FROM core.tool_calls WHERE at < now() - interval '90 days'`;
+  } catch (e) {
+    console.warn(`[mcp] could not log a tool call: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+/** The latest tool calls, of one profile or all. */
+export async function recentToolCalls(limit = 50, profileId: string | null = null): Promise<ToolCall[]> {
+  const rows = await db()<
+    { at: Date; source: 'connector' | 'terminal'; endpoint: string | null; client: string | null; profile_id: string; tool: string; ok: boolean; error: string | null; ms: number }[]
+  >`
+    SELECT at, source, endpoint, client, profile_id, tool, ok, error, ms FROM core.tool_calls
+    WHERE ${profileId}::text IS NULL OR profile_id = ${profileId} ORDER BY at DESC LIMIT ${limit}`;
+  return rows.map((r) => ({
+    at: r.at.toISOString(),
+    source: r.source,
+    endpoint: r.endpoint,
+    client: r.client,
+    profileId: r.profile_id,
+    tool: r.tool,
+    ok: r.ok,
+    error: r.error,
+    ms: r.ms
+  }));
 }

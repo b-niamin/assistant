@@ -6,7 +6,12 @@
 
 /** @param {string} p a URL path */
 export function isMcpPath(p) {
-  return p === '/mcp' || p.startsWith('/mcp/oauth/') || /^\/\.well-known\/oauth-(protected-resource|authorization-server)(\/mcp)?$/.test(p);
+  return (
+    p === '/mcp' ||
+    p.startsWith('/mcp/oauth/') ||
+    /^\/mcp\/x\/e[a-z0-9]{20}$/.test(p) ||
+    /^\/\.well-known\/oauth-(protected-resource|authorization-server)(\/mcp(\/x\/e[a-z0-9]{20})?)?$/.test(p)
+  );
 }
 
 /**

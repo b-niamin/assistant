@@ -44,20 +44,13 @@ const deny = (socket, code, text) => socket.end(`HTTP/1.1 ${code} ${text}\r\nCon
 
 /**
  * SvelteKit refuses form posts whose Origin is not ORIGIN. The OAuth endpoints that clients' servers call
- * (token, register, revoke) use no cookies, so any Origin is fine there; the authorize form is posted from
- * the Funnel address, the same host as ORIGIN on another port, and asks for the app password itself.
+ * (token, register, revoke) use no cookies, so any Origin is fine there. The authorize page takes no
+ * posts: the owner approves in the app (spec 005).
  */
 function fixOrigin(req) {
   if (req.method !== 'POST' || !ORIGIN) return;
   const p = new URL(req.url ?? '/', 'http://local').pathname;
   if (isOAuthApi(p)) req.headers.origin = ORIGIN;
-  else if (p === '/mcp/oauth/authorize') {
-    try {
-      if (new URL(req.headers.origin ?? '').hostname === new URL(ORIGIN).hostname) req.headers.origin = ORIGIN;
-    } catch {
-      /* no or bad Origin: SvelteKit refuses it */
-    }
-  }
 }
 
 const server = createServer((req, res) => {

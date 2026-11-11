@@ -2,15 +2,21 @@ import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { injectShim, inlineJson, KV_MESSAGE, shimScript } from './onefile';
 
-function runShim(data: Record<string, string>) {
-  const posted: { msg: Record<string, unknown>; origin: string }[] = [];
+function runShim(data: Record<string, string>, versions: Record<string, number> = {}) {
+  const all: { msg: Record<string, unknown>; origin: string }[] = [];
   const window: Record<string, unknown> = {};
-  window.parent = { postMessage: (msg: Record<string, unknown>, origin: string) => posted.push({ msg, origin }) };
-  runInNewContext(shimScript(data, 'https://nas.example'), { window, Object, Proxy, String });
-  return { ls: window.localStorage as Storage, ss: window.sessionStorage as Storage, posted };
+  window.parent = { postMessage: (msg: Record<string, unknown>, origin: string) => all.push({ msg, origin }) };
+  runInNewContext(shimScript(data, 'https://nas.example', versions), { window, Object, Proxy, String });
+  // The first message hands the host the versions the data was loaded at; the rest are the writes.
+  const hello = all.shift();
+  return { ls: window.localStorage as Storage, ss: window.sessionStorage as Storage, posted: all, hello };
 }
 
 describe('storage shim', () => {
+  it('tells the host the versions its data was loaded at', () => {
+    const { hello } = runShim({ a: '1' }, { a: 4 });
+    expect(hello).toMatchObject({ origin: 'https://nas.example', msg: { op: 'hello', versions: { a: 4 }, [KV_MESSAGE]: 1 } });
+  });
   it('starts from the stored data and posts every write to the shell origin', () => {
     const { ls, posted } = runShim({ a: '1' });
     expect(ls.getItem('a')).toBe('1');

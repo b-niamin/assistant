@@ -1,7 +1,11 @@
-/** Extension key-value storage: GET everything, PATCH {set, remove, clear}. Same-origin only. */
+/**
+ * Extension key-value storage: GET everything, PATCH {set, remove, clear, base}. Same-origin only.
+ * PATCH answers the new versions of the keys it wrote; with `base` (the versions the writer loaded),
+ * a key changed elsewhere since answers 409 and nothing is written.
+ */
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { kvAll, kvApply, validatePatch } from '#lib/extensions/kv.server.ts';
+import { KvConflict, kvAll, kvApply, validatePatch } from '#lib/extensions/kv.server.ts';
 import { extensionById, visibleTo } from '#lib/extensions/registry.server.ts';
 
 async function extFor(id: string, profileId: string) {
@@ -24,9 +28,9 @@ export const PATCH: RequestHandler = async ({ params, locals, request, url }) =>
     throw error(400, (e as Error).message);
   }
   try {
-    await kvApply(ext, locals.profileId, patch);
+    return json({ versions: await kvApply(ext, locals.profileId, patch) });
   } catch (e) {
+    if (e instanceof KvConflict) return json({ conflict: e.keys }, { status: 409 });
     throw error(413, (e as Error).message);
   }
-  return new Response(null, { status: 204 });
 };

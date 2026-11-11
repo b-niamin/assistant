@@ -177,6 +177,11 @@ The shell route `/<id>` renders an iframe of `/api/onefile/<id>`:
   Writes go to the parent page by `postMessage` (to the shell's origin only); the parent checks the
   sender is its own iframe, batches writes and saves them to `core.extension_kv` via `PATCH /api/kv/<id>`
   (same-origin only, 5 MB per value, 20 MB per extension and owner). `sessionStorage` is an in-memory shim.
+- Every key has a version (migration 012). The shim first posts the versions its data was loaded at; each
+  save sends them back, and a key someone else saved since (another device, Claude through MCP) answers
+  409: the host reloads the app with the newer data instead of overwriting it. A failed save is kept and
+  retried (backoff, back online, page shown again), and a pending batch is saved when the page is hidden
+  (`keepalive` only under 64 KB, the browsers' limit).
 - The same HTML still works on its own with real localStorage, so apps can move both ways between this
   shell and onefile-apps (and claude.ai artifacts).
 

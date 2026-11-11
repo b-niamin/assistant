@@ -395,7 +395,6 @@
   "in the terminal to build your own extension.": "w terminalu, żeby zbudować własne rozszerzenie.",
   "Sign in there first.": "Najpierw się tam zaloguj.",
   "Saving…": "Zapisuję…",
-  "Not saved: check the connection": "Nie zapisano: sprawdź połączenie",
   "Fully charged. Good day for quality work.": "Naładowany do pełna. Dobry dzień na mocny trening.",
   "Legs feel springy. Go get it.": "Nogi aż rwą się do biegu. Do dzieła.",
   "Green light for intervals.": "Zielone światło dla interwałów.",
@@ -552,5 +551,7 @@
   "Database, .env and the installed extensions, in BACKUP_DIR next to the checkout. Copy that folder off this machine too (Hyper Backup, Time Machine). Restore: sudo ./beni.sh restore <folder>.": "Baza danych, .env i zainstalowane rozszerzenia, w BACKUP_DIR obok katalogu aplikacji. Kopiuj ten folder także poza to urządzenie (Hyper Backup, Time Machine). Odtworzenie: sudo ./beni.sh restore <folder>.",
   "No backup status yet": "Brak statusu kopii",
   "The backup service writes it after its first run.": "Usługa kopii zapisze go po pierwszym uruchomieniu.",
-  "Back up now": "Zrób kopię teraz"
+  "Back up now": "Zrób kopię teraz",
+  "Not saved yet: trying again": "Jeszcze nie zapisano: próbuję ponownie",
+  "Changed on another device or by Claude: reloaded the latest data": "Zmienione na innym urządzeniu albo przez Claude: wczytano najnowsze dane"
 }

@@ -40,8 +40,8 @@ export async function contextFor(id: string, event: Pick<RequestEvent, 'locals'>
     kv: {
       all: () => kvAll(ext, profileId),
       get: async (key) => (await kvAll(ext, profileId))[key] ?? null,
-      set: (key, value) => kvApply(ext, profileId, { set: { [key]: value } }),
-      remove: (key) => kvApply(ext, profileId, { remove: [key] })
+      set: (key, value) => kvApply(ext, profileId, { set: { [key]: value } }).then(() => undefined),
+      remove: (key) => kvApply(ext, profileId, { remove: [key] }).then(() => undefined)
     }
   };
 }

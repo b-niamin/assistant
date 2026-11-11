@@ -42,7 +42,7 @@ export function inlineJson(value: unknown): string {
 }
 
 /** The storage shim, run as the first script of the app. */
-export function shimScript(data: Record<string, string>, parentOrigin: string): string {
+export function shimScript(data: Record<string, string>, parentOrigin: string, versions: Record<string, number> = {}): string {
   return `(function () {
   'use strict';
   var initial = ${inlineJson(data)};
@@ -86,6 +86,9 @@ export function shimScript(data: Record<string, string>, parentOrigin: string): 
       }
     });
   }
+  // The versions this data was loaded at: the host sends them with each save, so a save over a key that
+  // changed elsewhere since (another device, Claude) is refused instead of overwriting it.
+  post({ op: 'hello', versions: ${inlineJson(versions)} });
   var local = makeStorage(initial, true);
   var session = makeStorage({}, false);
   try { Object.defineProperty(window, 'localStorage', { value: local, configurable: true }); } catch (e) {}
@@ -100,7 +103,8 @@ export function injectShim(
   parentOrigin: string,
   settings: Record<string, unknown> = {},
   theme = '',
-  lang = 'en'
+  lang = 'en',
+  versions: Record<string, number> = {}
 ): string {
   // theme: the shell's tokens and <assistant-beni> (theme.ts), so every app wears the shell's look.
   // window.assistantSettings: the values of the app's settings panel in System settings (read-only).
@@ -109,7 +113,7 @@ export function injectShim(
   const tag =
     `<script>window.assistantSettings = Object.freeze(${inlineJson(settings)});` +
     `window.assistantLang = ${inlineJson(code)};document.documentElement.lang = window.assistantLang;` +
-    `${shimScript(data, parentOrigin)}</script>${theme}`;
+    `${shimScript(data, parentOrigin, versions)}</script>${theme}`;
   const head = /<head(\s[^>]*)?>/i.exec(html);
   if (head) return html.slice(0, head.index + head[0].length) + tag + html.slice(head.index + head[0].length);
   const doctype = /<!doctype[^>]*>/i.exec(html);

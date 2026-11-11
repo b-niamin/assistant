@@ -23,7 +23,7 @@ Tailscale Funnel ─► web :3001 (only /mcp and its OAuth; internet, when the C
                      │     works on the repo checkout, reaches the apps through /mcp
                      ├── browser (spec 004: Chromium for sign-ins, internal network)
                      ├── migrate (one-shot: migrations + roles), ext-migrate (re-applies on change)
-                     ├── backup (daily pg_dump, 14 days kept)
+                     ├── backup (daily: dump + .env + extensions into BACKUP_DIR)
                      └── extension services (each extension's compose.yml, e.g. health's garmin-sync)
 ```
 
@@ -95,6 +95,6 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
    broken shell scripts and failing tests. Undo is `git revert`; with `CLAUDE_GITHUB_TOKEN` set, commits
    are pushed, so history also lives off the machine.
 4. **Read-only data access** for conversations. Schema changes go through new migration files.
-5. **Daily backups** (`pg_dump`, 14 days) in the `backups` volume.
+5. **Daily backups** (dump, `.env`, extensions; 7 days, 4 weeks, 6 months) in `BACKUP_DIR` next to the checkout; `beni.sh restore` brings one back (docs/install.md).
 6. **`AGENTS.md` + `.claude/settings.json`**: profile, extension and migration rules, deny rules for
    `.env`, force pushes, `--no-verify`, `docker`.

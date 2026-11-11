@@ -89,6 +89,8 @@ One command for the host (Synology: `sudo` in front):
 ./beni.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
 ./beni.sh fix-db-password        # the database keeps its data, takes the password in .env
 ./beni.sh move <new-folder>      # move the install elsewhere, data kept
+./beni.sh backup [--list]        # make a backup now | list them
+./beni.sh restore <backup>       # bring one back (also on a new machine, after the installer)
 ```
 
 Run `git` in the checkout as yourself, not with sudo: files git writes as root stop the containers
@@ -100,6 +102,40 @@ A database volume keeps the password it was created with. A new `.env` next to a
 clone into the same folder name) makes the installer stop instead of failing later with "password
 authentication failed": put the old `.env` back, run `sudo ./beni.sh fix-db-password`, or remove the
 `<project>_db-data` volume to start empty.
+
+## Backups
+
+The `backup` service makes one backup a day (at `BACKUP_HOUR`, 3:00 by default, local time; at once when
+the last one is more than a day old) into `BACKUP_DIR`, a host folder next to the checkout
+(`../assistant-backups`, e.g. `/volume1/docker/assistant-backups`; never inside the checkout, which the
+terminal sees). Each backup is a folder `beni-<day>_<time>` with everything a new machine needs:
+
+| File | What |
+| --- | --- |
+| `db.dump` | the database (`pg_dump -Fc`), checked with `pg_restore --list` before it counts |
+| `env` | `.env`: the keys that decrypt stored secrets and service logins live only there |
+| `extensions.tgz` | the installed extensions, including ones Claude built here |
+| `manifest.json` | when, Postgres version, sizes |
+
+Kept: the last 7 days, 4 Sundays and 6 first-of-the-months (`BACKUP_KEEP_DAILY`, `_WEEKLY`, `_MONTHLY`).
+Old ones go only after a backup succeeded. The files belong to root and only root can read them.
+System settings → Backups shows the last good one and has Back up now; `./beni.sh doctor` warns when the
+last one is more than 36 hours old.
+
+A backup on the same disk does not survive the disk: let the host copy `BACKUP_DIR` elsewhere (Synology
+Hyper Backup to another device or a cloud, Time Machine, `rsync` to a second machine). It holds `.env`,
+so encrypt that copy.
+
+Restore, on this machine or a new one (after `install.sh` there):
+
+```sh
+sudo ./beni.sh restore /volume1/docker/assistant-backups/beni-2026-11-12_0300
+```
+
+It backs up the current state first, takes the keys from the backup's `env` (this machine keeps its own
+passwords, ports and address), puts the current extensions in `extensions/.trash/`, recreates the
+database from the dump and starts everything; `migrate` puts back the roles. Works across machines and
+CPU types (NAS, Mac, Raspberry Pi): the dump is logical.
 
 `install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
 Its tool output goes to `install.log`; only the tail is shown when a step fails.

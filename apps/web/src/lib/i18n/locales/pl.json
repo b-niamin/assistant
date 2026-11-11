@@ -541,5 +541,16 @@
   "Connect opens a page with a code. The same code shows up here, under Waiting for approval: pick the address and approve.": "Połącz otwiera stronę z kodem. Ten sam kod pojawi się tutaj, w sekcji Czeka na zatwierdzenie: wybierz adres i zatwierdź.",
   "In a chat, turn the connector on in the tools menu. Claude reads the tool list when it connects: after installing an app, connect again.": "W czacie włącz konektor w menu narzędzi. Claude czyta listę narzędzi przy łączeniu: po zainstalowaniu aplikacji połącz się ponownie.",
   "Address": "Adres",
-  "Address {endpoint} · approved {approved} · last used {used} · ends {ends}": "Adres {endpoint} · zatwierdzono {approved} · ostatnio użyte {used} · wygasa {ends}"
+  "Address {endpoint} · approved {approved} · last used {used} · ends {ends}": "Adres {endpoint} · zatwierdzono {approved} · ostatnio użyte {used} · wygasa {ends}",
+  "Backing up: it starts within a minute.": "Robię kopię: zacznie się w ciągu minuty.",
+  "Backups": "Kopie zapasowe",
+  "Backing up": "Trwa kopia",
+  "Last backup failed": "Ostatnia kopia się nie udała",
+  "Out of date": "Nieaktualne",
+  "Last good backup {when} · {n} kept · daily at {hour}:00": "Ostatnia dobra kopia {when} · przechowywanych: {n} · codziennie o {hour}:00",
+  "No good backup yet.": "Nie ma jeszcze dobrej kopii.",
+  "Database, .env and the installed extensions, in BACKUP_DIR next to the checkout. Copy that folder off this machine too (Hyper Backup, Time Machine). Restore: sudo ./beni.sh restore <folder>.": "Baza danych, .env i zainstalowane rozszerzenia, w BACKUP_DIR obok katalogu aplikacji. Kopiuj ten folder także poza to urządzenie (Hyper Backup, Time Machine). Odtworzenie: sudo ./beni.sh restore <folder>.",
+  "No backup status yet": "Brak statusu kopii",
+  "The backup service writes it after its first run.": "Usługa kopii zapisze go po pierwszym uruchomieniu.",
+  "Back up now": "Zrób kopię teraz"
 }

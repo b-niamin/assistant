@@ -14,6 +14,8 @@
 #   ./beni.sh fix-permissions       owner, Synology ACLs and modes in the checkout
 #   ./beni.sh fix-db-password       the database keeps its data but takes the password in .env
 #   ./beni.sh move <new-folder>     move the install (stopped, data kept), e.g. to /volume1/docker/assistant
+#   ./beni.sh backup [--list]       make a backup now (database, .env, extensions) | list them
+#   ./beni.sh restore <backup>      bring a backup back (also on a new machine, after ./beni.sh install)
 #   ./beni.sh auto-update [install | status]   set up the updater and its schedule (once) | status
 #
 # Docker on Synology needs root: put sudo in front (sudo ./beni.sh status).
@@ -63,7 +65,7 @@ as_owner() {
   else "$@"; fi
 }
 
-usage() { sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # --- the database password ----------------------------------------------------------------------
 # A database volume keeps the password it was created with. A new .env (a fresh clone into the same
@@ -96,7 +98,7 @@ db_mismatch_help() {
       - put back the .env of the install that made this database, then: sudo ./beni.sh start
       - or keep the data and give the database the password in .env:   sudo ./beni.sh fix-db-password
         (extension secrets and Garmin logins were encrypted with the old .env: enter them again)
-      - or start with an empty database (deletes all data; dumps stay in volume $(project)_backups):
+      - or start with an empty database (deletes all data; backups stay in $(backup_dir)):
           sudo ./beni.sh stop && sudo docker compose -p $(project) rm -f db && sudo docker volume rm $(project)_db-data
 HELP
 }
@@ -278,6 +280,14 @@ doctor() {
     else w "the app does not answer on port ${port:-3000} (still building? sudo ./beni.sh logs web)"; fi
   fi
 
+  # Backups
+  bdir=$(backup_dir)
+  case $bdir/ in "$DIR"/*) w "BACKUP_DIR ($bdir) is inside the checkout, where the terminal can read the .env in each backup: move it next to the checkout" ;; esac
+  last=$(ls -1d "$bdir"/beni-* 2>/dev/null | sort | tail -n 1)
+  if [ -z "$last" ]; then w "no backup in $bdir yet (sudo ./beni.sh backup)"
+  elif [ -n "$(find "$last" -maxdepth 0 -mmin +2160 2>/dev/null)" ]; then w "the last backup is more than 36 hours old: $last (sudo ./beni.sh logs backup)"
+  else ok "last backup: $(basename "$last") in $bdir"; fi
+
   # Updater
   home=$(updater_home)
   if [ ! -f "$home/update.sh" ] && [ ! -f "$home/auto-update.sh" ]; then say "the updater is not set up (sudo ./beni.sh auto-update install)"
@@ -347,6 +357,85 @@ doctor_end() {
   if [ "$warns" -gt 0 ]; then warn "no problems, $warns warning(s)"; else ok "all good"; fi
 }
 
+# --- backup and restore ---------------------------------------------------------------------------
+# Backups are folders beni-<day>_<time> in BACKUP_DIR (db/backup.sh): db.dump, env, extensions.tgz.
+backup_dir() {
+  b=$(envv BACKUP_DIR); b=${b:-../assistant-backups}
+  case $b in /*) ;; *) b=$DIR/$b ;; esac
+  (cd "$b" 2>/dev/null && pwd) || echo "$b"
+}
+
+backup_now() {
+  if [ "${1:-}" = --list ]; then
+    ls -1d "$(backup_dir)"/beni-* 2>/dev/null | sort -r || say "no backups in $(backup_dir)"
+    return 0
+  fi
+  dc run --rm -T backup now || die "the backup failed (./beni.sh logs backup, /logs/backup.log)"
+  ok "backup made in $(backup_dir)"
+}
+
+# Keys that encrypt data in the database: they have to come back with it.
+RESTORE_KEYS="SECRETS_KEY TOKEN_ENCRYPTION_KEY APP_PASSWORD_HASH"
+
+restore() {
+  src=${1:-}
+  [ -n "$src" ] || die "restore <backup folder>   (sudo ./beni.sh backup --list)"
+  case $src in /*) ;; *) [ -d "$src" ] || src=$(backup_dir)/$src ;; esac
+  [ -f "$src/db.dump" ] || die "$src has no db.dump"
+  [ -f .env ] || die "install first (./beni.sh install), then restore into it"
+  stamp=$(date +%Y%m%d-%H%M%S)
+  say "restoring $src"
+  [ -f "$src/manifest.json" ] && say "$(cat "$src/manifest.json")"
+  if [ -t 0 ] && [ "${ASSISTANT_YES:-0}" != 1 ]; then
+    printf '  This REPLACES the database%s with the backup. Go on? (y/n) ' "$( [ -f "$src/extensions.tgz" ] && echo ' and the installed extensions')"
+    read -r a; case $a in [yY]*) ;; *) die "nothing changed" ;; esac
+  fi
+  # Safety net: the current state first, unless there is nothing to keep.
+  if db_running; then dc run --rm -T backup now >/dev/null 2>&1 && ok "made a backup of the current state first" || warn "could not back up the current state"; fi
+
+  # .env: this machine keeps its own passwords, ports and address; the keys come from the backup.
+  if [ -f "$src/env" ]; then
+    cp -p .env ".env.before-restore-$stamp"
+    for k in $RESTORE_KEYS; do
+      v=$(sed -n "s/^$k=//p" "$src/env" | tail -n 1)
+      [ -n "$v" ] || continue
+      if grep -q "^$k=" .env; then
+        tmp=$(mktemp) && awk -v k="$k" -v v="$v" 'BEGIN{FS=OFS="="} $1==k{print k"="v; next} {print}' .env > "$tmp" && cat "$tmp" > .env && rm -f "$tmp"
+      else printf '%s=%s
+' "$k" "$v" >> .env; fi
+    done
+    ok "keys from the backup's .env ($RESTORE_KEYS); the old .env is .env.before-restore-$stamp"
+  else warn "the backup has no .env: secrets stored in it cannot be decrypted (enter them again)"; fi
+
+  dc stop >/dev/null 2>&1 || true
+
+  # Extensions: the current ones go to extensions/.trash, the backup's come in.
+  if [ -f "$src/extensions.tgz" ]; then
+    mkdir -p "extensions/.trash/before-restore-$stamp"
+    for e in extensions/* extensions/installed.json; do
+      [ -e "$e" ] || continue
+      case $e in extensions/README.md) continue ;; esac
+      mv "$e" "extensions/.trash/before-restore-$stamp/" 2>/dev/null || true
+    done
+    tar -xzf "$src/extensions.tgz" -C "$DIR" || die "could not unpack the extensions"
+    u=$(owner_uid); chown -R "$u" extensions 2>/dev/null || true
+    ok "extensions restored (the previous ones are in extensions/.trash/before-restore-$stamp)"
+  fi
+
+  # Database: a fresh one, the dump without owners and grants (migrate puts back roles and owners).
+  dc up -d --no-deps db >/dev/null || die "cannot start the db container"
+  db_wait || die "the database does not answer (./beni.sh logs db)"
+  dc exec -T db sh -c 'dropdb -U "$POSTGRES_USER" --if-exists --force "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"' ||
+    die "could not recreate the database"
+  if dc exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl' < "$src/db.dump"; then ok "database restored"
+  else warn "pg_restore reported problems (above); the data that loaded is there"; fi
+  # Without owners, the ext_query functions (SECURITY DEFINER) now belong to the superuser and anyone may
+  # call them: take that away; migrate gives each installed extension's back to its own role.
+  dc exec -T db sh -c 'psql -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA ext_query FROM PUBLIC"' >/dev/null 2>&1 || true
+  dc up -d || die "could not start the stack"
+  ok "started; migrate re-applies the roles. Check: ./beni.sh status"
+}
+
 # The updater's home: next to the checkout, outside it (spec 006).
 updater_home() { echo "${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}"; }
 
@@ -387,6 +476,8 @@ case $cmd in
   logs) dc logs -f --tail 100 "$@" ;;
   ext) dc exec terminal node scripts/ext.mjs "$@" ;;
   move) move_to "$@" ;;
+  backup) backup_now "$@" ;;
+  restore) restore "$@" ;;
   fix-permissions) exec sh scripts/update.sh fix-permissions "$DIR" ;;
   auto-update)
     case ${1:-status} in

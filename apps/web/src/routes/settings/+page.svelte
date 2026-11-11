@@ -291,6 +291,30 @@
     </ul>
   </section>
 
+  <section aria-labelledby="bk-h">
+    <h2 id="bk-h">{t('Backups')}</h2>
+    <div class="card backup">
+      {#if data.backup}
+        {@const b = data.backup}
+        <span class="what">
+          <strong>
+            <span class="status small {b.status === 'running' ? 'warning' : b.status === 'failed' || b.stale ? 'critical' : 'good'}">
+              {b.status === 'running' ? t('Backing up') : b.status === 'failed' ? t('Last backup failed') : b.stale ? t('Out of date') : t('Up to date')}
+            </span>
+          </strong>
+          <span class="meta">
+            {b.lastOk ? t('Last good backup {when} · {n} kept · daily at {hour}:00', { when: new Date(b.lastOk).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }), n: b.count, hour: b.hour }) : t('No good backup yet.')}
+            {#if b.status === 'failed'}<br />{b.message}{/if}
+          </span>
+          <span class="meta">{t('Database, .env and the installed extensions, in BACKUP_DIR next to the checkout. Copy that folder off this machine too (Hyper Backup, Time Machine). Restore: sudo ./beni.sh restore <folder>.')}</span>
+        </span>
+      {:else}
+        <span class="what"><strong>{t('No backup status yet')}</strong><span class="meta">{t('The backup service writes it after its first run.')}</span></span>
+      {/if}
+      <form method="POST" action="?/backup" use:enhance><button class="btn">{t('Back up now')}</button></form>
+    </div>
+  </section>
+
   <section aria-labelledby="up-h">
     <h2 id="up-h">{t('Updates')}</h2>
     {#if data.updates && data.updateView}
@@ -888,5 +912,17 @@
     .missing {
       flex-wrap: wrap;
     }
+  }
+  .backup {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+  }
+  .backup .what {
+    display: grid;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
   }
 </style>

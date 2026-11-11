@@ -37,8 +37,9 @@ browser inside the app) are isolated.
 | Sidecar ticket key | `SIDECAR_TICKET_SECRET` in `.env` | web, terminal |
 
 `claude_ro` (Claude's data chat) has no access to `secrets` and no `SELECT` on `core.sessions` or the
-OAuth tables. The `terminal` container sees an empty `.env`. Backups contain only ciphertext: keep `.env`
-backed up separately, or the backups cannot decrypt extension secrets and service logins.
+OAuth tables. The `terminal` container sees an empty `.env`. Backups (db/backup.sh) hold the dump AND `.env`,
+so they live outside the checkout (`BACKUP_DIR`, root-only files) and must be encrypted when copied off
+the machine.
 
 ## Admin gate (step-up)
 

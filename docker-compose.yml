@@ -183,7 +183,11 @@ services:
     networks: [sidecars, browser-egress]
     mem_limit: 1536m
 
-  # Daily logical backup, 14 days kept. Restore: pg_restore -d assistant /backups/<file>.dump
+  # Daily backup (db/backup.sh, docs/install.md "Backups"): database dump + .env + installed extensions in
+  # one folder per day under BACKUP_DIR, a host folder OUTSIDE the checkout (the terminal sees the
+  # checkout; a backup holds .env). Default: next to the checkout, e.g. /volume1/docker/assistant-backups,
+  # where the host's own backup (Synology Hyper Backup, Time Machine) can pick it up.
+  # Restore: sudo ./beni.sh restore <BACKUP_DIR>/beni-<day>. Status: /logs/backup-status.json.
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -194,10 +198,17 @@ services:
       PGUSER: ${POSTGRES_USER:-assistant}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB:-assistant}
-      KEEP_DAYS: '14'
+      TZ: ${APP_TIMEZONE:-UTC}
+      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-6}
     volumes:
-      - backups:/backups
+      - ${BACKUP_DIR:-../assistant-backups}:/backups
       - ./db/backup.sh:/backup.sh:ro
+      - ./.env:/instance/.env:ro
+      - ./extensions:/instance/extensions:ro
+      - logs:/logs
     entrypoint: ['sh', '/backup.sh']
 
 networks:
@@ -214,4 +225,5 @@ volumes:
   # The agents' home (logins of Claude, Codex, gh): still named claude-home, so older installs keep their logins.
   claude-home:
   logs:
+  # Dumps of the old backup layout (before BACKUP_DIR); kept so nothing is lost, no longer written.
   backups:

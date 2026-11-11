@@ -4,7 +4,7 @@
 
 # Beni Assistant
 
-A self-hosted web app for a NAS or a Linux server. Apps are added as extensions.
+A self-hosted web app. Apps are added as extensions.
 Claude Code and Codex run in the same stack: they read the extensions' data and write new extensions.
 Runs on Linux or a Synology NAS with Docker Compose. You reach it over your Tailscale network with HTTPS.
 

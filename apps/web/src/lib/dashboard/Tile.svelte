@@ -219,7 +219,7 @@
     color: var(--good-ink);
   }
   .delta.bad {
-    color: var(--critical);
+    color: var(--critical-ink);
   }
   .list {
     list-style: none;

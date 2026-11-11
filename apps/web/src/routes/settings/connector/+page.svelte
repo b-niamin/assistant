@@ -180,7 +180,7 @@
     color: var(--ink-2);
   }
   .bad {
-    color: var(--critical);
+    color: var(--critical-ink);
   }
   .facts {
     margin: var(--space-3) 0 0;

@@ -103,6 +103,6 @@
     pointer-events: none;
   }
   .state[data-state='error'] {
-    color: var(--bad, #c0392b);
+    color: var(--critical-ink);
   }
 </style>

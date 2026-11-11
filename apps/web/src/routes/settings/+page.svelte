@@ -734,7 +734,7 @@
     background: var(--warning);
   }
   .meta.bad {
-    color: var(--critical);
+    color: var(--critical-ink);
   }
   .tail {
     margin: 0;

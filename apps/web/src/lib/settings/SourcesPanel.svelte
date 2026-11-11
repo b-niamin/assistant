@@ -341,7 +341,7 @@
     color: var(--ink);
   }
   .err {
-    color: var(--critical);
+    color: var(--critical-ink);
   }
   .bar {
     position: relative;
@@ -463,7 +463,7 @@
   .x:hover,
   .x:focus-visible {
     background: var(--surface-2);
-    color: var(--critical);
+    color: var(--critical-ink);
   }
   .add {
     display: flex;

@@ -208,7 +208,7 @@
   }
   .bad {
     margin: var(--space-2) 0 0;
-    color: var(--critical);
+    color: var(--critical-ink);
     font-size: 0.8125rem;
   }
   @media (max-width: 560px) {

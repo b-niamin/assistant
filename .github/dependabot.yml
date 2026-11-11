@@ -6,6 +6,10 @@ updates:
     directory: /apps/web
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
+    # Majors (TypeScript 7, xterm 6, postgres 4, ...) change APIs: bumped by hand, one at a time.
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
     groups:
       minor-and-patch:
         update-types: [minor, patch]

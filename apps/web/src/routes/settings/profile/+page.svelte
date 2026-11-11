@@ -234,7 +234,7 @@
     color: var(--ink-2);
   }
   .bad {
-    color: var(--critical);
+    color: var(--critical-ink);
   }
   .url {
     display: flex;

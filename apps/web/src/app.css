@@ -10,18 +10,22 @@
   --surface-2: #f0efec;
   --ink: #0b0b0b;
   --ink-2: #52514e;
-  --ink-3: #898781;
+  --ink-3: #6b6a64; /* secondary text: 4.7:1 or more on every surface (WCAG AA) */
+  --ink-4: #898781; /* non-text only: chevrons, dots, disabled marks */
   --grid: #e1e0d9;
   --axis: #c3c2b7;
   --ring: rgba(11, 11, 11, 0.1);
   --accent: #2a78d6; /* categorical slot 1, also the single-series colour */
   --accent-wash: rgba(42, 120, 214, 0.1);
   --accent-ink: #1c5cab; /* links and selected text: accent step that clears 4.5:1 */
+  --accent-fill: #1f6dc4; /* filled buttons: white text on it clears 4.5:1 in both themes */
+  --field-border: #8a8984; /* inputs and selects: 3:1 against the page (non-text contrast) */
   --good: #0ca30c;
   --good-ink: #006300;
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
+  --critical-ink: #c22f2f; /* error text */
 
   /* Categorical hues (dataviz reference palette, validated). Each metric owns one: see
      modules/health/look.ts. Marks and icons wear them, text never does. */
@@ -56,13 +60,17 @@
     --surface-2: #262624;
     --ink: #f0efec;
     --ink-2: #c3c2b7;
-    --ink-3: #898781;
+    --ink-3: #9b9a94;
+    --ink-4: #6e6d68;
     --grid: #2c2c2a;
     --axis: #383835;
     --ring: rgba(255, 255, 255, 0.1);
     --accent: #3987e5;
     --accent-wash: rgba(57, 135, 229, 0.14);
     --accent-ink: #86b6ef;
+    --accent-fill: #1f6dc4;
+    --field-border: #75736d;
+    --critical-ink: #f06b6b;
     --good-ink: #0ca30c;
     --hue-blue: #3987e5;
     --hue-orange: #d95926;
@@ -80,13 +88,17 @@
   --surface-2: #262624;
   --ink: #f0efec;
   --ink-2: #c3c2b7;
-  --ink-3: #898781;
+  --ink-3: #9b9a94;
+  --ink-4: #6e6d68;
   --grid: #2c2c2a;
   --axis: #383835;
   --ring: rgba(255, 255, 255, 0.1);
   --accent: #3987e5;
   --accent-wash: rgba(57, 135, 229, 0.14);
   --accent-ink: #86b6ef;
+  --accent-fill: #1f6dc4;
+  --field-border: #75736d;
+  --critical-ink: #f06b6b;
   --good-ink: #0ca30c;
   --hue-blue: #3987e5;
   --hue-orange: #d95926;
@@ -153,26 +165,44 @@ button {
   color: var(--ink);
 }
 select,
-input {
+input,
+textarea {
   height: 34px;
   padding: 0 10px;
-  border: 1px solid var(--ring);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
 }
 select {
   padding-right: 28px;
   appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
-    linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%),
+    linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
   background-position:
     calc(100% - 15px) 15px,
     calc(100% - 10px) 15px;
   background-size: 5px 5px;
   background-repeat: no-repeat;
 }
+textarea {
+  height: auto;
+  padding: 8px 10px;
+}
 button {
   cursor: pointer;
+}
+/* Phones and tablets: 16px fields (iOS zooms the page into anything smaller) and 44px touch targets. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  select,
+  input:not([type='checkbox']):not([type='radio']),
+  .btn {
+    min-height: 44px;
+  }
 }
 .btn {
   height: 34px;
@@ -182,8 +212,8 @@ button {
   background: var(--surface);
 }
 .btn-primary {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
   color: #fff;
   font-weight: 600;
 }
@@ -257,7 +287,7 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ink-3);
+  background: var(--ink-4);
 }
 .status.good::before {
   background: var(--good);
@@ -276,6 +306,9 @@ button {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;

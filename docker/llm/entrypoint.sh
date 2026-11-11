@@ -103,6 +103,8 @@ codex_remote() {
 : >"$STATE_DIR/claude.log"
 if command -v codex >/dev/null; then
   : >"$STATE_DIR/codex.log"
+  # The apps' data (the `assistant` MCP server) and the browser, as Claude gets them from .mcp.json.
+  node /usr/local/lib/codex-config.mjs || echo "[codex] could not write ~/.codex/config.toml"
   # A daemon from before this container (its pid file is in the shared home) is not running here.
   codex remote-control stop >/dev/null 2>&1
   supervise codex codex_remote </dev/null &

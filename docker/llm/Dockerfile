@@ -24,4 +24,5 @@ USER claude
 WORKDIR /workspace
 
 COPY --chown=claude entrypoint.sh /usr/local/bin/claude-entrypoint
+COPY --chown=claude codex-config.mjs /usr/local/lib/codex-config.mjs
 ENTRYPOINT ["sh", "/usr/local/bin/claude-entrypoint"]

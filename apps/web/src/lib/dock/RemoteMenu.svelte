@@ -104,12 +104,12 @@
             <span class="status small" class:good={a.up} class:warning={!a.up && (a.state === 'starting' || a.state === 'restarting')}></span>
             <span class="what">
               <strong>{a.name}</strong>
-              <span class="meta">
-                {#if a.state === 'running'}Running in the llm container · open it from {a.where}
-                {:else if a.background}Running in the background (terminal) · open it from {a.where}
+              <span class="meta" title={a.up ? `Open it from ${a.where}` : undefined}>
+                {#if a.state === 'running'}Running
+                {:else if a.background}Running in the background
                 {:else if !a.signedIn}Not signed in
-                {:else if a.reason === 'mfa'}{LABEL[a.state]}: the account needs multi-factor authentication. Turn it on in ChatGPT (Settings › Security), then sign in again.
-                {:else if a.reason === 'signed-out'}{LABEL[a.state]}: the sign-in expired. Sign in again.
+                {:else if a.reason === 'mfa'}Needs 2FA on the ChatGPT account
+                {:else if a.reason === 'signed-out'}Sign-in expired
                 {:else}{LABEL[a.state]}{/if}
               </span>
             </span>
@@ -129,7 +129,7 @@
                 <button type="button" class="btn small-btn" onclick={openTerminal} title="Starting it needs the app password">Unlock to start</button>
               {:else if a.id === 'claude'}
                 <button type="button" class="btn btn-primary small-btn" disabled={starting !== ''} onclick={() => startRemote(a.id)}>
-                  {starting === a.id ? 'Starting…' : 'Start in background'}
+                  {starting === a.id ? 'Starting…' : 'Start'}
                 </button>
               {/if}
             {/if}
@@ -137,18 +137,17 @@
         {/each}
       </ul>
       {#if status?.outdated}
-        <p class="bad">An update is still building: the containers run the previous version, which cannot report or start these yet.</p>
+        <p class="bad">An update is still building.</p>
       {:else if status && !status.reachable}
         <p class="bad">The terminal container is not answering.</p>
       {/if}
       {#if startError}<p class="bad" role="alert">{startError}</p>{/if}
       {#if pairText}
         <div class="pair">
-          <p class="meta">Codex pairing (enter the code in the ChatGPT or Codex app; it expires soon):</p>
+          <p class="meta">Enter it in the ChatGPT or Codex app:</p>
           <pre>{pairText}</pre>
         </div>
       {/if}
-      <p class="meta foot">The llm container starts these on its own once you are signed in. A Claude started in the background runs in the terminal container until it restarts.</p>
     </div>
   {/if}
 </div>
@@ -232,10 +231,6 @@
   .menu .meta {
     font-size: 0.75rem;
     color: var(--ink-2);
-  }
-  .menu .foot {
-    margin: var(--space-2) 0 0;
-    color: var(--ink-3);
   }
   .menu .bad {
     margin: var(--space-1) 0 0;

@@ -5,7 +5,7 @@ import { extensionForPath, visibleTo } from '#lib/extensions/registry.server.ts'
 import { isMcpPath } from '#lib/mcp/paths.js';
 import { defaultProfile, isConfigured } from '#lib/server/app-config.ts';
 import { canonicalRedirect } from '#lib/server/canonical-origin.ts';
-import { isValidSession, listProfiles, PROFILE_COOKIE, SESSION_COOKIE } from '#lib/server/session.ts';
+import { checkSession, isElevated, listProfiles, PROFILE_COOKIE, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
 import { htmlTag, parseTheme, THEME_COOKIE } from '#lib/theme.ts';
 import { LANG_COOKIE, pickLanguage } from '#lib/i18n/languages.ts';
 import { languageSettings } from '#lib/server/languages.ts';
@@ -45,11 +45,30 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.lang =
     event.url.pathname === '/healthz' ? 'en' : pickLanguage(await languageSettings(), event.cookies.get(LANG_COOKIE));
 
-  event.locals.authenticated = await isValidSession(event.cookies.get(SESSION_COOKIE));
+  const sid = event.cookies.get(SESSION_COOKIE);
+  const session = await checkSession(sid);
+  event.locals.authenticated = session !== 'no';
+  // An active browser stays signed in: the session moved SESSION_DAYS ahead, so does the cookie.
+  if (session === 'renewed' && sid)
+    event.cookies.set(SESSION_COOKIE, sid, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: event.url.protocol === 'https:',
+      maxAge: SESSION_DAYS * 24 * 3600
+    });
 
   if (!event.locals.authenticated && !PUBLIC_PATHS.has(event.url.pathname)) {
     const next = event.url.pathname + event.url.search;
     throw redirect(303, `/login?next=${encodeURIComponent(next)}`);
+  }
+
+  // System settings below /settings need the unlocked session: one guard here for every page and
+  // endpoint read, so a new one cannot forget it (its actions still check, and answer "Unlock first").
+  const sub = event.url.pathname.startsWith('/settings/') ? event.url.pathname.slice('/settings/'.length) : '';
+  if (sub && event.locals.authenticated && (event.request.method === 'GET' || event.request.method === 'HEAD') && !(await isElevated(sid))) {
+    if (/^[a-z0-9-]+(\/[a-z0-9-]+)?$/.test(sub) && !sub.endsWith('/sources')) throw redirect(303, `/settings?next=${sub}`);
+    throw error(403, 'Unlock System settings first');
   }
 
   // An extension limited to some profiles does not exist for the others.

@@ -79,8 +79,10 @@ export const actions: Actions = {
     const t = tFor(locals.lang);
     const ip = getClientAddress();
     if (!limiter.attempt(ip)) return fail(429, { error: t('Too many attempts. Try again in 15 minutes.') });
-    if (!verifyPassword(str(await request.formData(), 'password'), await passwordHash()))
+    if (!verifyPassword(str(await request.formData(), 'password'), await passwordHash())) {
+      console.warn(`[auth] ${new Date().toISOString()} wrong password at unlock from ${ip}`);
       return fail(401, { error: t('Wrong password.') });
+    }
     limiter.reset(ip);
     await elevateSession(cookies.get(SESSION_COOKIE)!);
     const next = url.searchParams.get('next') ?? '';

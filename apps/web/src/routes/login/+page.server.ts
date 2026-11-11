@@ -19,10 +19,16 @@ export const actions: Actions = {
   default: async ({ request, cookies, url, getClientAddress, locals }) => {
     const t = tFor(locals.lang);
     const ip = getClientAddress();
-    if (!limiter.attempt(ip)) return fail(429, { error: t('Too many attempts. Try again in 15 minutes.') });
+    if (!limiter.attempt(ip)) {
+      console.warn(`[auth] ${new Date().toISOString()} login blocked for 15 minutes for ${ip} (too many attempts)`);
+      return fail(429, { error: t('Too many attempts. Try again in 15 minutes.') });
+    }
     const form = await request.formData();
     const password = String(form.get('password') ?? '');
-    if (!verifyPassword(password, await passwordHash())) return fail(401, { error: t('Wrong password.') });
+    if (!verifyPassword(password, await passwordHash())) {
+      console.warn(`[auth] ${new Date().toISOString()} wrong password at login from ${ip}`);
+      return fail(401, { error: t('Wrong password.') });
+    }
     limiter.reset(ip);
     const id = await createSession(request.headers.get('user-agent'), ip);
     cookies.set(SESSION_COOKIE, id, {

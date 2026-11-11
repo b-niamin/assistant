@@ -41,7 +41,7 @@ export async function setSecret(ext: ExtensionInfo, name: string, value: string)
   assertDeclared(ext, name);
   if (!value || value.length > 8192) throw new Error('A secret is 1 to 8192 characters.');
   await db()`INSERT INTO secrets.extension_secrets (extension_id, name, ciphertext, key_hint)
-             VALUES (${ext.id}, ${name}, ${encrypt(value)}, ${hint(value)})
+             VALUES (${ext.id}, ${name}, ${encrypt(value, `${ext.id}:${name}`)}, ${hint(value)})
              ON CONFLICT (extension_id, name)
              DO UPDATE SET ciphertext = EXCLUDED.ciphertext, key_hint = EXCLUDED.key_hint, updated_at = now()`;
 }
@@ -56,5 +56,5 @@ export async function readSecret(ext: ExtensionInfo, name: string): Promise<stri
   assertDeclared(ext, name);
   const rows = await db()<{ ciphertext: string }[]>`
     SELECT ciphertext FROM secrets.extension_secrets WHERE extension_id = ${ext.id} AND name = ${name}`;
-  return rows.length ? decrypt(rows[0].ciphertext) : null;
+  return rows.length ? decrypt(rows[0].ciphertext, `${ext.id}:${name}`) : null;
 }

@@ -13,16 +13,25 @@ function key(): Buffer {
 
 export const secretsAvailable = (): boolean => (env.SECRETS_KEY ?? '').length >= 32;
 
-export function encrypt(plain: string, k: Buffer = key()): string {
+/**
+ * `aad` names what the value is (e.g. "home:token"): a ciphertext copied to another extension or name
+ * no longer decrypts. Such values start with "v2:"; older ones (no prefix, no AAD) still decrypt, and
+ * are re-encrypted the next time they are saved.
+ */
+export function encrypt(plain: string, aad = '', k: Buffer = key()): string {
   const iv = randomBytes(12);
   const c = createCipheriv('aes-256-gcm', k, iv);
+  if (aad) c.setAAD(Buffer.from(aad, 'utf8'));
   const data = Buffer.concat([c.update(plain, 'utf8'), c.final()]);
-  return Buffer.concat([iv, c.getAuthTag(), data]).toString('base64');
+  const blob = Buffer.concat([iv, c.getAuthTag(), data]).toString('base64');
+  return aad ? `v2:${blob}` : blob;
 }
 
-export function decrypt(blob: string, k: Buffer = key()): string {
-  const buf = Buffer.from(blob, 'base64');
+export function decrypt(stored: string, aad = '', k: Buffer = key()): string {
+  const v2 = stored.startsWith('v2:');
+  const buf = Buffer.from(v2 ? stored.slice(3) : stored, 'base64');
   const d = createDecipheriv('aes-256-gcm', k, buf.subarray(0, 12));
+  if (v2) d.setAAD(Buffer.from(aad, 'utf8'));
   d.setAuthTag(buf.subarray(12, 28));
   return Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString('utf8');
 }

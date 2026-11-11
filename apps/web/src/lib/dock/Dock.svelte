@@ -20,9 +20,25 @@
   let restored = $state(false);
   const shown = $derived(dockShown());
 
+  let toggleButton = $state<HTMLButtonElement>();
+
   function toggle() {
     dock.open = !dock.open;
     if (dock.open) refresh();
+  }
+
+  /**
+   * The terminal takes Tab and Escape for the shell, so the keyboard needs its own way out: F6 anywhere,
+   * or Escape outside the terminal itself, collapses the dock and puts focus back on its button.
+   */
+  function onKey(e: KeyboardEvent) {
+    if (!dock.open) return;
+    const inTerminal = (e.target as Element | null)?.closest?.('.xterm');
+    if (e.key === 'F6' || (e.key === 'Escape' && !inTerminal)) {
+      e.preventDefault();
+      dock.open = false;
+      toggleButton?.focus();
+    }
   }
 
   // The terminal exists from the first open on, so a collapse never drops the session.
@@ -81,6 +97,8 @@
   });
 </script>
 
+<svelte:window onkeydown={onKey} />
+
 {#if shown}
 <!-- While the terminal is open the page behind it is blurred and dimmed; a click there collapses it. -->
 <div class="backdrop" class:shown={dock.open} aria-hidden="true" onclick={() => (dock.open = false)}></div>
@@ -90,12 +108,12 @@
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="strip" onclick={(e) => !(e.target as Element).closest('a, button') && toggle()}>
     <span class="handle" aria-hidden="true" title={dock.open ? t('Collapse') : t('Expand')}></span>
-    <button class="toggle" type="button" onclick={toggle} aria-expanded={dock.open} aria-controls="dock-panel" title={dock.open ? t('Collapse the terminal') : t('Open the terminal')}>
+    <button class="toggle" type="button" bind:this={toggleButton} onclick={toggle} aria-expanded={dock.open} aria-controls="dock-panel" title={dock.open ? t('Collapse the terminal') : t('Open the terminal')}>
       <span class="mark" aria-hidden="true">›_</span>
       <span class="label">{t('Terminal')}</span>
       {#if dock.started}<span class="status small" class:good={phase === 'open'} title={phase === 'open' ? t('Connected') : t('Not connected')}><span class="sr">{phase === 'open' ? t('Connected') : t('Not connected')}</span></span>{/if}
       <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
-      {#if dock.open}<span class="hint">{t('Collapse')}</span>{/if}
+      {#if dock.open}<span class="hint">{t('Collapse')} <kbd>F6</kbd></span>{/if}
     </button>
   </div>
 

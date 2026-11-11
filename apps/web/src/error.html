@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Assistant</title>
+    <style>
+      :root { color-scheme: light dark; --page: #f9f9f7; --ink: #0b0b0b; --ink-2: #52514e; }
+      @media (prefers-color-scheme: dark) { :root { --page: #0d0d0d; --ink: #f0efec; --ink-2: #c3c2b7; } }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--page); color: var(--ink);
+        font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; padding: 16px; text-align: center; }
+      p { color: var(--ink-2); max-width: 36ch; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/favicon.svg" width="72" height="72" alt="" />
+      <h1>The assistant is not answering</h1>
+      <p>%sveltekit.status%: %sveltekit.error.message%. It is probably starting or updating: try again in a minute.</p>
+      <p><a href="/">Try again</a></p>
+    </main>
+  </body>
+</html>

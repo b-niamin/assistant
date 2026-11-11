@@ -4,14 +4,11 @@ import { passwordHash } from '#lib/server/app-config.ts';
 import { tFor } from '#lib/i18n/index.ts';
 import { verifyPassword } from '#lib/server/password.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
+import { safeNext } from '#lib/server/safe-next.ts';
 import { createSession, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
 
 const limiter = createLimiter(10, 15 * 60 * 1000);
 
-/** Only same-site relative paths, so `next` can never send you to another origin. */
-function safeNext(next: string | null): string {
-  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
-}
 
 export const load: PageServerLoad = ({ locals, url }) => {
   if (locals.authenticated) throw redirect(303, safeNext(url.searchParams.get('next')));

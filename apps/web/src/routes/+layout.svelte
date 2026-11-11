@@ -3,7 +3,7 @@
   import Mascot from '#lib/Mascot.svelte';
   import Dock from '#lib/dock/Dock.svelte';
   import LockMenu from '#lib/dock/LockMenu.svelte';
-  import { dockShown } from '#lib/dock/dock.svelte.ts';
+  import { dock, dockShown } from '#lib/dock/dock.svelte.ts';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
   import { page } from '$app/state';
   import { provideLanguage, useT } from '#lib/i18n/index.ts';
@@ -14,8 +14,11 @@
 
 <svelte:head><title>{t('Assistant')}</title></svelte:head>
 
+<a class="skip" href="#main">{t('Skip to content')}</a>
+
 {#if data.authenticated}
-  <header>
+  <!-- While the terminal is open the page behind it is out of reach for Tab and screen readers too. -->
+  <header inert={dock.open && dockShown()}>
     <div class="bar">
       <a class="brand" href="/" aria-label={t('Assistant, home')}>
         <span class="mark"><Mascot mood="steady" size={30} decorative /></span>
@@ -34,11 +37,27 @@
   </header>
 {/if}
 
-<main class:docked={data.authenticated && dockShown()}>{@render children()}</main>
+<main id="main" tabindex="-1" class:docked={data.authenticated && dockShown()} inert={data.authenticated && dock.open && dockShown()}>{@render children()}</main>
 
 {#if data.authenticated}<Dock />{/if}
 
 <style>
+  .skip {
+    position: absolute;
+    left: var(--space-3);
+    top: -100px;
+    z-index: 100;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--ring);
+  }
+  .skip:focus {
+    top: var(--space-2);
+  }
+  main:focus {
+    outline: none;
+  }
   header {
     position: sticky;
     top: 0;

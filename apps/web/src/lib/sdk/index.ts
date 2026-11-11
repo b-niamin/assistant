@@ -11,6 +11,8 @@ import type { Translate } from '#lib/i18n/translate.ts';
 export type { ExtensionInfo, Translate };
 /** SvelteKit helpers, re-exported so extensions import everything shell-related from one place. */
 export { error, fail, json, redirect } from '@sveltejs/kit';
+/** Calendar days in the owner's time zone (never toISOString().slice(0, 10), which is UTC's day). */
+export { dayIn, todayIn } from '#lib/dates.ts';
 
 /** A Postgres client inside a transaction running as the extension's own role (ext_<id>). */
 export type Sql = TransactionSql;

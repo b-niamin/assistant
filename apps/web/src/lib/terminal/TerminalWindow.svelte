@@ -43,6 +43,22 @@
   let fontSize = $state(14);
   let full = $state(false);
   let ctrl = $state(false);
+  /** xterm's screen reader mode: output goes to a live region a screen reader can read (per browser). */
+  let readerMode = $state(false);
+  try {
+    readerMode = localStorage.getItem('terminal.reader') === '1';
+  } catch {
+    /* no storage */
+  }
+  function toggleReader() {
+    readerMode = !readerMode;
+    if (term) term.options.screenReaderMode = readerMode;
+    try {
+      localStorage.setItem('terminal.reader', readerMode ? '1' : '');
+    } catch {
+      /* no storage */
+    }
+  }
   let ws: WebSocket | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let term: any = null;
@@ -206,8 +222,10 @@
         new Promise((r) => setTimeout(r, 1500))
       ]).catch(() => {});
       if (disposed) return;
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       term = new Terminal({
-        cursorBlink: true,
+        cursorBlink: !reduced,
+        screenReaderMode: readerMode,
         cursorStyle: 'bar',
         cursorWidth: 2,
         fontFamily: TERMINAL_FONT,
@@ -223,6 +241,9 @@
       fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host);
+      // F6 is the way out of the terminal (Dock.svelte): xterm leaves it to the page.
+      term.attachCustomKeyEventHandler((e: KeyboardEvent) => e.key !== 'F6');
+      host.querySelector('textarea')?.setAttribute('aria-label', t('Terminal input. F6 leaves the terminal.'));
       term.onData((d: string) => {
         if (ctrl && d.length === 1) {
           ctrl = false;
@@ -267,6 +288,9 @@
       </button>
       <button type="button" class="tool" onclick={() => setFont(1)} title={t('Larger text')} aria-label={t('Larger text')}>
         <span class="a lg">A</span>
+      </button>
+      <button type="button" class="tool" onclick={toggleReader} title={t('Screen reader mode')} aria-label={t('Screen reader mode')} aria-pressed={readerMode}>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h2.5L8 3v10l-3.5-3H2zM11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.8a6 6 0 0 1 0 8.4" /></svg>
       </button>
       <button type="button" class="tool" onclick={connect} disabled={!configured || phase === 'connecting'} title={t('Reconnect')} aria-label={t('Reconnect')}>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v3h-3" /></svg>
@@ -319,6 +343,7 @@
         class:on={k.kind === 'ctrl' && ctrl}
         aria-pressed={k.kind === 'ctrl' ? ctrl : undefined}
         title={t(k.title)}
+        aria-label={t(k.title)}
         disabled={phase !== 'open'}
         onpointerdown={(e) => e.preventDefault()}
         onclick={() => pressKey(k)}>{k.label}</button

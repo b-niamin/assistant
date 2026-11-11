@@ -1,10 +1,11 @@
 import { error, redirect } from '@sveltejs/kit';
-import type { Handle } from '@sveltejs/kit/hooks';
+import type { Handle, HandleServerError } from '@sveltejs/kit/hooks';
+import { randomBytes } from 'node:crypto';
 import { extensionForPath, visibleTo } from '#lib/extensions/registry.server.ts';
 import { isMcpPath } from '#lib/mcp/paths.js';
 import { defaultProfile, isConfigured } from '#lib/server/app-config.ts';
 import { canonicalRedirect } from '#lib/server/canonical-origin.ts';
-import { isValidSession, PROFILE_COOKIE, SESSION_COOKIE } from '#lib/server/session.ts';
+import { isValidSession, listProfiles, PROFILE_COOKIE, SESSION_COOKIE } from '#lib/server/session.ts';
 import { htmlTag, parseTheme, THEME_COOKIE } from '#lib/theme.ts';
 import { LANG_COOKIE, pickLanguage } from '#lib/i18n/languages.ts';
 import { languageSettings } from '#lib/server/languages.ts';
@@ -35,7 +36,10 @@ export const handle: Handle = async ({ event, resolve }) => {
   // Fresh install: nothing works until the first-run wizard has set the app password.
   if (event.url.pathname !== '/healthz' && event.url.pathname !== '/setup' && !(await isConfigured()))
     throw redirect(303, '/setup');
-  event.locals.profileId = event.cookies.get(PROFILE_COOKIE) || (await defaultProfile());
+  // The profile in the cookie may be gone (removed, renamed): fall back to the default one.
+  const picked = event.cookies.get(PROFILE_COOKIE);
+  if (picked && !(await listProfiles()).some((p) => p.id === picked)) event.cookies.delete(PROFILE_COOKIE, { path: '/' });
+  event.locals.profileId = (picked && event.cookies.get(PROFILE_COOKIE)) || (await defaultProfile());
   event.locals.theme = parseTheme(event.cookies.get(THEME_COOKIE));
   // The language of the page (spec 007): this browser's pick from the user menu, else the default.
   event.locals.lang =
@@ -64,4 +68,17 @@ export const handle: Handle = async ({ event, resolve }) => {
   // A private app: nothing here is for search engines.
   response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   return response;
+};
+
+/**
+ * An unexpected error: one line in /logs/web.log with a short code, the same code on the error page, so
+ * "error a1b2c3d4" leads straight to the stack.
+ */
+export const handleError: HandleServerError = ({ kind, error: e, event }) => {
+  // error(...) thrown on purpose and SvelteKit's own (404, ...) keep their message.
+  if (kind !== 'unknown') return;
+  const id = randomBytes(4).toString('hex');
+  const err = e instanceof Error ? e : new Error(String(e));
+  console.error(`[error] ${new Date().toISOString()} ${id} ${event.request.method} ${event.url.pathname}: ${err.message}\n${err.stack ?? ''}`);
+  return { message: 'Something went wrong', id };
 };

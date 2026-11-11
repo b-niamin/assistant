@@ -15,6 +15,7 @@
   <p class="muted">
     {missing ? t('There is no page at this address.') : page.error?.message ? t(page.error.message) : t('Try again in a moment.')}
   </p>
+  {#if page.error?.id}<p class="meta">{t('Error code {id}: it is in the log (System settings, Logs).', { id: page.error.id })}</p>{/if}
   <a class="btn btn-primary" href="/">{t('Back to the dashboard')}</a>
 </section>
 

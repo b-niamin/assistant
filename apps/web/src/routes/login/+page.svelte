@@ -13,6 +13,8 @@
   </div>
   <label>
     <span class="eyebrow">{t('Password')}</span>
+    <!-- Password managers file a password under a user name: give them one they can keep. -->
+    <input class="sr" type="text" name="username" value="Beni Assistant" autocomplete="username" tabindex="-1" aria-hidden="true" readonly />
     <!-- svelte-ignore a11y_autofocus -->
     <input type="password" name="password" autocomplete="current-password" required autofocus />
   </label>

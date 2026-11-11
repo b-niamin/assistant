@@ -553,5 +553,9 @@
   "The backup service writes it after its first run.": "Usługa kopii zapisze go po pierwszym uruchomieniu.",
   "Back up now": "Zrób kopię teraz",
   "Not saved yet: trying again": "Jeszcze nie zapisano: próbuję ponownie",
-  "Changed on another device or by Claude: reloaded the latest data": "Zmienione na innym urządzeniu albo przez Claude: wczytano najnowsze dane"
+  "Changed on another device or by Claude: reloaded the latest data": "Zmienione na innym urządzeniu albo przez Claude: wczytano najnowsze dane",
+  "Skip to content": "Przejdź do treści",
+  "Error code {id}: it is in the log (System settings, Logs).": "Kod błędu {id}: jest w logu (Ustawienia systemu, Logi).",
+  "Terminal input. F6 leaves the terminal.": "Wejście terminala. F6 wychodzi z terminala.",
+  "Screen reader mode": "Tryb czytnika ekranu"
 }

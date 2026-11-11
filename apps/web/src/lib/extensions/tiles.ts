@@ -180,14 +180,16 @@ export function normalizeTile(raw: unknown): TileData {
 }
 
 /** Big-number formatting shared by the tile renderer and tests. */
-export function formatKpi(k: Pick<TileKpi, 'value' | 'format' | 'digits'>): string {
+export function formatKpi(k: Pick<TileKpi, 'value' | 'format' | 'digits'>, locale = 'en-US'): string {
   if (k.value === null) return '–';
   if (k.format === 'duration') {
     const total = Math.round(k.value / 60);
     return `${Math.floor(total / 60)}h ${String(total % 60).padStart(2, '0')}m`;
   }
   const digits = k.digits ?? (Math.abs(k.value) < 10 && !Number.isInteger(k.value) ? 1 : 0);
-  return k.value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).replace(/,/g, ' ');
+  const s = k.value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  // Thousands with a plain space in every language; English keeps its decimal point.
+  return locale.startsWith('en') ? s.replace(/,/g, ' ') : s.replace(/[\u00a0\u202f]/g, ' ');
 }
 
 /** "+3", "−1.2"; tone from `better`. null when there is no delta. */

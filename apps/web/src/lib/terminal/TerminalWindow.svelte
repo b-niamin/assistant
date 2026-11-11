@@ -7,6 +7,7 @@
    */
   import { onMount } from 'svelte';
   import Mascot from '#lib/Mascot.svelte';
+  import { useT } from '#lib/i18n/index.ts';
   import '@xterm/xterm/css/xterm.css';
   import '#lib/terminal/fonts/fonts.css';
   import { openSidecar } from '#lib/sidecar-client.ts';
@@ -48,13 +49,14 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fit: any = null;
 
-  const PHASE_LABEL: Record<Phase, string> = {
-    idle: 'Starting',
-    connecting: 'Connecting',
-    open: 'Connected',
-    closed: 'Disconnected',
-    error: 'Not connected'
-  };
+  const t = useT();
+  const PHASE_LABEL: Record<Phase, string> = $derived({
+    idle: t('Starting'),
+    connecting: t('Connecting'),
+    open: t('Connected'),
+    closed: t('Disconnected'),
+    error: t('Not connected')
+  });
   const PHASE_TONE: Record<Phase, string> = {
     idle: '',
     connecting: 'warning',
@@ -158,7 +160,7 @@
       };
       sock.onerror = () => {
         phase = 'error';
-        message = 'The terminal container did not answer. Is it running?';
+        message = t('The terminal container did not answer. Is it running?');
       };
       ws = sock;
     } catch (e) {
@@ -260,21 +262,21 @@
     <span class="title">{title}</span>
     {#if size}<span class="size num">{size}</span>{/if}
     <div class="tools">
-      <button type="button" class="tool" onclick={() => setFont(-1)} title="Smaller text" aria-label="Smaller text">
+      <button type="button" class="tool" onclick={() => setFont(-1)} title={t('Smaller text')} aria-label={t('Smaller text')}>
         <span class="a sm">A</span>
       </button>
-      <button type="button" class="tool" onclick={() => setFont(1)} title="Larger text" aria-label="Larger text">
+      <button type="button" class="tool" onclick={() => setFont(1)} title={t('Larger text')} aria-label={t('Larger text')}>
         <span class="a lg">A</span>
       </button>
-      <button type="button" class="tool" onclick={connect} disabled={!configured || phase === 'connecting'} title="Reconnect" aria-label="Reconnect">
+      <button type="button" class="tool" onclick={connect} disabled={!configured || phase === 'connecting'} title={t('Reconnect')} aria-label={t('Reconnect')}>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5v3h-3" /></svg>
       </button>
       <button
         type="button"
         class="tool"
         onclick={toggleFull}
-        title={full ? 'Exit full screen' : 'Full screen'}
-        aria-label={full ? 'Exit full screen' : 'Full screen'}
+        title={full ? t('Exit full screen') : t('Full screen')}
+        aria-label={full ? t('Exit full screen') : t('Full screen')}
         aria-pressed={full}
       >
         {#if full}
@@ -292,31 +294,31 @@
       <div class="veil" class:soft={phase === 'connecting' || phase === 'idle'}>
         {#if phase === 'connecting' || phase === 'idle'}
           <span class="spinner" aria-hidden="true"></span>
-          <p>Opening a session…</p>
+          <p>{t('Opening a session…')}</p>
         {:else if !configured}
           <Mascot mood="asleep" size={64} decorative />
-          <p>The terminal is off: set <code>SIDECAR_TICKET_SECRET</code> in <code>.env</code>.</p>
+          <p>{t('The terminal is off: set SIDECAR_TICKET_SECRET in .env.')}</p>
         {:else}
           <Mascot mood={phase === 'closed' ? 'asleep' : 'tired'} size={64} decorative />
-          <p class="big">{phase === 'closed' ? 'Session disconnected' : 'Could not connect'}</p>
+          <p class="big">{phase === 'closed' ? t('Session disconnected') : t('Could not connect')}</p>
           <p class="sub">
-            {phase === 'closed' ? 'Your shell is still running in tmux.' : message || 'Try again in a moment.'}
-            {#if !reachable}The terminal container is not answering.{/if}
+            {phase === 'closed' ? t('Your shell is still running in tmux.') : message || t('Try again in a moment.')}
+            {#if !reachable}{t('The terminal container is not answering.')}{/if}
           </p>
-          <button class="btn-primary btn" type="button" onclick={connect}>Reconnect</button>
+          <button class="btn-primary btn" type="button" onclick={connect}>{t('Reconnect')}</button>
         {/if}
       </div>
     {/if}
   </div>
 
-  <div class="keys" role="toolbar" aria-label="Terminal keys">
+  <div class="keys" role="toolbar" aria-label={t('Terminal keys')}>
     {#each BAR_KEYS as k}
       <button
         type="button"
         class="key"
         class:on={k.kind === 'ctrl' && ctrl}
         aria-pressed={k.kind === 'ctrl' ? ctrl : undefined}
-        title={k.title}
+        title={t(k.title)}
         disabled={phase !== 'open'}
         onpointerdown={(e) => e.preventDefault()}
         onclick={() => pressKey(k)}>{k.label}</button

@@ -44,6 +44,11 @@
       <label>Repeat it
         <input name="repeat" type="password" autocomplete="new-password" minlength="12" required />
       </label>
+      <label>Language <span class="muted">(of the app and of every app you add; more in System settings)</span>
+        <select name="language">
+          {#each data.languages as l (l.code)}<option value={l.code} lang={l.code}>{l.name}</option>{/each}
+        </select>
+      </label>
       <div class="two">
         <label>Your name <input name="name" placeholder="Alex" maxlength="40" required bind:value={name} /></label>
         <label>Profile id <input

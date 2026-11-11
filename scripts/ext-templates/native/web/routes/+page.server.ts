@@ -11,7 +11,7 @@ export const load = (async (_event, ctx) => ({
 export const actions: ExtActions = {
   add: async ({ request }, ctx) => {
     const title = cleanTitle((await request.formData()).get('title'));
-    if (!title) return fail(400, { error: 'Title is 1 to 200 characters.' });
+    if (!title) return fail(400, { error: ctx.t('Title is 1 to 200 characters.') });
     await ctx.db((sql) => addItem(sql, ctx.dataProfileId, title));
     return { ok: true };
   }

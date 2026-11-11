@@ -6,8 +6,9 @@
 import type { RequestEvent, ServerLoadEvent } from '@sveltejs/kit';
 import type { TransactionSql } from 'postgres';
 import type { ExtensionInfo } from '#lib/extensions/types.ts';
+import type { Translate } from '#lib/i18n/translate.ts';
 
-export type { ExtensionInfo };
+export type { ExtensionInfo, Translate };
 /** SvelteKit helpers, re-exported so extensions import everything shell-related from one place. */
 export { error, fail, json, redirect } from '@sveltejs/kit';
 
@@ -18,6 +19,14 @@ export interface ExtensionContext {
   extension: ExtensionInfo;
   /** The profile that is looking at the page. */
   profileId: string;
+  /** Language of the page (spec 007): en, pl, ... */
+  lang: string;
+  /**
+   * Translate this extension's texts into the page's language, from its i18n/<lang>.json (then the
+   * shell's): t('Last night'), t('{n} km', { n }), t.n(count, '{n} run', '{n} runs'), t.locale for dates.
+   * In components use useT() from '$shell/ui' instead.
+   */
+  t: Translate;
   /**
    * Whose data to read and write: the viewing profile for scope "profile", null for scope "shared".
    * Profile-scoped tables have a profile_id column; filter every query by this.

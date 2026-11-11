@@ -5,26 +5,29 @@
   import RemoteMenu from '#lib/dock/RemoteMenu.svelte';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
   import { page } from '$app/state';
+  import { provideLanguage, useT } from '#lib/i18n/index.ts';
   let { data, children } = $props();
+  provideLanguage(() => data.lang);
+  const t = useT();
 </script>
 
-<svelte:head><title>Assistant</title></svelte:head>
+<svelte:head><title>{t('Assistant')}</title></svelte:head>
 
 {#if data.authenticated}
   <header>
     <div class="bar">
-      <a class="brand" href="/" aria-label="Assistant, home">
+      <a class="brand" href="/" aria-label={t('Assistant, home')}>
         <span class="mark"><Mascot mood="steady" size={30} decorative /></span>
-        <span>Assistant</span>
+        <span>{t('Assistant')}</span>
       </a>
-      <nav aria-label="Extensions">
+      <nav aria-label={t('Extensions')}>
         {#each data.extensions as m}
           <a href={m.href} aria-current={page.url.pathname.startsWith(m.href) ? 'page' : undefined}>{m.name}</a>
         {/each}
       </nav>
       <div class="right">
         <RemoteMenu />
-        <UserMenu profiles={data.profiles} profileId={data.profileId} theme={data.theme} />
+        <UserMenu profiles={data.profiles} profileId={data.profileId} theme={data.theme} lang={data.lang} languages={data.languages} />
       </div>
     </div>
   </header>

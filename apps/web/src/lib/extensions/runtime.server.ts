@@ -9,6 +9,7 @@ import { readSecret } from '#lib/server/extension-secrets.ts';
 import type { ExtActions, ExtensionContext, ExtHandler, ExtLoad, Sql } from '#lib/sdk/index.ts';
 import { kvAll, kvApply } from './kv.server';
 import { readSettings } from './config.server';
+import { tFor } from '#lib/i18n/index.ts';
 import { EXTENSIONS, extensionById, visibleTo } from './registry.server';
 
 const roleOf = (id: string) => `ext_${id.replace(/-/g, '_')}`;
@@ -21,6 +22,8 @@ export async function contextFor(id: string, event: Pick<RequestEvent, 'locals'>
   return {
     extension: ext,
     profileId,
+    lang: event.locals.lang ?? 'en',
+    t: tFor(event.locals.lang ?? 'en', ext.id),
     dataProfileId: ext.scope === 'shared' ? null : profileId,
     db: <T>(fn: (sql: Sql) => Promise<T>) =>
       db().begin(async (sql) => {

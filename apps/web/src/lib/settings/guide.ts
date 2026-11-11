@@ -149,7 +149,7 @@ export function buildPrompt(r: ExtensionRequest): string {
       : t.from
         ? `Start from ${t.from} (inspirations/ in the extensions repo; node scripts/ext.mjs available lists ready-made apps).`
         : 'Pick the kind and starting point yourself (node scripts/ext.mjs available lists ready-made apps; skeletons are in inspirations/ of the extensions repo).',
-    'Use our design system and Beni the mascot, add a settings panel and dashboard tile if useful, run the checks.'
+    "Use our design system and Beni the mascot, translate it into every language of the app (spec 007), add a settings panel and dashboard tile if useful, run the checks."
   ];
   return parts.filter(Boolean).join(' ');
 }
@@ -183,5 +183,5 @@ export function buildChangePrompt(id: string, name: string, change: string): str
 
 /** The first message for a new app described in your own words. */
 export function newAppPrompt(text: string): string {
-  return `Use the add-extension skill to add a new extension to this assistant: ${oneLine(text).replace(/[.!?]?$/, '.')} Ask me if something important is unclear. Use our design system and Beni the mascot, add settings and a dashboard tile if useful, run the checks.`;
+  return `Use the add-extension skill to add a new extension to this assistant: ${oneLine(text).replace(/[.!?]?$/, '.')} Ask me if something important is unclear. Use our design system and Beni the mascot, translate it into every language of the app (spec 007), add settings and a dashboard tile if useful, run the checks.`;
 }

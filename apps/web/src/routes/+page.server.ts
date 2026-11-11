@@ -3,6 +3,7 @@ import type { PageServerLoad } from './$types';
 import { dashboardFor } from '#lib/extensions/dashboard.server.ts';
 import { applyLayout, parseLayout, type LayoutRow } from '#lib/dashboard/layout.ts';
 import { db } from '#lib/server/db.ts';
+import { tFor } from '#lib/i18n/index.ts';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const [tiles, rows] = await Promise.all([
@@ -23,7 +24,7 @@ export const actions: Actions = {
   layout: async ({ request, locals }) => {
     const f = await request.formData();
     const rows = parseLayout(f.getAll('order').map(String), f.getAll('hidden').map(String));
-    if (!rows.length) return fail(400, { error: 'Nothing to save.' });
+    if (!rows.length) return fail(400, { error: tFor(locals.lang)('Nothing to save.') });
     await db().begin(async (sql) => {
       await sql`DELETE FROM core.dashboard_layout WHERE profile_id = ${locals.profileId}`;
       await sql`INSERT INTO core.dashboard_layout ${sql(rows.map((r) => ({ profile_id: locals.profileId, ...r })))}`;

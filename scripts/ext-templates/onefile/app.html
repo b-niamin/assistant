@@ -36,12 +36,15 @@
   };
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { lang: 'pl', items: [] }; } catch { return { lang: 'pl', items: [] }; } };
   const state = load();
+  // Inside the assistant the shell says which language the page is in (spec 007); the toggle is for standalone use.
+  const shellLang = window.assistantLang;
+  if (T[shellLang]) state.lang = shellLang;
   const save = () => localStorage.setItem(KEY, JSON.stringify(state));
   const $ = (id) => document.getElementById(id);
   function render() {
     const t = T[state.lang];
     document.documentElement.lang = state.lang;
-    $('addBtn').textContent = t.add; $('title').placeholder = t.placeholder; $('lang').textContent = t.lang;
+    $('addBtn').textContent = t.add; $('title').placeholder = t.placeholder; $('lang').textContent = t.lang; $('lang').hidden = !!T[shellLang];
     const list = $('list'); list.replaceChildren();
     if (!state.items.length) {
       const li = document.createElement('li'); li.className = 'empty';

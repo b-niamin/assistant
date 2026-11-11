@@ -6,6 +6,8 @@ declare global {
       authenticated: boolean;
       profileId: string;
       theme: Theme;
+      /** Language of the page (spec 007): en, pl, ... */
+      lang: string;
     }
   }
 }

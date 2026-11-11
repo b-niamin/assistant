@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { passwordHash } from '#lib/server/app-config.ts';
+import { tFor } from '#lib/i18n/index.ts';
 import { verifyPassword } from '#lib/server/password.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { createSession, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
@@ -18,12 +19,13 @@ export const load: PageServerLoad = ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-  default: async ({ request, cookies, url, getClientAddress }) => {
+  default: async ({ request, cookies, url, getClientAddress, locals }) => {
+    const t = tFor(locals.lang);
     const ip = getClientAddress();
-    if (!limiter.attempt(ip)) return fail(429, { error: 'Too many attempts. Try again in 15 minutes.' });
+    if (!limiter.attempt(ip)) return fail(429, { error: t('Too many attempts. Try again in 15 minutes.') });
     const form = await request.formData();
     const password = String(form.get('password') ?? '');
-    if (!verifyPassword(password, await passwordHash())) return fail(401, { error: 'Wrong password.' });
+    if (!verifyPassword(password, await passwordHash())) return fail(401, { error: t('Wrong password.') });
     limiter.reset(ip);
     const id = await createSession(request.headers.get('user-agent'), ip);
     cookies.set(SESSION_COOKIE, id, {

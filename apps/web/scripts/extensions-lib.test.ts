@@ -84,7 +84,7 @@ describe('generate', () => {
     expect(first.extensions[0]).toMatchObject({ id: 'notes', href: '/notes', profiles: ['alex'], kind: 'native' });
     const reg = readFileSync(path.join(web, 'src/lib/extensions/generated/registry.ts'), 'utf8');
     expect(reg).toContain('"id": "notes"');
-    expect(first.changed).toBe(6); // page, server, registry, tiles, sources and tools maps; Helper.svelte is not a route file
+    expect(first.changed).toBe(7); // page, server, registry, tiles, sources, tools and i18n maps; Helper.svelte is not a route file
     expect(lib.generate({ webRoot: web, dir }).changed).toBe(0);
   });
   it('fails on a missing extension folder and on a bad `from`', () => {
@@ -183,5 +183,51 @@ describe('look', () => {
     expect(lib.lookWarnings(bare, { kind: 'onefile', entry: 'app.html' }, 'x')).toHaveLength(2);
     const ours = ext({ 'app.html': '<style>body{background:var(--page,#fff)}</style><assistant-beni mood="idle"></assistant-beni>' });
     expect(lib.lookWarnings(ours, { kind: 'onefile', entry: 'app.html' }, 'x')).toEqual([]);
+  });
+});
+
+describe('translations (spec 007)', () => {
+  it('reads i18n/<lang>.json, inlines them and lists the languages', () => {
+    const dir = fixture([{ id: 'notes' }], {
+      'notes/extension.json': JSON.stringify(manifest()),
+      'notes/web/routes/+page.svelte': "<h1>{t('Notes')}</h1>",
+      'notes/i18n/pl.json': JSON.stringify({ Notes: 'Notatki', '{n} notes': { one: '{n} notatka', other: '{n} notatki' } })
+    });
+    const web = mkdtempSync(path.join(os.tmpdir(), 'web-'));
+    const { extensions } = lib.generate({ webRoot: web, dir });
+    expect(extensions[0].languages).toEqual(['en', 'pl']);
+    const gen = readFileSync(path.join(web, 'src/lib/extensions/generated/i18n.ts'), 'utf8');
+    expect(gen).toContain('"Notes": "Notatki"');
+    // The page stub tells useT() which extension it belongs to.
+    expect(readFileSync(path.join(web, 'src/routes/(extensions)/notes/+page.svelte'), 'utf8')).toContain("provideExtension('notes')");
+  });
+  it('rejects a bad translation file', () => {
+    const dir = fixture([{ id: 'notes' }], {
+      'notes/extension.json': JSON.stringify(manifest()),
+      'notes/web/routes/+page.svelte': '<h1>x</h1>',
+      'notes/i18n/pl.json': JSON.stringify({ Notes: 3 })
+    });
+    expect(() => lib.generate({ webRoot: mkdtempSync(path.join(os.tmpdir(), 'web-')), dir })).toThrow(/must be a string/);
+  });
+  it('finds the texts of t(), t.n() and tile titles, not those in comments', () => {
+    const src = `/** t('In a comment') */ const a = t('Save'); t("It's {n}", { n }); t.n(count, '{n} set', '{n} sets'); x.t('no'); title: 'Sleep'`;
+    expect(lib.keysIn(src)).toEqual(['Save', "It's {n}", '{n} sets']);
+    expect(lib.keysIn(src, { titles: true })).toContain('Sleep');
+  });
+  it('warns about missing files and texts, and a onefile UI without the language', () => {
+    const dir = fixture([], {
+      'notes/web/routes/+page.svelte': "{t('Notes')} {t('Add')}",
+      'notes/i18n/pl.json': JSON.stringify({ Notes: 'Notatki' })
+    });
+    const w = lib.translationWarnings(path.join(dir, 'notes'), manifest(), 'notes', ['en', 'pl', 'de']);
+    // "Add" is one of the shell's own words: no entry needed.
+    expect(w.join('\n')).toMatch(/pl\.json misses 1 text\(s\): "Short notes"$/m);
+    expect(w.join('\n')).toMatch(/no i18n\/de\.json \(3 texts/);
+    const app = manifest({ kind: 'onefile', entry: 'app.html', languages: ['en'] });
+    expect(lib.translationWarnings(path.join(dir, 'notes'), app, 'notes', ['en', 'pl']).join()).toMatch(/UI is not in "pl"/);
+  });
+  it('validates "languages" in the manifest', () => {
+    expect(lib.validateManifest(manifest({ languages: ['en', 'pl'] }), 'notes')).toEqual([]);
+    expect(lib.validateManifest(manifest({ languages: ['polish'] }), 'notes').join()).toMatch(/"languages"/);
   });
 });

@@ -1,19 +1,21 @@
 <script lang="ts">
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
+  import { useT } from '#lib/i18n/index.ts';
+  const t = useT();
 
   const missing = $derived(page.status === 404);
 </script>
 
-<svelte:head><title>{missing ? 'Not found' : 'Error'} · Assistant</title></svelte:head>
+<svelte:head><title>{missing ? t('Not found') : t('Error')} · {t('Assistant')}</title></svelte:head>
 
 <section class="card oops rise">
-  <Mascot mood={missing ? 'tired' : 'asleep'} size={96} label="Beni, the assistant mascot. Click me." />
-  <h1>{missing ? 'Beni looked everywhere' : 'Something went wrong'}</h1>
+  <Mascot mood={missing ? 'tired' : 'asleep'} size={96} label={t('Beni, the assistant mascot. Click me.')} />
+  <h1>{missing ? t('Beni looked everywhere') : t('Something went wrong')}</h1>
   <p class="muted">
-    {missing ? 'There is no page at this address.' : (page.error?.message ?? 'Try again in a moment.')}
+    {missing ? t('There is no page at this address.') : page.error?.message ? t(page.error.message) : t('Try again in a moment.')}
   </p>
-  <a class="btn btn-primary" href="/">Back to the dashboard</a>
+  <a class="btn btn-primary" href="/">{t('Back to the dashboard')}</a>
 </section>
 
 <style>

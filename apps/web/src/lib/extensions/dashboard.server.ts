@@ -7,6 +7,7 @@ import { kvAll } from './kv.server';
 import { extensionsFor } from './registry.server';
 import { contextFor } from './runtime.server';
 import { TILE_MODULES } from './generated/tiles.server';
+import { localizeExtension, tFor } from '#lib/i18n/index.ts';
 import { normalizeTile, sizeOf, text, type ExtTile, type TileData, type TileSize } from './tiles';
 import type { ExtensionInfo } from './types';
 
@@ -46,7 +47,7 @@ export function settle(key: string, run: () => Promise<TileData> | TileData, ms 
 }
 
 /** A onefile app's tile: whatever it stored under __tile (untrusted JSON), else a plain card. */
-async function onefileTile(ext: ExtensionInfo, profileId: string): Promise<TileData> {
+async function onefileTile(ext: ExtensionInfo, profileId: string, lang: string): Promise<TileData> {
   const raw = (await kvAll(ext, profileId))[ONEFILE_TILE_KEY];
   if (raw) {
     try {
@@ -55,7 +56,7 @@ async function onefileTile(ext: ExtensionInfo, profileId: string): Promise<TileD
       /* fall through to the plain card */
     }
   }
-  return { empty: { message: ext.description || 'Open the app' } };
+  return { empty: { message: ext.description || tFor(lang)('Open the app') } };
 }
 
 const ownsPath = (ext: ExtensionInfo, href: string) => href === ext.href || /^[/?#]/.test(href.slice(ext.href.length)) && href.startsWith(ext.href);
@@ -74,9 +75,12 @@ async function nativeTiles(ext: ExtensionInfo): Promise<ExtTile[]> {
 
 export async function dashboardFor(locals: App.Locals): Promise<DashboardTile[]> {
   const profileId = locals.profileId;
-  const exts = (await extensionsFor(profileId)) as ExtensionInfo[];
+  const lang = locals.lang ?? 'en';
+  // Names, descriptions and tile titles in the page's language (each extension's i18n/<lang>.json).
+  const exts = ((await extensionsFor(profileId)) as ExtensionInfo[]).map((e) => localizeExtension(e, lang));
   const out: DashboardTile[] = [];
   for (const ext of exts) {
+    const t = tFor(lang, ext.id);
     if ((ext as { enabled?: boolean }).enabled === false) continue;
     const base = { extensionId: ext.id, extensionName: ext.name, scope: ext.scope };
     if (ext.kind === 'onefile') {
@@ -86,7 +90,7 @@ export async function dashboardFor(locals: App.Locals): Promise<DashboardTile[]>
         title: ext.name,
         size: 'md', // room for the chart an app may send in __tile
         href: ext.href,
-        data: settle(`${ext.id}:app`, () => onefileTile(ext, profileId))
+        data: settle(`${ext.id}:app`, () => onefileTile(ext, profileId, lang))
       });
       continue;
     }
@@ -98,26 +102,26 @@ export async function dashboardFor(locals: App.Locals): Promise<DashboardTile[]>
         title: ext.name,
         size: 'sm',
         href: ext.href,
-        data: Promise.resolve({ ok: true, data: { empty: { message: ext.description || 'Open' } } })
+        data: Promise.resolve({ ok: true, data: { empty: { message: ext.description || t('Open') } } })
       });
       continue;
     }
     const ctx = contextFor(ext.id, { locals });
     ctx.catch(() => {}); // each tile awaits it and reports its own failure
     const seen = new Set<string>();
-    for (const t of tiles) {
-      if (!t || typeof t.load !== 'function' || !/^[a-z0-9-]{1,40}$/.test(t.id ?? '') || seen.has(t.id)) continue;
-      seen.add(t.id);
-      const key = `${ext.id}:${t.id}`;
-      const data = settle(key, async () => t.load(await ctx)).then((r) =>
+    for (const tile of tiles) {
+      if (!tile || typeof tile.load !== 'function' || !/^[a-z0-9-]{1,40}$/.test(tile.id ?? '') || seen.has(tile.id)) continue;
+      seen.add(tile.id);
+      const key = `${ext.id}:${tile.id}`;
+      const data = settle(key, async () => tile.load(await ctx)).then((r) =>
         // A tile may deep-link only inside its own extension.
         r.ok && r.data.href && !ownsPath(ext, r.data.href) ? { ...r, data: { ...r.data, href: undefined } } : r
       );
       out.push({
         ...base,
         key,
-        title: text(t.title, 40) ?? ext.name,
-        size: sizeOf(t.size),
+        title: text(typeof tile.title === 'string' ? t(tile.title) : undefined, 40) ?? ext.name,
+        size: sizeOf(tile.size),
         href: ext.href,
         data
       });

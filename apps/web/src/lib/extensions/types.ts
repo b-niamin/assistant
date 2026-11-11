@@ -22,6 +22,8 @@ export interface ExtensionInfo {
   secrets: string[];
   /** What Beni wears on its pages (manifest "accessory", beni-accessories.ts); null = guessed from id and name. */
   accessory: string | null;
+  /** Languages it has translations for (spec 007): always "en", plus each extensions/<id>/i18n/<lang>.json. */
+  languages: string[];
   /** Switched off in System settings: gone from nav, routes and APIs, data kept. */
   enabled: boolean;
 }

@@ -5,6 +5,8 @@
   import { busy, type SourceState, type SourceStatus, type SourcesResult } from '#lib/extensions/sources.ts';
   import type { SettingField } from '#lib/extensions/types.ts';
   import { hueFor } from './guide.ts';
+  import { useT } from '#lib/i18n/index.ts';
+  const t = useT();
 
   /**
    * Connected accounts of one extension (spec 002): each source with its state, the sync with a
@@ -66,18 +68,18 @@
   });
   onDestroy(() => clearTimeout(timer));
 
-  const STATE: Record<SourceState, { label: string; tone: string }> = {
-    connected: { label: 'Connected', tone: 'good' },
-    not_connected: { label: 'Not connected', tone: '' },
-    reconnect: { label: 'Sign in again', tone: 'serious' },
-    planned: { label: 'Coming later', tone: '' }
-  };
+  const STATE: Record<SourceState, { label: string; tone: string }> = $derived({
+    connected: { label: t('Connected'), tone: 'good' },
+    not_connected: { label: t('Not connected'), tone: '' },
+    reconnect: { label: t('Sign in again'), tone: 'serious' },
+    planned: { label: t('Coming later'), tone: '' }
+  });
 
-  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  const rtf = $derived(new Intl.RelativeTimeFormat(t.locale, { numeric: 'auto' }));
   function ago(isoTime: string): string {
     const s = (Date.parse(isoTime) - Date.now()) / 1000;
     const a = Math.abs(s);
-    if (a < 45) return s < 0 ? 'just now' : 'in a moment';
+    if (a < 45) return s < 0 ? t('just now') : t('in a moment');
     if (a < 3600) return rtf.format(Math.round(s / 60), 'minute');
     if (a < 86400) return rtf.format(Math.round(s / 3600), 'hour');
     return rtf.format(Math.round(s / 86400), 'day');
@@ -86,15 +88,15 @@
 </script>
 
 <section aria-labelledby="sources-title">
-  <h2 id="sources-title">Connected accounts</h2>
+  <h2 id="sources-title">{t('Connected accounts')}</h2>
   {#if !current.ok}
     <p class="muted">
       {current.reason === 'hidden'
-        ? 'This extension is off or hidden from your profile, so its accounts are not shown.'
-        : 'Could not read the accounts right now.'}
+        ? t('This extension is off or hidden from your profile, so its accounts are not shown.')
+        : t('Could not read the accounts right now.')}
     </p>
   {:else if !list.length}
-    <p class="muted">No accounts yet.</p>
+    <p class="muted">{t('No accounts yet.')}</p>
   {:else}
     <div class="sources">
       {#each list as s (s.id)}
@@ -115,7 +117,7 @@
             <div class="connect">
               {#if s.help}<p class="small">{s.help}</p>{/if}
               {#if s.command}
-                <p class="cmd"><code>{s.command}</code> <button type="button" class="small linkish" onclick={() => (dock.open = true)}>Open the terminal</button></p>
+                <p class="cmd"><code>{s.command}</code> <button type="button" class="small linkish" onclick={() => (dock.open = true)}>{t('Open the terminal')}</button></p>
               {/if}
             </div>
           {/if}
@@ -144,7 +146,7 @@
             <div class="sync" aria-live="polite">
               <div class="syncline">
                 <span class="status small" class:good={s.sync.state === 'idle' && !s.sync.error} class:warning={running} class:critical={s.sync.state === 'failed'}>
-                  {s.sync.state === 'running' ? 'Syncing' : s.sync.state === 'queued' ? 'Waiting to start' : s.sync.state === 'failed' ? 'Last sync failed' : 'Up to date'}
+                  {s.sync.state === 'running' ? t('Syncing') : s.sync.state === 'queued' ? t('Waiting to start') : s.sync.state === 'failed' ? t('Last sync failed') : t('Up to date')}
                 </span>
                 {#if s.sync.label}<span class="small label">{s.sync.label}</span>{/if}
                 {#if running && s.sync.progress != null}<span class="small num pct">{pct(s.sync.progress)}</span>{/if}
@@ -154,7 +156,7 @@
                   class="bar"
                   class:indeterminate={s.sync.progress == null}
                   role="progressbar"
-                  aria-label="{s.name} sync"
+                  aria-label={t('{name} sync', { name: s.name })}
                   aria-valuemin="0"
                   aria-valuemax="100"
                   aria-valuenow={s.sync.progress != null ? Math.round(s.sync.progress * 100) : undefined}
@@ -165,7 +167,7 @@
               {#if s.sync.error}<p class="small err">{s.sync.error}</p>{/if}
               {#if s.sync.lastAt || s.sync.nextAt}
                 <p class="small">
-                  {#if s.sync.lastAt}Last sync {ago(s.sync.lastAt)}{/if}{#if s.sync.lastAt && s.sync.nextAt}&ensp;·&ensp;{/if}{#if s.sync.nextAt}next {ago(s.sync.nextAt)}{/if}
+                  {#if s.sync.lastAt}{t('Last sync {when}', { when: ago(s.sync.lastAt) })}{/if}{#if s.sync.lastAt && s.sync.nextAt}&ensp;·&ensp;{/if}{#if s.sync.nextAt}{t('next {when}', { when: ago(s.sync.nextAt) })}{/if}
                 </p>
               {/if}
             </div>

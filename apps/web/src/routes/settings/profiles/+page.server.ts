@@ -6,6 +6,7 @@ import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { allExtensions, invalidate, saveExtensionSwitches, visibleTo } from '#lib/extensions/registry.server.ts';
 import { db } from '#lib/server/db.ts';
+import { localizeExtension, tFor } from '#lib/i18n/index.ts';
 import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
 import { PROFILE_ID_RE, uniqueProfileId, visibilityAfterAdd } from '#lib/settings/guide.ts';
 
@@ -15,7 +16,8 @@ async function guard(sid: string | undefined) {
 
 export const load: PageServerLoad = async ({ cookies, locals }) => {
   await guard(cookies.get(SESSION_COOKIE));
-  const [profiles, extensions] = await Promise.all([listProfiles(), allExtensions()]);
+  const [profiles, all] = await Promise.all([listProfiles(), allExtensions()]);
+  const extensions = all.map((e) => localizeExtension(e, locals.lang));
   return {
     current: locals.profileId,
     profiles: profiles.map((p) => ({
@@ -30,17 +32,18 @@ const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
 const log = (what: string) => console.log(`[settings] ${new Date().toISOString()} ${what}`);
 
 export const actions: Actions = {
-  add: async ({ request, cookies }) => {
+  add: async ({ request, cookies, locals }) => {
+    const t = tFor(locals.lang);
     await guard(cookies.get(SESSION_COOKIE));
     const f = await request.formData();
     const name = str(f, 'name');
-    if (!name || name.length > 40) return fail(400, { error: 'Give the profile a name (up to 40 characters).', name });
+    if (!name || name.length > 40) return fail(400, { error: t('Give the profile a name (up to 40 characters).'), name });
     const profiles = await listProfiles();
     const typed = str(f, 'id');
     const id = typed || uniqueProfileId(name, profiles.map((p) => p.id));
     if (!PROFILE_ID_RE.test(id) || id.length > 32)
-      return fail(400, { error: 'The short id may use lowercase letters, digits and dashes, and must start with a letter.', name });
-    if (profiles.some((p) => p.id === id)) return fail(400, { error: `There is already a profile with the id "${id}".`, name });
+      return fail(400, { error: t('The short id may use lowercase letters, digits and dashes, and must start with a letter.'), name });
+    if (profiles.some((p) => p.id === id)) return fail(400, { error: t('There is already a profile with the id "{id}".', { id }), name });
 
     await db()`INSERT INTO core.profiles (id, name) VALUES (${id}, ${name})`;
     const chosen = new Set(f.getAll('apps').map(String));
@@ -49,19 +52,20 @@ export const actions: Actions = {
       await saveExtensionSwitches(change.id, true, change.profiles);
     invalidate();
     log(`profile ${id} added`);
-    return { ok: `Added ${name}. Switch to it from the menu at the top.`, added: id };
+    return { ok: t('Added {name}. Switch to it from the menu at the top.', { name }), added: id };
   },
 
-  rename: async ({ request, cookies }) => {
+  rename: async ({ request, cookies, locals }) => {
+    const t = tFor(locals.lang);
     await guard(cookies.get(SESSION_COOKIE));
     const f = await request.formData();
     const id = str(f, 'id');
     const name = str(f, 'name');
-    if (!name || name.length > 40) return fail(400, { error: 'Name: 1 to 40 characters.' });
+    if (!name || name.length > 40) return fail(400, { error: t('Name: 1 to 40 characters.') });
     const res = await db()`UPDATE core.profiles SET name = ${name} WHERE id = ${id}`;
-    if (!res.count) return fail(404, { error: 'No such profile.' });
+    if (!res.count) return fail(404, { error: t('No such profile.') });
     invalidate();
     log(`profile ${id} renamed`);
-    return { ok: `Renamed to ${name}.` };
+    return { ok: t('Renamed to {name}.', { name }) };
   }
 };

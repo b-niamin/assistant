@@ -4,7 +4,11 @@
   import SourcesPanel from '#lib/settings/SourcesPanel.svelte';
   import { claimedFields } from '#lib/extensions/sources.ts';
   import { hueFor, initials } from '#lib/settings/guide.ts';
+  import { languageInfo, tFor, useT } from '#lib/i18n/index.ts';
   let { data, form } = $props();
+  const t = useT();
+  /** The extension's own texts (select options), from its i18n/<lang>.json. */
+  const tExt = $derived(tFor(t.lang, data.ext.id));
   const ext = $derived(data.ext);
   // Fields a connected account edits in its own card stay out of the generic sections below.
   const claimed = $derived(data.sources?.ok ? claimedFields(data.sources.sources) : new Set<string>());
@@ -15,28 +19,29 @@
   const agentName = $derived(AGENT_NAMES[pickAgent()]);
 </script>
 
-<svelte:head><title>{ext.name} · System settings</title></svelte:head>
+<svelte:head><title>{ext.name} · {t('System settings')}</title></svelte:head>
 
 <header class="head">
-  <p class="eyebrow"><a href="/settings">System settings</a></p>
+  <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
   <div class="ident">
     <span class="mark" style="--hue: {hueFor(ext.id)}" aria-hidden="true">{initials(ext.name)}</span>
     <div class="title">
       <div class="name">
         <h1>{ext.name}</h1>
-        <span class="status small" class:good={ext.enabled}>{ext.enabled ? 'On' : 'Off'}</span>
+        <span class="status small" class:good={ext.enabled}>{ext.enabled ? t('On') : t('Off')}</span>
       </div>
       {#if ext.description}<p class="desc">{ext.description}</p>{/if}
     </div>
-    <a class="btn open" href={ext.href}>Open</a>
+    <a class="btn open" href={ext.href}>{t('Open')}</a>
   </div>
-  <ul class="meta" aria-label="About {ext.name}">
-    <li>{ext.kind === 'native' ? 'Native' : 'One file'}</li>
-    <li>{ext.scope === 'shared' ? 'Data shared by all profiles' : 'Data per profile'}</li>
+  <ul class="meta" aria-label={t('About {name}', { name: ext.name })}>
+    <li>{ext.kind === 'native' ? t('Native') : t('One file')}</li>
+    <li>{ext.scope === 'shared' ? t('Data shared by all profiles') : t('Data per profile')}</li>
     <li class="num">v{ext.version}</li>
+    <li>{ext.languages.map((c) => languageInfo(c).name).join(', ')}</li>
     {#if ext.inspiredBy}
       <li>
-        Inspired by {#if /^https?:\/\//.test(ext.inspiredBy)}<a href={ext.inspiredBy} rel="noreferrer">{ext.inspiredBy.replace(/^https?:\/\//, '')}</a>{:else}{ext.inspiredBy}{/if}
+        {t('Inspired by')} {#if /^https?:\/\//.test(ext.inspiredBy)}<a href={ext.inspiredBy} rel="noreferrer">{ext.inspiredBy.replace(/^https?:\/\//, '')}</a>{:else}{ext.inspiredBy}{/if}
       </li>
     {/if}
   </ul>
@@ -55,31 +60,31 @@
 {/if}
 
 <p class="card change">
-  <span class="meta">To change {ext.name}, click Update: {agentName} opens in the terminal at the bottom with the request started, for you to finish.</span>
-  <button type="button" class="btn" onclick={() => draftForAgent(`Update extension ${ext.name} (extensions/${ext.id}): `)}>Update</button>
+  <span class="meta">{t('To change {name}, click Update: {agent} opens in the terminal at the bottom with the request started, for you to finish.', { name: ext.name, agent: agentName })}</span>
+  <button type="button" class="btn" onclick={() => draftForAgent(`Update extension ${ext.name} (extensions/${ext.id}): `)}>{t('Update')}</button>
 </p>
 
 {#if form?.error && !form.source}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok && !form.source}<p class="note good" role="status">{form.ok}</p>{/if}
 
 <section>
-  <h2>Availability</h2>
+  <h2>{t('Availability')}</h2>
   <form method="POST" action="?/switches" class="card stack" use:enhance>
-    <label class="check"><input type="checkbox" name="enabled" checked={ext.enabled} /> On <span class="muted">(off hides it everywhere; its data stays)</span></label>
+    <label class="check"><input type="checkbox" name="enabled" checked={ext.enabled} /> {t('On')} <span class="muted">{t('(off hides it everywhere; its data stays)')}</span></label>
     <fieldset>
-      <legend>Who sees it</legend>
-      <label class="check"><input type="checkbox" name="everyone" checked={ext.profiles === null} /> Everyone</label>
+      <legend>{t('Who sees it')}</legend>
+      <label class="check"><input type="checkbox" name="everyone" checked={ext.profiles === null} /> {t('Everyone')}</label>
       {#each data.profiles as p (p.id)}
         <label class="check"><input type="checkbox" name="profiles" value={p.id} checked={ext.profiles?.includes(p.id) ?? false} /> {p.name}</label>
       {/each}
     </fieldset>
-    <div class="actions"><button class="btn">Save</button></div>
+    <div class="actions"><button class="btn">{t('Save')}</button></div>
   </form>
 </section>
 
 {#if plain.length}
   <section>
-    <h2>Settings</h2>
+    <h2>{t('Settings')}</h2>
     <form method="POST" action="?/fields" class="card stack" use:enhance>
       {#each plain as f (f.name)}
         {@const v = data.values[f.name]}
@@ -91,7 +96,7 @@
             {#if f.type === 'select'}
               <select name="field:{f.name}">
                 <option value="" selected={v === null}>—</option>
-                {#each f.options ?? [] as o (o)}<option value={o} selected={v === o}>{o}</option>{/each}
+                {#each f.options ?? [] as o (o)}<option value={o} selected={v === o}>{tExt(o)}</option>{/each}
               </select>
             {:else}
               <input name="field:{f.name}" inputmode={f.type === 'number' ? 'decimal' : undefined} value={v ?? ''} />
@@ -100,17 +105,17 @@
         {/if}
         {#if f.help}<p class="help muted">{f.help}</p>{/if}
       {/each}
-      <div class="actions"><button class="btn">Save settings</button></div>
+      <div class="actions"><button class="btn">{t('Save settings')}</button></div>
     </form>
   </section>
 {/if}
 
 {#if secretNames.length}
   <section>
-    <h2>Secrets</h2>
-    <p class="muted">Stored encrypted. Nobody can read a value back here, only replace or remove it.</p>
+    <h2>{t('Secrets')}</h2>
+    <p class="muted">{t('Stored encrypted. Nobody can read a value back here, only replace or remove it.')}</p>
     {#if !data.secretsAvailable}
-      <p class="note bad">Set <code>SECRETS_KEY</code> in <code>.env</code> first: it encrypts these values.</p>
+      <p class="note bad">{t('Set SECRETS_KEY in .env first: it encrypts these values.')}</p>
     {/if}
     <div class="stack">
       {#each secretNames as name (name)}
@@ -118,21 +123,21 @@
         <div class="card secret">
           <div class="what">
             <strong>{fieldsById.get(name)?.label ?? name}</strong>
-            <span class="muted small">{#if s?.updatedAt}set{s.keyHint ? `, ends in …${s.keyHint}` : ''}{:else}not set{/if}</span>
+            <span class="muted small">{#if s?.updatedAt}{t('set')}{s.keyHint ? `, ${t('ends in …{hint}', { hint: s.keyHint })}` : ''}{:else}{t('not set')}{/if}</span>
             {#if fieldsById.get(name)?.help}<span class="muted small">{fieldsById.get(name)?.help}</span>{/if}
           </div>
           <form method="POST" action="?/secret" use:enhance class="set">
             <input type="hidden" name="name" value={name} />
-            <label class="sr" for="s-{name}">New value for {name}</label>
+            <label class="sr" for="s-{name}">{t('New value for {name}', { name })}</label>
             <input id="s-{name}" name="value" type="password" autocomplete="off" required
-              placeholder={s?.updatedAt ? 'Replace value' : 'Value'} disabled={!data.secretsAvailable} />
-            <button class="btn" disabled={!data.secretsAvailable}>Save</button>
+              placeholder={s?.updatedAt ? t('Replace value') : t('Value')} disabled={!data.secretsAvailable} />
+            <button class="btn" disabled={!data.secretsAvailable}>{t('Save')}</button>
           </form>
           {#if s?.updatedAt}
             <form method="POST" action="?/secret" use:enhance>
               <input type="hidden" name="name" value={name} />
               <input type="hidden" name="remove" value="1" />
-              <button class="btn-ghost">Remove</button>
+              <button class="btn-ghost">{t('Remove')}</button>
             </form>
           {/if}
         </div>
@@ -143,13 +148,13 @@
 
 {#if ext.settingsPage}
   <section>
-    <h2>More</h2>
-    <p><a class="btn-ghost" href="{ext.href}/settings">More {ext.name} settings</a></p>
+    <h2>{t('More')}</h2>
+    <p><a class="btn-ghost" href="{ext.href}/settings">{t('More {name} settings', { name: ext.name })}</a></p>
   </section>
 {/if}
 
 {#if !plain.length && !secretNames.length && !ext.settingsPage && !data.sources}
-  <p class="muted">{ext.name} has no settings of its own.</p>
+  <p class="muted">{t('{name} has no settings of its own.', { name: ext.name })}</p>
 {/if}
 
 <style>

@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { TileSeries } from '#lib/extensions/tiles.ts';
+  import { useT } from '#lib/i18n/index.ts';
+  const t = useT();
 
   /**
    * The small chart inside a dashboard tile. Same rules as the health sparklines (specs/001):
@@ -16,9 +18,9 @@
   const vals = $derived(pts.map((p) => p.value).filter((v): v is number => v !== null));
   const hue = $derived(series.hue ? `var(--hue-${series.hue})` : 'var(--accent)');
   const fmt = (v: number | null) =>
-    v === null ? 'no data' : `${Number(v.toFixed(Math.abs(v) < 10 ? 1 : 0))}${series.unit ? ' ' + series.unit : ''}`;
+    v === null ? t('no data') : `${Number(v.toFixed(Math.abs(v) < 10 ? 1 : 0)).toLocaleString(t.locale)}${series.unit ? ' ' + series.unit : ''}`;
   const summary = $derived(
-    `${series.kind === 'bars' ? 'Bar chart' : 'Trend'}${series.caption ? ', ' + series.caption : ''}: ` +
+    `${series.kind === 'bars' ? t('Bar chart') : t('Trend')}${series.caption ? ', ' + series.caption : ''}: ` +
       pts.map((p) => `${p.label} ${fmt(p.value)}`).join(', ')
   );
 

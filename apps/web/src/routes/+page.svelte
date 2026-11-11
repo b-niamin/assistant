@@ -4,15 +4,17 @@
   import Tile from '#lib/dashboard/Tile.svelte';
   import Mascot from '#lib/Mascot.svelte';
   import { moodForHour, type Mood } from '#lib/mascot.ts';
+  import { useT } from '#lib/i18n/index.ts';
   let { data } = $props();
+  const t = useT();
 
   // The server renders its own clock; the browser re-reads its local time after hydration.
   const greet = (now: Date) => {
     const h = now.getHours();
     return {
       mood: moodForHour(h) as Mood,
-      greeting: h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening',
-      today: now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+      greeting: h < 5 ? t('Good night') : h < 12 ? t('Good morning') : h < 18 ? t('Good afternoon') : t('Good evening'),
+      today: now.toLocaleDateString(t.locale, { weekday: 'long', day: 'numeric', month: 'long' })
     };
   };
   let clock = $state(greet(new Date()));
@@ -21,7 +23,7 @@
   let arranging = $state(false);
   let draft = $state<{ key: string; title: string; source: string; hidden: boolean }[]>([]);
   const startArrange = () => {
-    draft = data.layout.map((t) => ({ ...t }));
+    draft = data.layout.map((x) => ({ ...x }));
     arranging = true;
   };
   const move = (i: number, d: number) => {
@@ -32,18 +34,18 @@
   const profileName = $derived(data.profiles.find((p) => p.id === data.profileId)?.name ?? data.profileId);
 </script>
 
-<svelte:head><title>Assistant</title></svelte:head>
+<svelte:head><title>{t('Assistant')}</title></svelte:head>
 
 <div class="head">
   <div class="hello">
-    <Mascot mood={clock.mood} size={56} label="Beni, the assistant mascot. Click me." />
+    <Mascot mood={clock.mood} size={56} label={t('Beni, the assistant mascot. Click me.')} />
     <div>
       <p class="eyebrow">{clock.today}</p>
       <h1>{clock.greeting}, {profileName}</h1>
     </div>
   </div>
   {#if !arranging && data.layout.length}
-    <button class="btn-ghost" onclick={startArrange}>Arrange</button>
+    <button class="btn-ghost" onclick={startArrange}>{t('Arrange')}</button>
   {/if}
 </div>
 
@@ -58,40 +60,40 @@
         if (result.type === 'success') arranging = false;
       }}
   >
-    <h2>Arrange the dashboard</h2>
-    <p class="muted">Order and hidden tiles are saved for {profileName} only.</p>
+    <h2>{t('Arrange the dashboard')}</h2>
+    <p class="muted">{t('Order and hidden tiles are saved for {name} only.', { name: profileName })}</p>
     <ol>
-      {#each draft as t, i (t.key)}
-        <li class:off={t.hidden}>
-          <input type="hidden" name="order" value={t.key} />
+      {#each draft as d, i (d.key)}
+        <li class:off={d.hidden}>
+          <input type="hidden" name="order" value={d.key} />
           <label class="show">
-            <input type="checkbox" checked={!t.hidden} onchange={(e) => (t.hidden = !e.currentTarget.checked)} />
-            <span><strong>{t.title}</strong> <span class="muted">{t.source}</span></span>
+            <input type="checkbox" checked={!d.hidden} onchange={(e) => (d.hidden = !e.currentTarget.checked)} />
+            <span><strong>{d.title}</strong> <span class="muted">{d.source}</span></span>
           </label>
-          {#if t.hidden}<input type="hidden" name="hidden" value={t.key} />{/if}
+          {#if d.hidden}<input type="hidden" name="hidden" value={d.key} />{/if}
           <span class="moves">
-            <button type="button" class="btn-ghost" aria-label="Move {t.title} up" disabled={i === 0} onclick={() => move(i, -1)}>↑</button>
-            <button type="button" class="btn-ghost" aria-label="Move {t.title} down" disabled={i === draft.length - 1} onclick={() => move(i, 1)}>↓</button>
+            <button type="button" class="btn-ghost" aria-label={t('Move {title} up', { title: d.title })} disabled={i === 0} onclick={() => move(i, -1)}>↑</button>
+            <button type="button" class="btn-ghost" aria-label={t('Move {title} down', { title: d.title })} disabled={i === draft.length - 1} onclick={() => move(i, 1)}>↓</button>
           </span>
         </li>
       {/each}
     </ol>
     <div class="buttons">
-      <button type="button" class="btn-ghost" onclick={() => (arranging = false)}>Cancel</button>
-      <button class="btn">Save</button>
+      <button type="button" class="btn-ghost" onclick={() => (arranging = false)}>{t('Cancel')}</button>
+      <button class="btn">{t('Save')}</button>
     </div>
   </form>
 {/if}
 
-<section class="grid" aria-label="Dashboard">
-  {#each data.tiles as t, i (t.key)}
+<section class="grid" aria-label={t('Dashboard')}>
+  {#each data.tiles as tile, i (tile.key)}
     <Tile
-      title={t.title}
-      source={t.extensionName}
-      shared={t.scope === 'shared'}
-      size={t.size}
-      href={t.href}
-      data={t.data}
+      title={tile.title}
+      source={tile.extensionName}
+      shared={tile.scope === 'shared'}
+      size={tile.size}
+      href={tile.href}
+      data={tile.data}
       index={i}
     />
   {:else}
@@ -99,8 +101,8 @@
       <Mascot mood="idle" size={72} decorative />
       <p class="muted">
         {data.layout.length
-          ? 'All tiles are hidden: use Arrange to show some.'
-          : 'No apps for this profile yet. Ask Claude to build one, or turn one on in Settings.'}
+          ? t('All tiles are hidden: use Arrange to show some.')
+          : t('No apps for this profile yet. Ask Claude to build one, or turn one on in Settings.')}
       </p>
     </div>
   {/each}

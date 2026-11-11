@@ -9,8 +9,10 @@ The assistant works like a phone: a bare core, apps (extensions) that live side 
 to each of them, and all their settings are in one place (System settings, one panel per extension).
 
 **Ready-made first.** `node scripts/ext.mjs available` lists the extensions repo. If what the owner
-wants is there (health, gym, ...), `node scripts/ext.mjs install <id>` is the whole job: then go to
-step 6 (and if it has a `compose.yml`, tell the owner to run `./install.sh` on the host once).
+wants is there (health, gym, ...), `node scripts/ext.mjs install <id>` does the install. If it prints
+`i18n:` warnings, the extension lacks one of the app's languages: translate it (step 5, "Speak every
+language") before anything else. Then go to step 6 (and if it has a `compose.yml`, tell the owner to run
+`./install.sh` on the host once).
 
 **Any other source is inspiration, never an install.** Whatever the owner points at (their repo, someone else's repo,
 an app from onefile-apps, a web page, a screenshot, a sentence), you read it, then build the extension
@@ -69,6 +71,19 @@ Every extension wears the assistant's layout and has Beni, the mascot, woven in.
 
 ## 5. Make it a good citizen
 
+- **Speak every language of the app** (spec 007, required). The languages are in System settings ->
+  Language; `node scripts/ext.mjs languages` prints them and every gap.
+  - Code: every text the app shows through `t()`: `const t = useT()` from `$shell/ui` in components,
+    `ctx.t` in loads, actions, tiles and sources (`t('Last night')`, `t('{n} km', { n })`,
+    `t.n(count, '{n} run', '{n} runs')`), dates and numbers with `t.locale`. Tools for Claude stay English.
+  - Translations: `i18n/<lang>.json` for each language but English: `"English text": "translation"`,
+    plural keys (the second form of `t.n`) as `{"one", "few", "many", "other"}` for Polish. Translate the
+    manifest's name, description and settings labels and help too. Write natural, short UI language in
+    the app's tone, not word-for-word; keep `{placeholders}` exactly.
+  - Onefile: translate inside the HTML (its own dictionary), list the languages in `extension.json`
+    `"languages"`, and prefer `window.assistantLang` over the browser's language.
+  - `node scripts/ext.mjs check <id>` prints `i18n:` warnings until nothing is missing.
+
 - **Settings panel**: declare its fields in `extension.json` `"settings"`: `text`, `number`, `boolean`,
   `select` (with `options`), `secret`; each with `label`, optional `help` and `default`. The shell draws
   the panel at System settings -> <name>; code reads `ctx.settings.get(name)` and `ctx.secrets.get(name)`;
@@ -81,7 +96,7 @@ Every extension wears the assistant's layout and has Beni, the mascot, woven in.
 
 ## 6. Check and hand over
 
-1. `node scripts/ext.mjs check <id>` (no `look:` warnings) and `cd apps/web && npm test && npm run check`.
+1. `node scripts/ext.mjs check <id>` (no `look:` or `i18n:` warnings) and `cd apps/web && npm test && npm run check`.
    Open `/<id>` in light and dark: it must look like the rest of the app, with Beni.
 2. Migrations apply by themselves within ~15 s (`/logs/ext-migrate.log`); the web app rebuilds
    (`build ok` in `/logs/web.log`).

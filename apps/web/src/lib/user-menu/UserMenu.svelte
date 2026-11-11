@@ -1,13 +1,27 @@
 <script lang="ts">
   /**
    * The user menu at the right end of the header: a round badge with the profile's initial. It shows
-   * the profile's full name, switches profiles (POST /profile), picks the theme, and leads to
+   * the profile's full name, switches profiles (POST /profile), picks the theme and the language, and leads to
    * System settings and Log out.
    */
   import { page } from '$app/state';
   import { THEME_COOKIE, type Theme } from '#lib/theme.ts';
+  import { LANG_COOKIE, useT } from '#lib/i18n/index.ts';
 
-  let { profiles, profileId, theme }: { profiles: { id: string; name: string }[]; profileId: string; theme: Theme } = $props();
+  let {
+    profiles,
+    profileId,
+    theme,
+    lang,
+    languages
+  }: {
+    profiles: { id: string; name: string }[];
+    profileId: string;
+    theme: Theme;
+    lang: string;
+    languages: { code: string; name: string }[];
+  } = $props();
+  const t = useT();
 
   let open = $state(false);
   let root = $state<HTMLElement>();
@@ -20,11 +34,18 @@
   const initial = $derived((name.trim()[0] ?? '?').toUpperCase());
   const others = $derived(profiles.filter((p) => p.id !== profileId));
 
-  const THEMES: { id: Theme; label: string }[] = [
-    { id: 'light', label: 'Light' },
-    { id: 'dark', label: 'Dark' },
-    { id: 'system', label: 'System' }
-  ];
+  const THEMES: { id: Theme; label: string }[] = $derived([
+    { id: 'light', label: t('Light') },
+    { id: 'dark', label: t('Dark') },
+    { id: 'system', label: t('System') }
+  ]);
+
+  /** Remembered in this browser (spec 007); the page reloads so every text, app and date follows. */
+  function setLang(code: string) {
+    if (code === lang) return;
+    document.cookie = `${LANG_COOKIE}=${code};path=/;max-age=${365 * 24 * 3600};samesite=lax${location.protocol === 'https:' ? ';secure' : ''}`;
+    location.reload();
+  }
 
   function setTheme(t: Theme) {
     picked = t;
@@ -44,20 +65,20 @@
 <div class="user" bind:this={root}>
   <button class="avatar" type="button" aria-expanded={open} aria-controls="user-menu" title={name} onclick={() => (open = !open)}>
     <span aria-hidden="true">{initial}</span>
-    <span class="sr">Profile: {name}</span>
+    <span class="sr">{t('Profile: {name}', { name })}</span>
   </button>
   {#if open}
-    <div class="menu card" id="user-menu" role="region" aria-label="Profile menu">
+    <div class="menu card" id="user-menu" role="region" aria-label={t('Profile menu')}>
       <div class="who">
         <span class="avatar big" aria-hidden="true">{initial}</span>
         <span>
           <strong>{name}</strong>
-          <span class="meta">Profile</span>
+          <span class="meta">{t('Profile')}</span>
         </span>
       </div>
 
       {#if others.length}
-        <p class="label">Switch profile</p>
+        <p class="label">{t('Switch profile')}</p>
         <ul>
           {#each others as p (p.id)}
             <li>
@@ -72,19 +93,28 @@
           {/each}
         </ul>
       {/if}
-      <a class="item" href="/settings/profiles" onclick={() => (open = false)}>Add or edit profiles…</a>
+      <a class="item" href="/settings/profiles" onclick={() => (open = false)}>{t('Add or edit profiles…')}</a>
 
       <hr />
-      <p class="label" id="theme-label">Theme</p>
+      <p class="label" id="theme-label">{t('Theme')}</p>
       <div class="seg" role="radiogroup" aria-labelledby="theme-label">
-        {#each THEMES as t (t.id)}
-          <button type="button" role="radio" aria-checked={current === t.id} class:on={current === t.id} onclick={() => setTheme(t.id)}>{t.label}</button>
+        {#each THEMES as th (th.id)}
+          <button type="button" role="radio" aria-checked={current === th.id} class:on={current === th.id} onclick={() => setTheme(th.id)}>{th.label}</button>
         {/each}
       </div>
 
+      {#if languages.length > 1}
+        <p class="label" id="lang-label">{t('Language')}</p>
+        <div class="seg" role="radiogroup" aria-labelledby="lang-label">
+          {#each languages as l (l.code)}
+            <button type="button" role="radio" lang={l.code} aria-checked={lang === l.code} class:on={lang === l.code} onclick={() => setLang(l.code)}>{l.name}</button>
+          {/each}
+        </div>
+      {/if}
+
       <hr />
-      <a class="item" href="/settings" aria-current={page.url.pathname.startsWith('/settings') ? 'page' : undefined} onclick={() => (open = false)}>System settings</a>
-      <form method="POST" action="/logout"><button class="item">Log out</button></form>
+      <a class="item" href="/settings" aria-current={page.url.pathname.startsWith('/settings') ? 'page' : undefined} onclick={() => (open = false)}>{t('System settings')}</a>
+      <form method="POST" action="/logout"><button class="item">{t('Log out')}</button></form>
     </div>
   {/if}
 </div>
@@ -203,9 +233,10 @@
     padding: 2px;
     border-radius: var(--radius-sm);
     background: var(--surface-2);
+    flex-wrap: wrap;
   }
   .seg button {
-    flex: 1;
+    flex: 1 1 30%;
     padding: 5px 0;
     border: 0;
     border-radius: 4px;

@@ -48,6 +48,9 @@ Native:
 - Look (required): the shell's layout and tokens (`specs/001-design.md`) and Beni from `$shell/ui` in the
   header and every empty or error state, and its `"accessory"` in `extension.json` (what Beni wears, list in
   `specs/001-design.md`). No UI libraries, no raw hex. See the `add-extension` skill, step 4.
+- Languages (required, spec 007): every shown text through `t()` (`useT()` from `$shell/ui`, `ctx.t` on
+  the server) and `i18n/<lang>.json` for each language of the app (System settings -> Language). See the
+  `add-extension` skill, step 5.
 - Settings and secrets: declare fields in `extension.json` `"settings"` (text, number, boolean, select,
   secret). The shell draws its panel in System settings; read with `ctx.settings.get` / `ctx.secrets.get`.
   Secret values never go in code, KV, chat or the repo: the owner types them in the panel.
@@ -56,12 +59,14 @@ Onefile:
 - Follow onefile-apps' ARTIFACTS-DEVELOPMENT.md (one file, CSP meta, EN + PL, phone-first, light + dark).
 - Look (required): the shell injects its tokens and `<assistant-beni>`; style with `var(--page, <fallback>)`
   and put Beni in the header and empty states, not the app's own palette or fonts.
+- Languages (required, spec 007): its own dictionary for every language of the app, `"languages"` in
+  `extension.json`, `window.assistantLang` over `navigator.language`; name and description in `i18n/<lang>.json`.
 - Keep all state in `localStorage` under a few versioned keys; the shell persists it per scope.
 
 ## 4. Check
 
 ```sh
-node scripts/ext.mjs check <id>   # must print no look: warnings
+node scripts/ext.mjs check <id>   # must print no look: or i18n: warnings
 cd apps/web && npm test && npm run check
 ```
 

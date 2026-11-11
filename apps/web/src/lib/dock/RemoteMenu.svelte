@@ -6,17 +6,25 @@
    * the dock (`GET /dock`), which refreshes it every 30 s.
    */
   import { dock, refreshDock, runInDock, type Remote } from './dock.svelte.ts';
+  import { useT } from '#lib/i18n/index.ts';
+  const t = useT();
 
   let menuOpen = $state(false);
   let menu = $state<HTMLElement>();
   let starting = $state<'' | 'claude' | 'codex'>('');
   let startError = $state('');
 
-  const REMOTES = [
-    { id: 'claude', name: 'Claude Code', where: 'claude.ai/code or the Claude app', login: 'claude' },
-    { id: 'codex', name: 'Codex', where: 'the ChatGPT or Codex app', login: 'codex login --device-auth' }
-  ] as const;
-  const LABEL: Record<Remote, string> = { starting: 'Starting', running: 'Running', restarting: 'Restarting', 'signed-out': 'Not signed in', off: 'Not running' };
+  const REMOTES = $derived([
+    { id: 'claude', name: 'Claude Code', where: t('claude.ai/code or the Claude app'), login: 'claude' },
+    { id: 'codex', name: 'Codex', where: t('the ChatGPT or Codex app'), login: 'codex login --device-auth' }
+  ] as const);
+  const LABEL: Record<Remote, string> = $derived({
+    starting: t('Starting'),
+    running: t('Running'),
+    restarting: t('Restarting'),
+    'signed-out': t('Not signed in'),
+    off: t('Not running')
+  });
 
   const status = $derived(dock.status);
   // Up = the llm container's session runs, or one started here in the background.
@@ -31,7 +39,9 @@
   );
   const upCount = $derived(agents.filter((a) => a.up).length);
   const tone = $derived(upCount === agents.length ? 'good' : upCount ? 'serious' : '');
-  const summary = $derived(upCount === agents.length ? 'all running' : upCount ? `${upCount} of ${agents.length} running` : 'none running');
+  const summary = $derived(
+    upCount === agents.length ? t('all running') : upCount ? t('{n} of {total} running', { n: upCount, total: agents.length }) : t('none running')
+  );
 
   /** Start an agent's Remote Control in the background of the terminal container. */
   async function startRemote(agent: 'claude' | 'codex') {
@@ -43,7 +53,7 @@
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ start: agent })
       });
-      if (!res.ok) startError = ((await res.json().catch(() => null)) as { message?: string } | null)?.message ?? 'Could not start it.';
+      if (!res.ok) startError = ((await res.json().catch(() => null)) as { message?: string } | null)?.message ?? t('Could not start it.');
       await refreshDock();
     } finally {
       starting = '';
@@ -59,7 +69,7 @@
     try {
       const res = await fetch('/dock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pair: 'codex' }) });
       const body = (await res.json().catch(() => null)) as { ok?: boolean; text?: string; message?: string } | null;
-      pairText = res.ok ? body?.text || 'No code came back.' : (body?.message ?? 'Could not get a code.');
+      pairText = res.ok ? body?.text || t('No code came back.') : (body?.message ?? t('Could not get a code.'));
     } finally {
       pairing = false;
     }
@@ -85,13 +95,13 @@
     type="button"
     aria-expanded={menuOpen}
     aria-controls="remote-menu"
-    title="Remote Control: {summary}"
+    title={`Remote Control: ${summary}`}
     onclick={() => {
       menuOpen = !menuOpen;
       if (menuOpen) refreshDock();
     }}
   >
-    <span class="status small {tone}">Remote</span>
+    <span class="status small {tone}">{t('Remote')}</span>
     <span class="sr">: {summary}</span>
     <svg class="chev" class:up={menuOpen} viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
   </button>
@@ -104,32 +114,32 @@
             <span class="status small" class:good={a.up} class:warning={!a.up && (a.state === 'starting' || a.state === 'restarting')}></span>
             <span class="what">
               <strong>{a.name}</strong>
-              <span class="meta" title={a.up ? `Open it from ${a.where}` : undefined}>
-                {#if a.state === 'running'}Running
-                {:else if a.background}Running in the background
-                {:else if !a.signedIn}Not signed in
-                {:else if a.reason === 'mfa'}Needs 2FA on the ChatGPT account
-                {:else if a.reason === 'signed-out'}Sign-in expired
+              <span class="meta" title={a.up ? t('Open it from {where}', { where: a.where }) : undefined}>
+                {#if a.state === 'running'}{t('Running')}
+                {:else if a.background}{t('Running in the background')}
+                {:else if !a.signedIn}{t('Not signed in')}
+                {:else if a.reason === 'mfa'}{t('Needs 2FA on the ChatGPT account')}
+                {:else if a.reason === 'signed-out'}{t('Sign-in expired')}
                 {:else}{LABEL[a.state]}{/if}
               </span>
             </span>
             {#if a.up && a.id === 'codex'}
               {#if status?.unlocked}
-                <button type="button" class="btn small-btn" disabled={pairing} onclick={pairCodex} title="A short-lived code to connect another device">
-                  {pairing ? 'Asking…' : 'Pair a device'}
+                <button type="button" class="btn small-btn" disabled={pairing} onclick={pairCodex} title={t('A short-lived code to connect another device')}>
+                  {pairing ? t('Asking…') : t('Pair a device')}
                 </button>
               {:else}
-                <button type="button" class="btn small-btn" onclick={openTerminal} title="Pairing needs the app password">Unlock to pair</button>
+                <button type="button" class="btn small-btn" onclick={openTerminal} title={t('Pairing needs the app password')}>{t('Unlock to pair')}</button>
               {/if}
             {/if}
             {#if !a.up}
               {#if !a.signedIn || a.reason}
-                <button type="button" class="btn small-btn" onclick={() => (runInDock(a.reason && a.id === 'codex' ? `codex logout; ${a.login}` : a.login), (menuOpen = false))}>{a.reason ? 'Sign in again' : 'Sign in'}</button>
+                <button type="button" class="btn small-btn" onclick={() => (runInDock(a.reason && a.id === 'codex' ? `codex logout; ${a.login}` : a.login), (menuOpen = false))}>{a.reason ? t('Sign in again') : t('Sign in')}</button>
               {:else if !status?.unlocked}
-                <button type="button" class="btn small-btn" onclick={openTerminal} title="Starting it needs the app password">Unlock to start</button>
+                <button type="button" class="btn small-btn" onclick={openTerminal} title={t('Starting it needs the app password')}>{t('Unlock to start')}</button>
               {:else if a.id === 'claude'}
                 <button type="button" class="btn btn-primary small-btn" disabled={starting !== ''} onclick={() => startRemote(a.id)}>
-                  {starting === a.id ? 'Starting…' : 'Start'}
+                  {starting === a.id ? t('Starting…') : t('Start')}
                 </button>
               {/if}
             {/if}
@@ -137,14 +147,14 @@
         {/each}
       </ul>
       {#if status?.outdated}
-        <p class="bad">An update is still building.</p>
+        <p class="bad">{t('An update is still building.')}</p>
       {:else if status && !status.reachable}
-        <p class="bad">The terminal container is not answering.</p>
+        <p class="bad">{t('The terminal container is not answering.')}</p>
       {/if}
       {#if startError}<p class="bad" role="alert">{startError}</p>{/if}
       {#if pairText}
         <div class="pair">
-          <p class="meta">Enter it in the ChatGPT or Codex app:</p>
+          <p class="meta">{t('Enter it in the ChatGPT or Codex app:')}</p>
           <pre>{pairText}</pre>
         </div>
       {/if}

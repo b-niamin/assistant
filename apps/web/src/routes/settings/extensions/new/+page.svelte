@@ -4,8 +4,10 @@
   import { askAgent, runInDock } from '#lib/dock/dock.svelte.ts';
   import { hueFor, inspirationPrompt, installCommand } from '#lib/settings/guide.ts';
   import { guessAccessory } from '#lib/mascot.ts';
+  import { useT } from '#lib/i18n/index.ts';
 
   let { data } = $props();
+  const t = useT();
 
   let polled = $state<{ id: string; name: string; href: string }[] | null>(null);
   const installed = $derived(polled ?? data.installed);
@@ -43,22 +45,22 @@
   }
 </script>
 
-<svelte:head><title>Extend the system · System settings</title></svelte:head>
+<svelte:head><title>{t('Extend the system')} · {t('System settings')}</title></svelte:head>
 
 <div class="hero">
   <div class="head">
-    <p class="eyebrow"><a href="/settings">System settings</a></p>
-    <h1>Extend the system</h1>
+    <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
+    <h1>{t('Extend the system')}</h1>
   </div>
   <div class="pip">
-    <p class="bubble">Install an app, or build your own!</p>
+    <p class="bubble">{t('Install an app, or build your own!')}</p>
     <Mascot mood="charged" size={96} decorative />
   </div>
 </div>
 
 {#if installed.length}
-  <nav class="installed" aria-label="Installed apps">
-    <span class="meta">Installed</span>
+  <nav class="installed" aria-label={t('Installed apps')}>
+    <span class="meta">{t('Installed')}</span>
     {#each installed as e (e.id)}
       <a class="chip" href="/settings/extensions/{e.id}">
         <span class="dot" style="--hue: {hueFor(e.id)}" aria-hidden="true"></span>{e.name}
@@ -68,16 +70,16 @@
 {/if}
 
 {#if data.catalog.error}
-  <div class="card none"><Mascot mood="tired" size={44} decorative /><p class="meta">{data.catalog.error}</p></div>
+  <div class="card none"><Mascot mood="tired" size={44} decorative /><p class="meta">{t('Could not read the extensions repo.')} <span class="small">({data.catalog.error})</span></p></div>
 {/if}
 
 {#if ready.length}
   <section class="block" aria-labelledby="ready-h">
     <div class="sh">
-      <h2 id="ready-h">Ready to install</h2>
+      <h2 id="ready-h">{t('Ready to install')}</h2>
       <div class="arrows">
-        <button type="button" class="btn-ghost arrow" aria-label="Previous" onclick={() => scrollRow('row-ready', -1)}>‹</button>
-        <button type="button" class="btn-ghost arrow" aria-label="Next" onclick={() => scrollRow('row-ready', 1)}>›</button>
+        <button type="button" class="btn-ghost arrow" aria-label={t('Previous')} onclick={() => scrollRow('row-ready', -1)}>‹</button>
+        <button type="button" class="btn-ghost arrow" aria-label={t('Next')} onclick={() => scrollRow('row-ready', 1)}>›</button>
       </div>
     </div>
     <ul class="row" id="row-ready">
@@ -87,10 +89,14 @@
           <h3>{e.name}</h3>
           <p class="meta grow">{e.description}</p>
           <button type="button" class="btn btn-primary"
-            onclick={() => askAgent(`Install the ready-made extension ${e.id}: run ${installCommand(e.id)}, then tell me what to set up.`)}>
-            Install
+            onclick={() =>
+              askAgent(
+                `Install the ready-made extension ${e.id}: run ${installCommand(e.id)}; if it lacks one of the app's languages, ` +
+                  `translate it (add-extension skill); then tell me what to set up.`
+              )}>
+            {t('Install')}
           </button>
-          {#if e.service}<p class="meta small">Then <code>sudo ./install.sh</code> on the host, once.</p>{/if}
+          {#if e.service}<p class="meta small">{t('Then')} <code>sudo ./install.sh</code> {t('on the host, once.')}</p>{/if}
         </li>
       {/each}
     </ul>
@@ -100,10 +106,10 @@
 {#if data.catalog.inspirations.length}
   <section class="block" aria-labelledby="insp-h">
     <div class="sh">
-      <h2 id="insp-h">Build with AI</h2>
+      <h2 id="insp-h">{t('Build with AI')}</h2>
       <div class="arrows">
-        <button type="button" class="btn-ghost arrow" aria-label="Previous" onclick={() => scrollRow('row-insp', -1)}>‹</button>
-        <button type="button" class="btn-ghost arrow" aria-label="Next" onclick={() => scrollRow('row-insp', 1)}>›</button>
+        <button type="button" class="btn-ghost arrow" aria-label={t('Previous')} onclick={() => scrollRow('row-insp', -1)}>‹</button>
+        <button type="button" class="btn-ghost arrow" aria-label={t('Next')} onclick={() => scrollRow('row-insp', 1)}>›</button>
       </div>
     </div>
     <ul class="row" id="row-insp">
@@ -113,7 +119,7 @@
           <span class="mark" aria-hidden="true"><Mascot mood="steady" size={34} accessory={i.accessory ?? guessAccessory(i.id, i.name)} decorative /></span>
           <h3>{i.name}</h3>
           <p class="meta grow">{i.description}</p>
-          <button type="button" class="btn btn-primary" onclick={() => askAgent(p)}>Build it</button>
+          <button type="button" class="btn btn-primary" onclick={() => askAgent(p)}>{t('Build it')}</button>
         </li>
       {/each}
     </ul>
@@ -123,21 +129,21 @@
 {#each fresh as f (f.id)}
   <div class="card done" role="status">
     <Mascot mood="charged" size={44} decorative />
-    <strong class="grow">{f.name} is ready</strong>
-    <a class="btn btn-primary" href={f.href}>Open</a>
-    <a class="btn" href="/settings/extensions/{f.id}">Settings</a>
+    <strong class="grow">{t('{name} is ready', { name: f.name })}</strong>
+    <a class="btn btn-primary" href={f.href}>{t('Open')}</a>
+    <a class="btn" href="/settings/extensions/{f.id}">{t('Settings')}</a>
   </div>
 {/each}
 
 <section class="block own card" aria-labelledby="own-h">
   <Mascot mood="steady" size={40} decorative />
   <div class="grow">
-    <h2 id="own-h">Build your own</h2>
+    <h2 id="own-h">{t('Build your own')}</h2>
     <p class="meta">
-      Ask
-      {#each agents as a, n (a.id)}{#if n > 0} or {/if}<button type="button" class="agent" title="Open {a.name} in the terminal" onclick={() => runInDock(a.id)}>{a.name}</button>{/each}
-      in the terminal to build your own extension.
-      {#if !signedIn.length}Sign in there first.{/if}
+      {t('Ask')}
+      {#each agents as a, n (a.id)}{#if n > 0} {t('or')} {/if}<button type="button" class="agent" title={t('Open {name} in the terminal', { name: a.name })} onclick={() => runInDock(a.id)}>{a.name}</button>{/each}
+      {t('in the terminal to build your own extension.')}
+      {#if !signedIn.length}{t('Sign in there first.')}{/if}
     </p>
   </div>
 </section>

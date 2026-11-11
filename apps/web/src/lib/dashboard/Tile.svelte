@@ -5,6 +5,8 @@
   import Mascot from '#lib/Mascot.svelte';
   import { page } from '$app/state';
   import { accessoryFor } from '#lib/mascot.ts';
+  import { useT } from '#lib/i18n/index.ts';
+  const t = useT();
 
   type Result = { ok: true; data: TileData } | { ok: false; reason: 'timeout' | 'error' };
   let {
@@ -39,8 +41,8 @@
 <article class="card tile {size}" style:--i={index}>
   <header>
     <h2><a href={linkOf(resolved)}>{title}</a></h2>
-    <span class="src" title={shared ? 'Shared by all profiles' : 'Your profile'}>
-      {#if source !== title}{source}{/if}{#if shared}<span class="shared" aria-label="shared">⇄</span>{/if}
+    <span class="src" title={shared ? t('Shared by all profiles') : t('Your profile')}>
+      {#if source !== title}{source}{/if}{#if shared}<span class="shared" aria-label={t('shared')}>⇄</span>{/if}
     </span>
   </header>
 
@@ -49,12 +51,12 @@
       <span class="b1"></span>
       {#if size !== 'sm'}<span class="b2"></span>{/if}
     </div>
-    <span class="sr">Loading</span>
+    <span class="sr">{t('Loading')}</span>
   {:then r}
     {#if !r.ok}
       <div class="pipnote">
         <Mascot mood="tired" size={36} accessory={worn} decorative />
-        <p class="soft">{r.reason === 'timeout' ? 'Still loading. Open to see more.' : 'Unavailable right now.'}</p>
+        <p class="soft">{r.reason === 'timeout' ? t('Still loading. Open to see more.') : t('Unavailable right now.')}</p>
       </div>
     {:else}
       {@const d = r.data}
@@ -66,16 +68,16 @@
               <span class="label">{k.label}</span>
               <span class="value">
                 {#if n === 0 && k.value !== null && Number.isInteger(k.value) && k.format !== 'duration' && Math.abs(k.value) < 100000}
-                  <span class="fig" use:countUp={k.value}>{formatKpi(k)}</span>
+                  <span class="fig" use:countUp={k.value}>{formatKpi(k, t.locale)}</span>
                 {:else}
-                  <span class="fig">{formatKpi(k)}</span>
+                  <span class="fig">{formatKpi(k, t.locale)}</span>
                 {/if}
                 {#if k.unit && k.value !== null}<span class="unit">{k.unit}</span>{/if}
               </span>
               {#if delta || k.status}
                 <span class="aux">
                   {#if delta}
-                    <span class="delta {delta.tone}" title="Change against the extension's baseline"
+                    <span class="delta {delta.tone}" title={t("Change against the extension's baseline")}
                       ><span aria-hidden="true">{delta.arrow}</span> {delta.text}</span
                     >
                   {/if}
@@ -99,7 +101,7 @@
         {:else if !d.kpis}
           <div class="pipnote">
             <Mascot mood="steady" size={36} accessory={worn} decorative />
-            <p class="soft">Nothing coming up.</p>
+            <p class="soft">{t('Nothing coming up.')}</p>
           </div>
         {/if}
       {/if}
@@ -107,7 +109,7 @@
         <div class="empty">
           <div class="pipnote">
             <Mascot mood="idle" size={36} accessory={worn} decorative />
-            <p>{d.empty.message}</p>
+            <p>{t(d.empty.message)}</p>
           </div>
           {#if d.empty.action}<a class="btn action" href={d.empty.action.href}>{d.empty.action.label}</a>{/if}
         </div>

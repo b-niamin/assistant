@@ -17,7 +17,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
   if (!ext.entry) throw error(404, 'Not found');
   const html = await readFile(path.join(EXTENSIONS_DIR, ext.id, ext.entry), 'utf8');
   const [data, settings] = await Promise.all([kvAll(ext, locals.profileId), readSettings(ext)]);
-  const body = injectShim(html, data, url.origin, settings, themeTags(undefined, undefined, accessoryOf(ext)));
+  const body = injectShim(html, data, url.origin, settings, themeTags(undefined, undefined, accessoryOf(ext)), locals.lang);
   return new Response(body, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',

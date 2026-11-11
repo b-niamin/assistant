@@ -9,7 +9,8 @@ export function parseTheme(value: string | undefined): Theme {
   return value === 'light' || value === 'dark' ? value : 'system';
 }
 
-/** The <html> tag for a theme; `system` leaves it to `prefers-color-scheme`. */
-export function htmlTag(theme: Theme): string {
-  return theme === 'system' ? '<html lang="en">' : `<html lang="en" data-theme="${theme}">`;
+/** The <html> tag for a theme and language; `system` leaves it to `prefers-color-scheme`. */
+export function htmlTag(theme: Theme, lang = 'en'): string {
+  const code = /^[a-z]{2}$/.test(lang) ? lang : 'en';
+  return theme === 'system' ? `<html lang="${code}">` : `<html lang="${code}" data-theme="${theme}">`;
 }

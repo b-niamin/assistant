@@ -6,6 +6,8 @@ import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { isConfigured, passwordProblem, setPassword, setupTokenMatches, setupTokenSet } from '#lib/server/app-config.ts';
 import { db } from '#lib/server/db.ts';
+import { isLanguage, LANGUAGES } from '#lib/i18n/languages.ts';
+import { saveLanguageSettings } from '#lib/server/languages.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { createSession, elevateSession, PROFILE_COOKIE, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
 
@@ -13,7 +15,7 @@ const limiter = createLimiter(10, 15 * 60 * 1000);
 
 export const load: PageServerLoad = async () => {
   if (await isConfigured()) throw redirect(303, '/');
-  return { tokenSet: setupTokenSet() };
+  return { tokenSet: setupTokenSet(), languages: LANGUAGES.map((l) => ({ code: l.code, name: l.name })) };
 };
 
 export const actions: Actions = {
@@ -30,6 +32,9 @@ export const actions: Actions = {
     const profileId = String(f.get('profile') ?? '').trim().toLowerCase();
     if (!/^[a-z][a-z0-9-]{0,31}$/.test(profileId)) return fail(400, { error: 'Profile id: lowercase letters, digits and dashes.' });
 
+    // The app's language (spec 007): offered next to English, and the default.
+    const language = String(f.get('language') ?? '');
+    if (isLanguage(language)) await saveLanguageSettings({ enabled: ['en', language], default: language });
     await setPassword(password);
     await db()`INSERT INTO core.profiles (id, name) VALUES (${profileId}, ${name})
                ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`;

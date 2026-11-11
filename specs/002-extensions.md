@@ -87,6 +87,7 @@ instances is copied into the extensions repo by hand.
   "shell": 1,                     // SDK contract version this extension was written for
   "entry": "app.html",            // onefile only
   "accessory": "stethoscope",     // optional: what Beni wears on its pages (specs/001-design.md); else guessed
+  "languages": ["en", "pl"],      // onefile only: the languages its own UI speaks (spec 007)
   "settings": [                   // optional: its panel in System settings (see "Settings")
     { "name": "units", "label": "Units", "type": "select", "options": ["km", "mi"], "default": "km" }
   ],
@@ -96,6 +97,9 @@ instances is copied into the extensions repo by hand.
 ```
 
 Ids are `[a-z][a-z0-9-]*` and may not take a path the shell owns (`login`, `api`, `profile`, ...).
+
+Next to the manifest, `i18n/<lang>.json` holds its texts in another language (English text ->
+translation); every extension ships one for each language of the app. See spec 007.
 
 ### `extensions/installed.json`
 
@@ -223,13 +227,15 @@ inspiration, build, settings panel, tools, check, commit) and `new-extension` (h
    `--from onefile:<appType>/<variant>` (an app in onefile-apps) or `--from inspiration:<name>`
    (`inspirations/<name>` in the extensions repo), with `--inspired-by <link>`. A ready-made extension is
    just `ext install <id>`. The `add-extension` skill is the full procedure.
-3. Build, check (`ext check <id>`, `npm test && npm run check`, `build ok` in `/logs/web.log`), and tell
+3. Translate it into every language of the app (spec 007): `ext check <id>` lists the gaps as `i18n:`
+   warnings, also right after `ext install`.
+4. Build, check (`ext check <id>`, `npm test && npm run check`, `build ok` in `/logs/web.log`), and tell
    the owner what to fill in its panel. Migrations apply by themselves (`ext-migrate`); only a new
    background service needs `./install.sh` on the host.
 
 ### CLI
 
-`node scripts/ext.mjs available | install | update | list | check [id] | new | profiles | remove` (see the header of `scripts/ext.mjs`). `remove` moves the folder to `extensions/.trash/` and never drops data.
+`node scripts/ext.mjs available | install | update | list | check [id] | languages | new | profiles | remove` (see the header of `scripts/ext.mjs`). `remove` moves the folder to `extensions/.trash/` and never drops data.
 
 ### System settings (`/settings`): one place for all settings
 

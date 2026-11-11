@@ -19,7 +19,10 @@ export interface CatalogExtension {
   needs?: string;
   /** What Beni wears for it (its manifest "accessory"). */
   accessory?: Accessory;
+  /** Name and description in other languages (spec 007): {"pl": {"name": ..., "description": ...}}. */
+  i18n?: CatalogTexts;
 }
+export type CatalogTexts = Record<string, { name?: string; description?: string }>;
 export interface CatalogInspiration {
   id: string;
   name: string;
@@ -27,6 +30,7 @@ export interface CatalogInspiration {
   scope: 'profile' | 'shared';
   idea: string;
   accessory?: Accessory;
+  i18n?: CatalogTexts;
 }
 export interface Catalog {
   extensions: CatalogExtension[];
@@ -41,6 +45,23 @@ let cached: { at: number; catalog: Catalog } | null = null;
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.slice(0, max) : '');
 const scopeOf = (v: unknown): 'profile' | 'shared' => (v === 'shared' ? 'shared' : 'profile');
+/** {"pl": {"name", "description"}} with two-letter codes and short strings only. */
+function textsOf(v: unknown): { i18n?: CatalogTexts } {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  const out: CatalogTexts = {};
+  for (const [lang, t] of Object.entries(v as Record<string, unknown>).slice(0, 20)) {
+    if (!/^[a-z]{2}$/.test(lang) || !t || typeof t !== 'object') continue;
+    const o = t as Record<string, unknown>;
+    out[lang] = { ...(str(o.name, 40) ? { name: str(o.name, 40) } : {}), ...(str(o.description, 200) ? { description: str(o.description, 200) } : {}) };
+  }
+  return Object.keys(out).length ? { i18n: out } : {};
+}
+
+/** A catalog entry's name and description in a language, when the catalog has them. */
+export function localizeEntry<T extends { name: string; description: string; i18n?: CatalogTexts }>(e: T, lang: string): T {
+  const t = e.i18n?.[lang];
+  return t ? { ...e, name: t.name || e.name, description: t.description || e.description } : e;
+}
 
 /** Keep only well-formed entries: the file comes from another repo. */
 export function parseCatalog(raw: unknown): Catalog {
@@ -55,7 +76,8 @@ export function parseCatalog(raw: unknown): Catalog {
       scope: scopeOf(e.scope),
       service: e.service === true,
       ...(str(e.needs, 80) ? { needs: str(e.needs, 80) } : {}),
-      ...(isAccessory(e.accessory) ? { accessory: e.accessory } : {})
+      ...(isAccessory(e.accessory) ? { accessory: e.accessory } : {}),
+      ...textsOf(e.i18n)
     })),
     inspirations: list(o.inspirations).slice(0, 50).map((e) => ({
       id: e.id,
@@ -63,7 +85,8 @@ export function parseCatalog(raw: unknown): Catalog {
       description: str(e.description, 200),
       scope: scopeOf(e.scope),
       idea: str(e.idea, 300) || str(e.description, 300),
-      ...(isAccessory(e.accessory) ? { accessory: e.accessory } : {})
+      ...(isAccessory(e.accessory) ? { accessory: e.accessory } : {}),
+      ...textsOf(e.i18n)
     }))
   };
 }

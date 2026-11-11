@@ -1,6 +1,8 @@
 /** Shell UI an extension may reuse: Beni the mascot and small motion helpers. Styles: the tokens in app.css. */
 export { default as Mascot } from '#lib/Mascot.svelte';
 export { countUp } from '#lib/count-up.ts';
+/** const t = useT(): this extension's texts in the page's language (spec 007), e.g. {t('Last night')}. */
+export { useT } from '#lib/i18n/index.ts';
 export {
   accessoryFor,
   guessAccessory,

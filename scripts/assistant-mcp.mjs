@@ -44,7 +44,8 @@ async function listTools() {
     {
       name: 'extensions',
       description:
-        'The apps installed in the assistant (extensions), their data scope and tools, and the profiles. ' +
+        'The apps installed in the assistant (extensions), their data scope, tools and languages, the profiles, ' +
+        "and the app's languages (every extension must be translated into each; spec 007). " +
         'Start here to find where data lives.',
       inputSchema: { type: 'object', properties: { profile: { type: 'string' } } }
     }

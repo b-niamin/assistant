@@ -99,11 +99,17 @@ export function injectShim(
   data: Record<string, string>,
   parentOrigin: string,
   settings: Record<string, unknown> = {},
-  theme = ''
+  theme = '',
+  lang = 'en'
 ): string {
   // theme: the shell's tokens and <assistant-beni> (theme.ts), so every app wears the shell's look.
   // window.assistantSettings: the values of the app's settings panel in System settings (read-only).
-  const tag = `<script>window.assistantSettings = Object.freeze(${inlineJson(settings)});${shimScript(data, parentOrigin)}</script>${theme}`;
+  // window.assistantLang: the shell's language (spec 007); an app that speaks it uses it over its own guess.
+  const code = /^[a-z]{2}$/.test(lang) ? lang : 'en';
+  const tag =
+    `<script>window.assistantSettings = Object.freeze(${inlineJson(settings)});` +
+    `window.assistantLang = ${inlineJson(code)};document.documentElement.lang = window.assistantLang;` +
+    `${shimScript(data, parentOrigin)}</script>${theme}`;
   const head = /<head(\s[^>]*)?>/i.exec(html);
   if (head) return html.slice(0, head.index + head[0].length) + tag + html.slice(head.index + head[0].length);
   const doctype = /<!doctype[^>]*>/i.exec(html);

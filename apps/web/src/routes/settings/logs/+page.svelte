@@ -2,15 +2,17 @@
   import { invalidateAll } from '$app/navigation';
   import Mascot from '#lib/Mascot.svelte';
   import { hueFor } from '#lib/settings/guide.ts';
+  import { useT } from '#lib/i18n/index.ts';
 
   let { data } = $props();
+  const t = useT();
   let query = $state('');
   let follow = $state(false);
   let box = $state<HTMLElement>();
 
   const shown = $derived(query.trim() ? data.lines.filter((l) => l.text.toLowerCase().includes(query.trim().toLowerCase())) : data.lines);
   const time = (at: number) =>
-    at ? new Date(at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }) : '';
+    at ? new Date(at).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }) : '';
   const label = (file: string) => file.replace(/\.log$/, '');
 
   // Newest at the bottom, like a terminal.
@@ -26,20 +28,20 @@
   });
 </script>
 
-<svelte:head><title>Logs · System settings</title></svelte:head>
+<svelte:head><title>{t('Logs')} · {t('System settings')}</title></svelte:head>
 
 <div class="head">
-  <p class="eyebrow"><a href="/settings">System settings</a></p>
+  <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
   <div class="name">
     <span class="mark" style="--hue: var(--hue-blue)" aria-hidden="true">≡</span>
-    <h1>Logs</h1>
+    <h1>{t('Logs')}</h1>
   </div>
-  <p class="muted">Everything the app writes to <code>/logs</code>: the web app, the updater, migrations and extension services.</p>
+  <p class="muted">{t('Everything the app writes to /logs: the web app, the updater, migrations and extension services.')}</p>
 </div>
 
 <div class="bar">
-  <nav class="tabs" aria-label="Log file">
-    <a href="?" aria-current={data.file === '' ? 'page' : undefined}>All</a>
+  <nav class="tabs" aria-label={t('Log file')}>
+    <a href="?" aria-current={data.file === '' ? 'page' : undefined}>{t('All')}</a>
     {#each data.files as f (f.name)}
       <a href="?file={encodeURIComponent(f.name)}" aria-current={data.file === f.name ? 'page' : undefined}>
         <span class="dot" style="--hue: {hueFor(f.name)}" aria-hidden="true"></span>{label(f.name)}
@@ -47,16 +49,16 @@
     {/each}
   </nav>
   <div class="tools">
-    <input type="search" placeholder="Filter" bind:value={query} aria-label="Filter lines" />
-    <label class="check"><input type="checkbox" bind:checked={follow} /> Follow</label>
-    <button type="button" class="btn" onclick={() => invalidateAll()}>Refresh</button>
+    <input type="search" placeholder={t('Filter')} bind:value={query} aria-label={t('Filter lines')} />
+    <label class="check"><input type="checkbox" bind:checked={follow} /> {t('Follow')}</label>
+    <button type="button" class="btn" onclick={() => invalidateAll()}>{t('Refresh')}</button>
   </div>
 </div>
 
 {#if !data.files.length}
-  <div class="card none"><Mascot mood="idle" size={44} decorative /><p class="muted">No logs yet.</p></div>
+  <div class="card none"><Mascot mood="idle" size={44} decorative /><p class="muted">{t('No logs yet.')}</p></div>
 {:else}
-  <div class="log" bind:this={box} role="log" aria-label="Log lines">
+  <div class="log" bind:this={box} role="log" aria-label={t('Log lines')}>
     {#each shown as l, i (i)}
       <div class="line">
         <span class="t">{time(l.at)}</span>
@@ -64,12 +66,12 @@
         <span class="x">{l.text}</span>
       </div>
     {:else}
-      <p class="empty">Nothing matches.</p>
+      <p class="empty">{t('Nothing matches.')}</p>
     {/each}
   </div>
   <p class="meta">
-    {shown.length} line{shown.length === 1 ? '' : 's'}{data.file ? ` from the end of ${data.file}` : ', newest of every log, merged by time'}.
-    Logs of the llm and terminal containers: <code>docker compose logs llm terminal</code> on the host.
+    {t.n(shown.length, '{n} line', '{n} lines')}{data.file ? ` ${t('from the end of {file}', { file: data.file })}` : `, ${t('newest of every log, merged by time')}`}.
+    {t('Logs of the llm and terminal containers:')} <code>docker compose logs llm terminal</code> {t('on the host.')}
   </p>
 {/if}
 

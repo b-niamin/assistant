@@ -15,6 +15,7 @@ node scripts/ext.mjs available                  # what the extensions repo offer
 node scripts/ext.mjs install health gym         # copy them here and turn them on
 node scripts/ext.mjs update health              # take the repo's newer version
 node scripts/ext.mjs list
+node scripts/ext.mjs languages                  # the app's languages and what each app still lacks (spec 007)
 node scripts/ext.mjs new <id> --kind native|onefile --scope profile|shared [--from inspiration:<name>] [--inspired-by <link>]
 ```
 

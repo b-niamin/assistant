@@ -17,6 +17,12 @@ extensions**: [specs/002-extensions.md](specs/002-extensions.md). To build a new
 Everything in this repo is English: code, comments, docs, specs, commit messages, CLI output.
 Answer the owner in the language they write to you in.
 
+The app itself speaks the languages picked in System settings -> Language (spec 007,
+[specs/007-languages.md](specs/007-languages.md)). Every text it shows goes through `t('English text')`, and
+every extension ships `i18n/<lang>.json` for each of those languages. Installing or building an extension
+that lacks one means translating it before handing it over (`node scripts/ext.mjs check <id>` lists the
+gaps as `i18n:` warnings; `node scripts/ext.mjs languages` lists them for all).
+
 ## Profiles
 
 There are no user accounts. One app password guards the whole app; data belongs to profiles
@@ -59,7 +65,8 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AG
    points at is only inspiration (`add-extension` skill). `extensions/` is git-ignored in this repo: it
    is this instance's own state. Its settings live in its panel in
    System settings (manifest `"settings"`). It must wear the app's layout (shell tokens, `specs/001-design.md`)
-   and have Beni, the mascot, woven in (`$shell/ui` or `<assistant-beni>` for onefile apps).
+   and have Beni, the mascot, woven in (`$shell/ui` or `<assistant-beni>` for onefile apps). It speaks every
+   language of the app (spec 007).
 4. Edits to `apps/web` and `extensions/` are rebuilt within seconds; a failed build leaves the previous build serving, so check
    `/logs/web.log` for `build ok` after a change. Before committing web changes run
    `cd apps/web && npm test && npm run check`. Edits to

@@ -11,6 +11,7 @@
  *   <id>/web/routes/**        native: SvelteKit route files, mounted at /<id>/**
  *   <id>/<entry>.html         onefile: one self-contained HTML file, run in a sandboxed iframe
  *   <id>/db/migrations/*.sql  optional: applied by db/migrate.sh as "<id>/<file>"
+ *   <id>/i18n/<lang>.json     optional: its texts in another language, English text -> translation (spec 007)
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -117,6 +118,9 @@ export function validateManifest(m, dirName) {
   // What Beni wears on its pages; left out, the shell guesses from the id and name.
   if (m.accessory !== undefined && !ACCESSORIES.includes(m.accessory))
     errors.push(`${dirName}/extension.json: "accessory" must be one of ${ACCESSORIES.join(', ')}`);
+  // Languages a onefile app's own UI speaks (it carries its translations inside the HTML; spec 007).
+  if (m.languages !== undefined)
+    req('languages', Array.isArray(m.languages) && m.languages.length <= 20 && m.languages.every((l) => LANG_RE.test(l)));
   if (m.kind === 'onefile') req('entry', typeof m.entry === 'string' && /^[A-Za-z0-9._-]+\.html$/.test(m.entry));
   return errors;
 }
@@ -143,6 +147,57 @@ export function settingsProblems(list, kind, dirName) {
     if (f.type === 'secret' && f.default !== undefined) errors.push(`${where}: a secret has no default`);
   }
   return errors;
+}
+
+/** A language code: ISO 639-1, two lowercase letters (en, pl, de, ...). */
+export const LANG_RE = /^[a-z]{2}$/;
+export const BASE_LANG = 'en';
+
+/**
+ * An extension's translations (spec 007): i18n/<lang>.json, each an object of English text -> text in
+ * that language, or -> plural forms {"one": ..., "few": ..., "many": ..., "other": ...}. Returns
+ * { messages: {lang: {...}}, errors }.
+ */
+export function readTranslations(root, id) {
+  const messages = {};
+  const errors = [];
+  const dir = root ? path.join(root, 'i18n') : null;
+  if (!dir || !existsSync(dir)) return { messages, errors };
+  for (const f of readdirSync(dir).sort()) {
+    if (!f.endsWith('.json')) continue;
+    const lang = f.slice(0, -5);
+    if (!LANG_RE.test(lang)) {
+      errors.push(`${id}/i18n/${f}: the file name must be a two-letter language code (pl.json)`);
+      continue;
+    }
+    let data;
+    try {
+      data = JSON.parse(readFileSync(path.join(dir, f), 'utf8'));
+    } catch (e) {
+      errors.push(`${id}/i18n/${f}: ${e.message}`);
+      continue;
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      errors.push(`${id}/i18n/${f}: must be an object of "English text": "translation"`);
+      continue;
+    }
+    const bad = Object.entries(data).filter(
+      ([, v]) =>
+        typeof v !== 'string' &&
+        !(v && typeof v === 'object' && typeof v.other === 'string' && Object.values(v).every((x) => typeof x === 'string'))
+    );
+    if (bad.length) errors.push(`${id}/i18n/${f}: "${bad[0][0]}" must be a string or plural forms with "other"`);
+    else if (lang !== BASE_LANG) messages[lang] = data;
+  }
+  return { messages, errors };
+}
+
+/** Languages an extension speaks: English, plus each i18n/<lang>.json (and, for onefile, its own UI's). */
+export function languagesOf(manifest, root, messages = readTranslations(root, manifest.id).messages) {
+  const files = Object.keys(messages);
+  const own = manifest.kind === 'onefile' ? (Array.isArray(manifest.languages) ? manifest.languages : [BASE_LANG]) : null;
+  const all = new Set([BASE_LANG, ...files.filter((l) => !own || own.includes(l))]);
+  return [...all].sort((a, b) => (a === BASE_LANG ? -1 : b === BASE_LANG ? 1 : a.localeCompare(b)));
 }
 
 /** Settings fields of a manifest, with the older "secrets" list folded in as secret fields. */
@@ -189,8 +244,10 @@ export function loadExtensions(dir = extensionsDir()) {
       mErrors.push(`${entry.id}: native extension without web/routes/`);
     if (manifest.kind === 'onefile' && manifest.entry && !existsSync(path.join(root, manifest.entry)))
       mErrors.push(`${entry.id}: entry ${manifest.entry} missing`);
+    const tr = readTranslations(root, entry.id);
+    mErrors.push(...tr.errors);
     errors.push(...mErrors);
-    if (!mErrors.length) out.push({ entry, manifest, root });
+    if (!mErrors.length) out.push({ entry, manifest, root, messages: tr.messages });
   }
   if (errors.length) throw new Error(`extensions: invalid setup\n  - ${errors.join('\n  - ')}`);
   for (const w of warnings) console.warn(`extensions: ${w}`);
@@ -198,7 +255,7 @@ export function loadExtensions(dir = extensionsDir()) {
 }
 
 /** The serialisable view the shell uses at runtime (nav, access checks, onefile host). */
-export function infoOf({ entry, manifest, root }) {
+export function infoOf({ entry, manifest, root, messages }) {
   return {
     id: manifest.id,
     name: manifest.name,
@@ -215,6 +272,8 @@ export function infoOf({ entry, manifest, root }) {
     settings: settingsOf(manifest),
     secrets: settingsOf(manifest).filter((f) => f.type === 'secret').map((f) => f.name),
     accessory: manifest.accessory ?? null,
+    // Languages it has translations for (spec 007); System settings -> Language lists the gaps.
+    languages: root ? languagesOf(manifest, root, messages ?? readTranslations(root, manifest.id).messages) : [BASE_LANG],
     enabled: true
   };
 }
@@ -245,7 +304,9 @@ export function stubFor(id, rel, source) {
   if (name.endsWith('.svelte')) {
     return (
       `<!-- generated by scripts/extensions-lib.mjs, do not edit -->\n` +
-      `<script lang="ts">\n  import Component from '$extensions/${id}/web/routes/${rel}';\n  let props = $props();\n</script>\n\n` +
+      `<script lang="ts">\n  import Component from '$extensions/${id}/web/routes/${rel}';\n  import { provideExtension } from '#lib/i18n/index.ts';\n\n` +
+      `  // useT() in the pages below reads this extension's i18n/<lang>.json first (spec 007).\n` +
+      `  provideExtension('${id}');\n  let props = $props();\n</script>\n\n` +
       `<Component {...props} />\n`
     );
   }
@@ -334,6 +395,7 @@ export function generate({ webRoot = WEB_ROOT, dir = extensionsDir(), log = () =
   generateTiles({ webRoot, exts, emit });
   generateTools({ webRoot, exts, emit });
   generateSources({ webRoot, exts, emit });
+  generateI18n({ webRoot, exts, emit });
   prune(routesOut, keep);
   log(`extensions: ${exts.map((e) => `${e.manifest.id} (${e.manifest.kind})`).join(', ') || 'none'}; ${changed} file(s) written`);
   return { extensions: infos, changed };
@@ -401,6 +463,83 @@ export function generateSources({ webRoot = WEB_ROOT, exts, emit }) {
       `};\n`
   );
   return ids;
+}
+
+/**
+ * Translations (spec 007): every extension's i18n/<lang>.json, inlined into generated/i18n.ts so pages
+ * (server and browser) and the shell (names, settings labels, tile titles) can use them.
+ */
+export function generateI18n({ webRoot = WEB_ROOT, exts, emit }) {
+  const file = path.join(webRoot, 'src', 'lib', 'extensions', 'generated', 'i18n.ts');
+  const all = {};
+  for (const e of exts) if (e.messages && Object.keys(e.messages).length) all[e.manifest.id] = e.messages;
+  emit(
+    file,
+    `// generated by scripts/extensions-lib.mjs from extensions/<id>/i18n/*.json, do not edit\n` +
+      `import type { Messages } from '../../i18n/translate';\n\n` +
+      `export const EXTENSION_MESSAGES: Record<string, Record<string, Messages>> = ${JSON.stringify(all, null, 2)};\n`
+  );
+}
+
+/**
+ * Every text a source file asks to translate (spec 007): the first argument of t('...') and the plural
+ * form of t.n(count, '...', '...'), plus tile titles (`title: '...'`) when `titles` is set. Literal
+ * strings only; a count with commas in it (t.n(f(a, b), ...)) is not recognised.
+ */
+export function keysIn(source, { titles = false } = {}) {
+  const keys = new Set();
+  const str = String.raw`(?:'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|\x60((?:[^\x60\\$]|\\.)*)\x60)`;
+  const single = new RegExp(String.raw`(?<![\w$.])t\(\s*` + str, 'g');
+  const plural = new RegExp(String.raw`(?<![\w$.])t\.n\(\s*[^,()]+(?:\([^()]*\))?[^,()]*,\s*` + str + String.raw`\s*,\s*` + str, 'g');
+  const title = new RegExp(String.raw`\btitle:\s*` + str, 'g');
+  const unescape = (s) => s.replace(/\\(['"\x60\\])/g, '$1').replace(/\\n/g, '\n');
+  // Examples in comments are not texts of the app.
+  source = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '').replace(/^\s*\/\/.*$/gm, '');
+  let m;
+  while ((m = single.exec(source))) keys.add(unescape(m[1] ?? m[2] ?? m[3]));
+  while ((m = plural.exec(source))) keys.add(unescape(m[4] ?? m[5] ?? m[6]));
+  if (titles) while ((m = title.exec(source))) keys.add(unescape(m[1] ?? m[2] ?? m[3]));
+  return [...keys];
+}
+
+/** Texts of a manifest that the shell shows translated: name, description, settings labels and help. */
+export function manifestKeys(manifest) {
+  const keys = [manifest.name, manifest.description];
+  for (const f of settingsOf(manifest)) keys.push(f.label, ...(f.help ? [f.help] : []));
+  return keys.filter((k) => typeof k === 'string' && k);
+}
+
+/**
+ * What an extension still needs to speak the given languages (spec 007), as warnings for `ext check`:
+ * a missing i18n/<lang>.json, texts with no translation in it, a onefile UI without that language.
+ */
+export function translationWarnings(root, manifest, id, langs) {
+  const warnings = [];
+  const { messages } = readTranslations(root, id);
+  let keys = manifestKeys(manifest);
+  if (manifest.kind === 'native') {
+    const web = path.join(root, 'web');
+    const files = existsSync(web) ? walk(web).filter((f) => /\.(svelte|ts)$/.test(f) && !/\.test\.ts$/.test(f)) : [];
+    for (const f of files) keys.push(...keysIn(readFileSync(path.join(web, f), 'utf8'), { titles: f === 'tiles.server.ts' }));
+  }
+  keys = [...new Set(keys)];
+  for (const lang of langs) {
+    if (lang === BASE_LANG) continue;
+    // Common words the shell already translates (Save, Cancel, ...) need no entry of their own.
+    const shellFile = path.join(WEB_ROOT, 'src', 'lib', 'i18n', 'locales', `${lang}.json`);
+    const shell = existsSync(shellFile) ? JSON.parse(readFileSync(shellFile, 'utf8')) : {};
+    if (manifest.kind === 'onefile' && !(manifest.languages ?? []).includes(lang))
+      warnings.push(`${id}: its UI is not in "${lang}" (translate the app, then add "${lang}" to "languages" in extension.json)`);
+    const have = messages[lang];
+    if (!have) {
+      warnings.push(`${id}: no i18n/${lang}.json (${keys.filter((k) => !(k in shell)).length} texts to translate)`);
+      continue;
+    }
+    const missing = keys.filter((k) => !(k in have) && !(k in shell));
+    if (missing.length)
+      warnings.push(`${id}: i18n/${lang}.json misses ${missing.length} text(s): ${missing.slice(0, 5).map((k) => JSON.stringify(k)).join(', ')}${missing.length > 5 ? ', ...' : ''}`);
+  }
+  return warnings;
 }
 
 /** Imports an extension may use. Everything else from the shell is private (see spec 002). */

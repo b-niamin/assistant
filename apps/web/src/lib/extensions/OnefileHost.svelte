@@ -5,6 +5,8 @@
    */
   import { onMount } from 'svelte';
   import { KV_MESSAGE, ONEFILE_SANDBOX } from './onefile';
+  import { tFor, useT } from '#lib/i18n/index.ts';
+  const t = useT();
 
   let { id, name }: { id: string; name: string } = $props();
   let frame: HTMLIFrameElement | undefined = $state();
@@ -68,13 +70,13 @@
   });
 </script>
 
-<svelte:head><title>{name} · Assistant</title></svelte:head>
+<svelte:head><title>{tFor(t.lang, id)(name)} · {t('Assistant')}</title></svelte:head>
 
 <div class="host">
-  <iframe bind:this={frame} src="/api/onefile/{id}" title={name} sandbox={ONEFILE_SANDBOX}></iframe>
+  <iframe bind:this={frame} src="/api/onefile/{id}" title={tFor(t.lang, id)(name)} sandbox={ONEFILE_SANDBOX}></iframe>
   <!-- Quiet while everything is saved: the app owns the whole frame, including its corners. -->
   <p class="state" data-state={status} aria-live="polite">
-    {status === 'saving' ? 'Saving…' : status === 'error' ? 'Not saved: check the connection' : ''}
+    {status === 'saving' ? t('Saving…') : status === 'error' ? t('Not saved: check the connection') : ''}
   </p>
 </div>
 

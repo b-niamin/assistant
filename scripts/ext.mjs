@@ -9,7 +9,8 @@
  *   node scripts/ext.mjs available                       what the extensions repo offers
  *   node scripts/ext.mjs install <id>... [--ref <branch|tag>] [--profiles a,b]
  *   node scripts/ext.mjs update <id>... [--ref <branch|tag>]   replace with the repo's version (old one to .trash/)
- *   node scripts/ext.mjs check [id]                      manifests, imports, route generation
+ *   node scripts/ext.mjs check [id] [--languages pl,de]  manifests, imports, route generation, translations
+ *   node scripts/ext.mjs languages                       the app's languages and what each extension lacks
  *   node scripts/ext.mjs new <id> [--kind native|onefile] [--scope profile|shared] [--name "..."]
  *                                [--from onefile:<appType>/<variant> | --from inspiration:<name>]
  *                                [--inspired-by <link or note>] [--profiles a,b]
@@ -30,6 +31,7 @@ import {
   ID_RE,
   lintExtension,
   lookWarnings,
+  translationWarnings,
   readRegistry,
   RESERVED_IDS,
   SHELL_API,
@@ -41,6 +43,7 @@ const TEMPLATES = path.join(REPO, 'scripts', 'ext-templates');
 const ONEFILE_REPO = process.env.ONEFILE_APPS_REPO ?? 'https://github.com/b-niamin/onefile-apps';
 const EXTENSIONS_REPO = process.env.EXTENSIONS_REPO || 'https://github.com/b-niamin/assistant-extensions';
 const DIR = extensionsDir();
+const ASSISTANT_URL = (process.env.ASSISTANT_URL || 'http://web:3000').replace(/\/$/, '');
 const REGISTRY = path.join(DIR, 'installed.json');
 
 const die = (msg) => {
@@ -65,6 +68,53 @@ function parseArgs(argv) {
 }
 
 const loadReg = () => readRegistry(DIR);
+
+/**
+ * The languages the app offers (System settings -> Language, spec 007): --languages pl,de, else asked
+ * from the running app (GET /api/claude, CLAUDE_TOOLS_TOKEN), else null when it cannot be reached.
+ */
+async function appLanguages(opts = {}) {
+  if (typeof opts.languages === 'string') return ['en', ...opts.languages.split(',').map((s) => s.trim()).filter((s) => /^[a-z]{2}$/.test(s))];
+  try {
+    const res = await fetch(`${ASSISTANT_URL}/api/claude`, {
+      headers: { authorization: `Bearer ${process.env.CLAUDE_TOOLS_TOKEN ?? ''}` },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return Array.isArray(body?.languages?.enabled) ? body.languages.enabled : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Print what the given extensions lack in the app's languages; returns the warnings. */
+async function translationReport(ids, opts) {
+  const langs = await appLanguages(opts);
+  if (!langs) {
+    console.warn(`ext: i18n: could not ask the app (${ASSISTANT_URL}) for its languages; pass --languages pl to check translations`);
+    return [];
+  }
+  const warnings = [];
+  for (const id of ids) {
+    const root = path.join(DIR, id);
+    try {
+      const manifest = JSON.parse(readFileSync(path.join(root, 'extension.json'), 'utf8'));
+      warnings.push(...translationWarnings(root, manifest, id, langs));
+    } catch {
+      /* a broken manifest is reported by check itself */
+    }
+  }
+  for (const w of warnings) console.warn(`ext: i18n: ${w}`);
+  return warnings;
+}
+const translateNote = (warnings) => {
+  if (warnings.length)
+    console.log(
+      '     Translate it before handing it over: i18n/<lang>.json for each missing language (add-extension skill,\n' +
+        '     "Translate"), then `node scripts/ext.mjs check <id>` must print no i18n: warnings.'
+    );
+};
 /** Never rm -rf: a removed or rejected checkout goes to extensions/.trash/. */
 function moveToTrash(id) {
   const dest = path.join(DIR, id);
@@ -169,9 +219,20 @@ function onefileFromRepo(repoDir, appPath, dest, id, extra = {}) {
     kind: 'onefile',
     scope: extra.scope ?? 'profile',
     shell: SHELL_API,
-    entry: 'app.html'
+    entry: 'app.html',
+    // onefile-apps name every language they speak ({"en": ..., "pl": ...}): the app's UI has them all.
+    languages: app.name && typeof app.name === 'object' ? Object.keys(app.name).filter((l) => /^[a-z]{2}$/.test(l)) : ['en']
   };
   writeFileSync(path.join(dest, 'extension.json'), JSON.stringify(manifest, null, 2) + '\n');
+  // Its name and description in those languages, for the shell's menus (spec 007).
+  for (const lang of manifest.languages.filter((l) => l !== 'en')) {
+    const texts = {};
+    if (typeof app.name?.[lang] === 'string' && !extra.name) texts[manifest.name] = app.name[lang];
+    if (typeof app.description?.[lang] === 'string' && manifest.description) texts[manifest.description] = app.description[lang].slice(0, 200);
+    if (!Object.keys(texts).length) continue;
+    mkdirSync(path.join(dest, 'i18n'), { recursive: true });
+    writeFileSync(path.join(dest, 'i18n', `${lang}.json`), JSON.stringify(texts, null, 2) + '\n');
+  }
 }
 
 const commands = {
@@ -185,7 +246,7 @@ const commands = {
     }
   },
 
-  install({ pos, opts }) {
+  async install({ pos, opts }) {
     if (!pos.length) die('install <id>...; see `available`');
     const ref = typeof opts.ref === 'string' ? opts.ref : undefined;
     const [repoDir, commit] = fetchExtensionsRepo(ref);
@@ -209,9 +270,11 @@ const commands = {
     regenerate();
     if (done.length) console.log(`ext: installed ${done.join(', ')} from ${EXTENSIONS_REPO} @ ${commit.slice(0, 7)}`);
     servicesNote(done);
+    // Every extension speaks every language of the app (spec 007): name the gaps for Claude to fill.
+    translateNote(await translationReport(done, opts));
   },
 
-  update({ pos, opts }) {
+  async update({ pos, opts }) {
     const reg = loadReg();
     const ids = pos.length ? pos : reg.extensions.filter((e) => e.from?.startsWith(EXTENSIONS_REPO)).map((e) => e.id);
     const [repoDir, commit] = fetchExtensionsRepo(typeof opts.ref === 'string' ? opts.ref : undefined);
@@ -225,6 +288,7 @@ const commands = {
     regenerate();
     console.log(`ext: updated ${ids.join(', ') || 'nothing'} to ${commit.slice(0, 7)}`);
     servicesNote(ids);
+    translateNote(await translationReport(ids, opts));
   },
 
   list() {
@@ -241,7 +305,7 @@ const commands = {
     }
   },
 
-  check({ pos }) {
+  async check({ pos, opts }) {
     const reg = loadReg();
     const ids = pos.length ? pos : reg.extensions.map((e) => e.id);
     const problems = [];
@@ -259,6 +323,8 @@ const commands = {
     }
     // Our look is required for every new extension (add-extension skill); older ones only get a warning.
     for (const w of look) console.warn(`ext: look: ${w}`);
+    // Translations into the app's languages: warnings, like the look (spec 007).
+    await translationReport(ids, opts);
     try {
       regenerate();
     } catch (e) {
@@ -268,7 +334,15 @@ const commands = {
     console.log(`ext: ${ids.join(', ')} ok`);
   },
 
-  new({ pos, opts }) {
+  async languages({ opts }) {
+    const langs = await appLanguages(opts);
+    if (!langs) die(`could not ask the app (${ASSISTANT_URL}) for its languages; is the web container up?`);
+    console.log(`languages: ${langs.join(', ')}`);
+    const warnings = await translationReport(loadReg().extensions.map((e) => e.id), { languages: langs.filter((l) => l !== 'en').join(',') });
+    if (!warnings.length) console.log('ext: every extension speaks every language');
+  },
+
+  async new({ pos, opts }) {
     const id = pos[0];
     checkNewId(id);
     const example = typeof opts.from === 'string' ? /^(?:inspiration|example):([a-z0-9-]+)$/.exec(opts.from) : null;
@@ -315,6 +389,8 @@ const commands = {
     saveReg(reg);
     regenerate();
     console.log(`ext: created extensions/${id} (${kind}, ${scope}); build it, then check it with: ext check ${id}`);
+    const langs = (await appLanguages(opts))?.filter((l) => l !== 'en') ?? [];
+    if (langs.length) console.log(`     the app's languages also include ${langs.join(', ')}: ship i18n/<lang>.json for each (spec 007)`);
     if (kind === 'native') console.log('     its db/migrations apply within ~15 s (ext-migrate service)');
   },
 
@@ -342,11 +418,11 @@ const commands = {
 
 const [cmd, ...rest] = process.argv.slice(2);
 if (!cmd || !commands[cmd]) {
-  console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(2, 20).join('\n').replace(/^ \* ?/gm, ''));
+  console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(2, 22).join('\n').replace(/^ \* ?/gm, ''));
   process.exit(cmd ? 1 : 0);
 }
 try {
-  commands[cmd](parseArgs(rest));
+  await commands[cmd](parseArgs(rest));
 } catch (e) {
   die(e.message ?? String(e));
 }

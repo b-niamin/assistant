@@ -3,18 +3,27 @@
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
-  import { AGENT_NAMES, dock, refreshDock, runInDock } from '#lib/dock/dock.svelte.ts';
+  import { AGENT_NAMES, askAgent, dock, refreshDock, runInDock } from '#lib/dock/dock.svelte.ts';
   import { hueFor, initials } from '#lib/settings/guide.ts';
+  import { useT } from '#lib/i18n/index.ts';
 
   let { data, form } = $props();
+  const t = useT();
 
   /** "6 Nov, 23:02 (3 days ago)": the date in this browser's time zone, plus how long ago. */
   function when(iso: string): string {
-    const t = Date.parse(iso);
-    if (!t) return '';
-    const date = new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-    const min = Math.round((Date.now() - t) / 60_000);
-    const ago = min < 1 ? 'just now' : min < 60 ? `${min} min ago` : min < 48 * 60 ? `${Math.round(min / 60)} h ago` : `${Math.round(min / 1440)} days ago`;
+    const at = Date.parse(iso);
+    if (!at) return '';
+    const date = new Date(at).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    const min = Math.round((Date.now() - at) / 60_000);
+    const ago =
+      min < 1
+        ? t('just now')
+        : min < 60
+          ? t('{n} min ago', { n: min })
+          : min < 48 * 60
+            ? t('{n} h ago', { n: Math.round(min / 60) })
+            : t.n(Math.round(min / 1440), '{n} day ago', '{n} days ago');
     return `${date} (${ago})`;
   }
   const short = (sha: string) => sha.slice(0, 7);
@@ -23,18 +32,29 @@
   const next = $derived(page.url.searchParams.get('next') ?? '');
 
   // Sign-ins for the terminal's CLIs; the commands run in the dock's terminal at the bottom.
-  const TOOLS = [
-    { id: 'claude', name: 'Claude Code', mark: 'C', hue: 'var(--brand)', cmd: 'claude', hint: 'Then type /login and open the link it prints.' },
-    { id: 'codex', name: 'Codex', mark: 'X', hue: 'var(--hue-aqua)', cmd: 'codex login --device-auth', hint: 'Sign in with ChatGPT: enter the code at the URL it prints.' },
-    { id: 'gh', name: 'GitHub CLI', mark: 'G', hue: 'var(--hue-violet)', cmd: 'gh auth login', hint: 'Choose GitHub.com, HTTPS, then log in with a web browser.' }
-  ] as const;
-  const REMOTE_LABEL: Record<string, string> = {
-    running: 'Remote Control running',
-    starting: 'Remote Control starting',
-    restarting: 'Remote Control restarting',
-    'signed-out': 'Remote Control waits for the sign-in',
-    off: 'Remote Control not running'
-  };
+  const TOOLS = $derived([
+    { id: 'claude', name: 'Claude Code', mark: 'C', hue: 'var(--brand)', cmd: 'claude', hint: t('Then type /login and open the link it prints.') },
+    { id: 'codex', name: 'Codex', mark: 'X', hue: 'var(--hue-aqua)', cmd: 'codex login --device-auth', hint: t('Sign in with ChatGPT: enter the code at the URL it prints.') },
+    { id: 'gh', name: 'GitHub CLI', mark: 'G', hue: 'var(--hue-violet)', cmd: 'gh auth login', hint: t('Choose GitHub.com, HTTPS, then log in with a web browser.') }
+  ] as const);
+  const REMOTE_LABEL: Record<string, string> = $derived({
+    running: t('Remote Control running'),
+    starting: t('Remote Control starting'),
+    restarting: t('Remote Control restarting'),
+    'signed-out': t('Remote Control waits for the sign-in'),
+    off: t('Remote Control not running')
+  });
+
+  // System settings -> Language (spec 007): which languages are ticked, and the default among them.
+  let ticked = $state<string[] | null>(null);
+  const enabledNow = $derived(ticked ?? (data.locked ? [] : data.languages.enabled));
+  const missingApps = $derived(data.locked ? [] : data.languages.missing);
+  const languageNames = $derived(new Map((data.locked ? [] : data.languages.all).map((l) => [l.code, l.name])));
+  /** The request for the AI when apps lack a language: it translates them as the add-extension skill says. */
+  const translateAsk = (missing: { id: string; langs: string[] }[]) =>
+    `Translate these extensions into the app's languages (spec 007, add-extension skill): ` +
+    missing.map((m) => `${m.id} (${m.langs.join(', ')})`).join('; ') +
+    `. Check each with node scripts/ext.mjs check <id> until it prints no i18n: warnings.`;
 
   // While an update runs or is asked for, follow it: the page reloads its data every 5 seconds.
   $effect(() => {
@@ -44,20 +64,20 @@
   });
 
   const whoSees = (ids: string[] | null, profiles: { id: string; name: string }[]) =>
-    ids === null ? 'everyone' : ids.map((id) => profiles.find((p) => p.id === id)?.name ?? id).join(', ') || 'nobody';
+    ids === null ? t('everyone') : ids.map((id) => profiles.find((p) => p.id === id)?.name ?? id).join(', ') || t('nobody');
 </script>
 
-<svelte:head><title>System settings · Assistant</title></svelte:head>
+<svelte:head><title>{t('System settings')} · {t('Assistant')}</title></svelte:head>
 
 <div class="hero">
   <Mascot mood={data.locked ? 'asleep' : 'steady'} size={64} decorative />
   <div class="title">
-    <h1>System settings</h1>
-    <p class="lede">Apps, people, the terminal and security, all in one place.</p>
+    <h1>{t('System settings')}</h1>
+    <p class="lede">{t('Apps, people, the terminal and security, all in one place.')}</p>
   </div>
   {#if !data.locked}
     <form method="POST" action="?/lock" use:enhance>
-      <button class="btn">Lock</button>
+      <button class="btn">{t('Lock')}</button>
     </form>
   {/if}
 </div>
@@ -66,43 +86,43 @@
 {#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}
 
 {#if !data.locked && page.url.searchParams.has('welcome')}
-  <p class="note good">All set. Add apps and the other people at home here; everything else lives on the dashboard.</p>
+  <p class="note good">{t('All set. Add apps and the other people at home here; everything else lives on the dashboard.')}</p>
 {/if}
 
 {#if data.locked}
   <form method="POST" action={next ? `?/unlock&next=${encodeURIComponent(next)}` : '?/unlock'} class="card unlock">
-    <h2>Enter the app password again</h2>
-    <p class="muted">Settings change what everybody sees, so they ask for the password again. They stay open for 10 minutes.</p>
+    <h2>{t('Enter the app password again')}</h2>
+    <p class="muted">{t('Settings change what everybody sees, so they ask for the password again. They stay open for 10 minutes.')}</p>
     <label>
-      <span class="sr">App password</span>
+      <span class="sr">{t('App password')}</span>
       <!-- svelte-ignore a11y_autofocus -->
       <input type="password" name="password" autocomplete="current-password" required autofocus />
     </label>
-    <button class="btn btn-primary">Unlock</button>
+    <button class="btn btn-primary">{t('Unlock')}</button>
   </form>
 {:else}
-  <nav class="quick" aria-label="Common tasks">
+  <nav class="quick" aria-label={t('Common tasks')}>
     <a class="card do" href="/settings/extensions/new" style="--hue: var(--hue-orange)">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" /></svg></span>
-      <strong>Extend the system</strong>
-      <span class="meta">Install an app or let AI build one</span>
+      <strong>{t('Extend the system')}</strong>
+      <span class="meta">{t('Install an app or let AI build one')}</span>
     </a>
     <a class="card do" href="/settings/profiles#add" style="--hue: var(--hue-blue)">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="8" cy="7" r="3" /><path d="M2.5 16c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5M15 6v6M12 9h6" /></svg></span>
-      <strong>Add a person</strong>
-      <span class="meta">A profile with their own data</span>
+      <strong>{t('Add a person')}</strong>
+      <span class="meta">{t('A profile with their own data')}</span>
     </a>
     <button type="button" class="card do" onclick={() => (dock.open = true)} style="--hue: var(--hue-violet)">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 6l4 4-4 4M10 14h6" /></svg></span>
-      <strong>Open the terminal</strong>
-      <span class="meta">At the bottom of every page: Claude Code, Codex, a shell</span>
+      <strong>{t('Open the terminal')}</strong>
+      <span class="meta">{t('At the bottom of every page: Claude Code, Codex, a shell')}</span>
     </button>
   </nav>
 
   <section aria-labelledby="apps-h">
     <div class="sh">
-      <h2 id="apps-h">Apps</h2>
-      <span class="meta">{data.extensions.length} installed</span>
+      <h2 id="apps-h">{t('Apps')}</h2>
+      <span class="meta">{t('{n} installed', { n: data.extensions.length })}</span>
     </div>
     <ul class="menu card">
       {#each data.extensions as ext (ext.id)}
@@ -111,10 +131,10 @@
             <span class="mark" style="--hue: {hueFor(ext.id)}" aria-hidden="true">{initials(ext.name)}</span>
             <span class="what">
               <strong>{ext.name}</strong>
-              <span class="meta">{ext.description || (ext.kind === 'native' ? 'Native app' : 'One-file app')}</span>
+              <span class="meta">{ext.description || (ext.kind === 'native' ? t('Native app') : t('One-file app'))}</span>
             </span>
             <span class="state">
-              <span class="status small" class:good={ext.enabled}>{ext.enabled ? `On · ${whoSees(ext.profiles, data.profiles)}` : 'Off'}</span>
+              <span class="status small" class:good={ext.enabled}>{ext.enabled ? `${t('On')} · ${whoSees(ext.profiles, data.profiles)}` : t('Off')}</span>
             </span>
             <span class="chev" aria-hidden="true">›</span>
           </a>
@@ -122,13 +142,13 @@
       {:else}
         <li class="none">
           <Mascot mood="idle" size={48} decorative />
-          <span class="muted">No apps yet. Install a ready-made one or let Claude build one for you.</span>
+          <span class="muted">{t('No apps yet. Install a ready-made one or let Claude build one for you.')}</span>
         </li>
       {/each}
       <li>
         <a href="/settings/extensions/new" class="add">
           <span class="mark plus" aria-hidden="true">+</span>
-          <span class="what"><strong>Extend the system</strong><span class="meta">Ready-made apps, inspirations, or your own idea</span></span>
+          <span class="what"><strong>{t('Extend the system')}</strong><span class="meta">{t('Ready-made apps, inspirations, or your own idea')}</span></span>
           <span class="chev" aria-hidden="true">›</span>
         </a>
       </li>
@@ -137,8 +157,8 @@
 
   <section aria-labelledby="people-h">
     <div class="sh">
-      <h2 id="people-h">Profiles</h2>
-      <a class="meta" href="/settings/profiles">Manage</a>
+      <h2 id="people-h">{t('Profiles')}</h2>
+      <a class="meta" href="/settings/profiles">{t('Manage')}</a>
     </div>
     <a class="card people" href="/settings/profiles">
       <span class="faces">
@@ -150,68 +170,119 @@
         {/each}
         <span class="face">
           <span class="avatar plus" aria-hidden="true">+</span>
-          <span class="pname">Add</span>
+          <span class="pname">{t('Add')}</span>
         </span>
       </span>
-      <span class="meta">Everyone gets their own data and dashboard. Not accounts: the app password opens all.</span>
+      <span class="meta">{t('Everyone gets their own data and dashboard. Not accounts: the app password opens all.')}</span>
     </a>
+  </section>
+
+  <section aria-labelledby="lang-h">
+    <h2 id="lang-h">{t('Language')}</h2>
+    <form method="POST" action="?/languages" use:enhance={() => async ({ update }) => { await update(); ticked = null; }} class="card langs">
+      <p class="meta">
+        {t('The languages of the app. Every app (extension) is built in all of them: when one lacks a language, the AI translates it as it installs it.')}
+      </p>
+      <table>
+        <thead>
+          <tr><th scope="col">{t('Language')}</th><th scope="col">{t('Offered')}</th><th scope="col">{t('Default')}</th></tr>
+        </thead>
+        <tbody>
+          {#each data.languages.all as l (l.code)}
+            {@const on = enabledNow.includes(l.code)}
+            <tr>
+              <th scope="row" lang={l.code}>{l.name}</th>
+              <td>
+                <input
+                  type="checkbox"
+                  name="enabled"
+                  value={l.code}
+                  checked={on}
+                  disabled={l.code === 'en'}
+                  aria-label={t('Offer {name}', { name: l.name })}
+                  onchange={(e) => (ticked = e.currentTarget.checked ? [...enabledNow, l.code] : enabledNow.filter((c) => c !== l.code))}
+                />
+                {#if l.code === 'en'}<input type="hidden" name="enabled" value="en" />{/if}
+              </td>
+              <td>
+                <input type="radio" name="default" value={l.code} checked={data.languages.default === l.code} disabled={!on} aria-label={t('{name} by default', { name: l.name })} />
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <p class="meta">{t('English is the base of every app and stays on. Each browser can pick its own language in the profile menu.')}</p>
+      <div class="actions"><button class="btn btn-primary">{t('Save')}</button></div>
+    </form>
+    {#if data.languages.missing.length}
+      <div class="card missing">
+        <Mascot mood="tired" size={40} decorative />
+        <div class="what">
+          <strong>{t.n(data.languages.missing.length, 'One app is not translated yet', '{n} apps are not translated yet')}</strong>
+          <span class="meta">
+            {data.languages.missing.map((m) => `${m.name}: ${m.langs.map((c) => languageNames.get(c) ?? c).join(', ')}`).join(' · ')}
+          </span>
+        </div>
+        <button type="button" class="btn btn-primary" onclick={() => askAgent(translateAsk(missingApps))}>{t('Ask the AI to translate')}</button>
+      </div>
+    {/if}
   </section>
 
   <section aria-labelledby="term-h">
     <div class="sh">
-      <h2 id="term-h">Terminal</h2>
-      <button type="button" class="meta linkish" onclick={() => (dock.open = true)}>Open the terminal</button>
+      <h2 id="term-h">{t('Terminal')}</h2>
+      <button type="button" class="meta linkish" onclick={() => (dock.open = true)}>{t('Open the terminal')}</button>
     </div>
     {#if !data.terminal.configured}
-      <p class="muted">The terminal is off. Set <code>SIDECAR_TICKET_SECRET</code> in <code>.env</code> and run <code>docker compose up -d</code>.</p>
+      <p class="muted">{t('The terminal is off. Set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</p>
     {:else}
       <ul class="menu card">
         {#each TOOLS as tool (tool.id)}
-          {@const t = data.terminal}
-          {@const ok = t[tool.id]}
+          {@const term = data.terminal}
+          {@const ok = term[tool.id]}
           <li class="row">
             <span class="mark" style="--hue: {tool.hue}" aria-hidden="true">{tool.mark}</span>
             <span class="what">
               <strong>{tool.name}</strong>
               <span class="meta">
-                {#if !t.reachable}The terminal container is not answering.
+                {#if !term.reachable}{t('The terminal container is not answering.')}
                 {:else if !ok}{tool.hint}
-                {:else if tool.id === 'gh'}Lets the tools push to and read your GitHub repositories.
-                {:else}{t.background[tool.id] && t.remote[tool.id] !== 'running' ? 'Remote Control running in the background' : REMOTE_LABEL[t.remote[tool.id]]}{/if}
+                {:else if tool.id === 'gh'}{t('Lets the tools push to and read your GitHub repositories.')}
+                {:else}{term.background[tool.id] && term.remote[tool.id] !== 'running' ? t('Remote Control running in the background') : REMOTE_LABEL[term.remote[tool.id]]}{/if}
               </span>
             </span>
-            <span class="state"><span class="status small" class:good={ok}>{ok ? 'Signed in' : 'Not signed in'}</span></span>
-            {#if !ok && t.reachable}
-              <button type="button" class="btn btn-primary" onclick={() => runInDock(tool.cmd)} title="Runs {tool.cmd} in the terminal at the bottom">Sign in</button>
+            <span class="state"><span class="status small" class:good={ok}>{ok ? t('Signed in') : t('Not signed in')}</span></span>
+            {#if !ok && term.reachable}
+              <button type="button" class="btn btn-primary" onclick={() => runInDock(tool.cmd)} title={t('Runs {cmd} in the terminal at the bottom', { cmd: tool.cmd })}>{t('Sign in')}</button>
             {/if}
           </li>
         {/each}
       </ul>
-      <form method="POST" action="?/defaultAgent" class="mode agent" aria-label="Default AI"
+      <form method="POST" action="?/defaultAgent" class="mode agent" aria-label={t('Default AI')}
         use:enhance={() => async ({ update }) => (await update({ reset: false }), refreshDock())}>
-        <span class="meta">Default AI, for Update, Build it and Install:</span>
+        <span class="meta">{t('Default AI, for Update, Build it and Install:')}</span>
         {#each ['claude', 'codex'] as const as a (a)}
           <label><input type="radio" name="agent" value={a} checked={data.defaultAgent === a} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {AGENT_NAMES[a]}</label>
         {/each}
-        <noscript><button class="btn">Save</button></noscript>
+        <noscript><button class="btn">{t('Save')}</button></noscript>
       </form>
     {/if}
   </section>
 
   <section aria-labelledby="sys-h">
-    <h2 id="sys-h">System</h2>
+    <h2 id="sys-h">{t('System')}</h2>
     <ul class="menu card">
       <li>
         <a href="/settings/logs">
           <span class="mark" style="--hue: var(--hue-blue)" aria-hidden="true">≡</span>
-          <span class="what"><strong>Logs</strong><span class="meta">Every log of the app in one place: web, updater, migrations, services</span></span>
+          <span class="what"><strong>{t('Logs')}</strong><span class="meta">{t('Every log of the app in one place: web, updater, migrations, services')}</span></span>
           <span class="chev" aria-hidden="true">›</span>
         </a>
       </li>
       <li>
         <a href="/settings/browser">
           <span class="mark" style="--hue: var(--hue-aqua)" aria-hidden="true">◎</span>
-          <span class="what"><strong>Browser</strong><span class="meta">A remote browser for sign-ins that need one</span></span>
+          <span class="what"><strong>{t('Browser')}</strong><span class="meta">{t('A remote browser for sign-ins that need one')}</span></span>
           <span class="chev" aria-hidden="true">›</span>
         </a>
       </li>
@@ -219,7 +290,7 @@
   </section>
 
   <section aria-labelledby="up-h">
-    <h2 id="up-h">Updates</h2>
+    <h2 id="up-h">{t('Updates')}</h2>
     {#if data.updates && data.updateView}
       {@const u = data.updates}
       {@const v = data.updateView}
@@ -229,76 +300,76 @@
       {@const target = newer ? data.latestSha! : u.sha}
       {@const cancelling = !!data.updateControl.cancel && Date.parse(data.updateControl.cancel) > Date.parse(u.startedAt || u.at)}
       {@const title = {
-        stale: 'The updater is not running',
-        interrupted: `Update to ${short(u.sha)} interrupted`,
-        updating: `Updating to ${short(u.sha)}`,
-        available: `Update available: ${short(target)}`,
-        ok: 'Up to date',
-        failed: 'Last update failed',
-        blocked: 'Updates paused'
+        stale: t('The updater is not running'),
+        interrupted: t('Update to {sha} interrupted', { sha: short(u.sha) }),
+        updating: t('Updating to {sha}', { sha: short(u.sha) }),
+        available: t('Update available: {sha}', { sha: short(target) }),
+        ok: t('Up to date'),
+        failed: t('Last update failed'),
+        blocked: t('Updates paused')
       }[state]}
       <div class="card updates">
         <div class="upstate">
           <span class="dot {state}" class:pulse={state === 'updating' || v.pending} aria-hidden="true"></span>
-          <strong>{v.unanswered ? 'Waiting for the updater' : v.pending && state !== 'updating' ? 'Starting the update…' : title}</strong>
+          <strong>{v.unanswered ? t('Waiting for the updater') : v.pending && state !== 'updating' ? t('Starting the update…') : title}</strong>
           {#if state === 'updating' || state === 'interrupted'}
             {#if state === 'interrupted'}
               <form method="POST" action="?/updateNow" use:enhance class="now">
-                <button class="btn btn-primary" disabled={v.pending}>{v.pending ? 'Resuming…' : 'Resume'}</button>
+                <button class="btn btn-primary" disabled={v.pending}>{v.pending ? t('Resuming…') : t('Resume')}</button>
               </form>
             {/if}
             <form method="POST" action="?/updateCancel" use:enhance class:now={state === 'updating'}>
-              <button class="btn" disabled={cancelling} title="Stops the update; the containers that run now keep running">
-                {cancelling ? 'Cancelling…' : 'Cancel'}
+              <button class="btn" disabled={cancelling} title={t('Stops the update; the containers that run now keep running')}>
+                {cancelling ? t('Cancelling…') : t('Cancel')}
               </button>
             </form>
           {:else if state !== 'stale' && (state !== 'ok' || !data.latestSha || v.pending)}
             <!-- Up to date with GitHub as of now: nothing to click. Unknown (GitHub did not answer): Update asks the updater. -->
             <form method="POST" action="?/updateNow" use:enhance class="now">
               <button class="btn" class:btn-primary={state === 'available' || state === 'failed'} disabled={v.pending}>
-                {v.pending ? 'Requested…' : state === 'failed' ? 'Try again' : 'Update'}
+                {v.pending ? t('Requested…') : state === 'failed' ? t('Try again') : t('Update')}
               </button>
             </form>
           {/if}
         </div>
         {#if v.unanswered}
           <p class="meta bad">
-            Requested {when(data.updateControl.request)}, but the updater has not taken it: is its scheduled task running every minute, all day? (In DSM its last run time must be 23:59.)
-            On the host, <code>sudo ./beni.sh update</code> updates right away.
+            {t('Requested {when}, but the updater has not taken it: is its scheduled task running every minute, all day? (In DSM its last run time must be 23:59.)', { when: when(data.updateControl.request) })}
+            {t('On the host,')} <code>sudo ./beni.sh update</code> {t('updates right away.')}
           </p>
         {:else if v.pending}
-          <p class="meta">Requested {when(data.updateControl.request)}: the updater takes it within a minute.</p>
+          <p class="meta">{t('Requested {when}: the updater takes it within a minute.', { when: when(data.updateControl.request) })}</p>
         {/if}
         {#if state === 'stale'}
           <p class="meta">
-            No sign of it since {when(u.checkedAt || u.at)}, so new commits on {u.branch} are not deployed. Its scheduled task must run
-            <code>sh &lt;folder&gt;-updater/update.sh</code> as root every minute, all day (DSM Task Scheduler: daily, every minute, first run 00:00, <strong>last run time 23:59</strong>);
-            <code>sudo ./beni.sh doctor</code> checks it, and
-            <code>sudo ./beni.sh auto-update install</code> prints the exact command. <code>sudo ./beni.sh update</code> updates by hand.
+            {t('No sign of it since {when}, so new commits on {branch} are not deployed.', { when: when(u.checkedAt || u.at), branch: u.branch })}
+            {t('Its scheduled task must run')} <code>sh &lt;folder&gt;-updater/update.sh</code>
+            {t('as root every minute, all day (DSM Task Scheduler: daily, every minute, first run 00:00, last run time 23:59);')}
+            <code>sudo ./beni.sh doctor</code> {t('checks it, and')}
+            <code>sudo ./beni.sh auto-update install</code> {t('prints the exact command.')} <code>sudo ./beni.sh update</code> {t('updates by hand.')}
           </p>
         {:else if state === 'updating' || state === 'interrupted'}
-          <div class="progress" class:halted={state === 'interrupted'} role="progressbar" aria-valuemin="0" aria-valuemax={u.steps || 1} aria-valuenow={u.step} aria-label="Update progress">
+          <div class="progress" class:halted={state === 'interrupted'} role="progressbar" aria-valuemin="0" aria-valuemax={u.steps || 1} aria-valuenow={u.step} aria-label={t('Update progress')}>
             <span style="width: {u.steps ? Math.max(4, ((u.step - 0.5) / u.steps) * 100) : 4}%" class:indeterminate={!u.steps && state === 'updating'}></span>
           </div>
           <p class="meta">
-            {#if u.steps}Step {u.step} of {u.steps}: <strong>{u.message}</strong>{:else}{u.message}{/if}
-            {#if u.startedAt} · started {when(u.startedAt)}{/if}{#if u.attempt > 1} · attempt {u.attempt}{/if}.
+            {#if u.steps}{t('Step {step} of {steps}:', { step: u.step, steps: u.steps })} <strong>{u.message}</strong>{:else}{u.message}{/if}
+            {#if u.startedAt} · {t('started {when}', { when: when(u.startedAt) })}{/if}{#if u.attempt > 1} · {t('attempt {n}', { n: u.attempt })}{/if}.
             {#if state === 'updating'}
-              A build takes minutes on a NAS; the old containers keep running until then.
+              {t('A build takes minutes on a NAS; the old containers keep running until then.')}
             {:else}
-              Its process stopped (no sign of it since {when(u.checkedAt || u.at)}: a restart of the host, or it was killed). The
-              updater's next run picks it up where it stopped; Resume asks for that now, and so does <code>sudo ./beni.sh update</code>
-              on the host.
+              {t('Its process stopped (no sign of it since {when}: a restart of the host, or it was killed). The updater\'s next run picks it up where it stopped; Resume asks for that now, and so does', { when: when(u.checkedAt || u.at) })}
+              <code>sudo ./beni.sh update</code> {t('on the host.')}
             {/if}
           </p>
           {#if data.buildTail.length}
-            <pre class="tail" aria-label="Build output">{data.buildTail.join('\n')}</pre>
+            <pre class="tail" aria-label={t('Build output')}>{data.buildTail.join('\n')}</pre>
           {/if}
         {:else if u.status !== 'ok'}
           <p class="meta">{u.message}</p>
           {#if state === 'failed' && data.buildTail.length}
             <details>
-              <summary>Build output</summary>
+              <summary>{t('Build output')}</summary>
               <pre class="tail">{data.buildTail.join('\n')}</pre>
             </details>
           {/if}
@@ -306,60 +377,62 @@
         {#if u.pendingRestart && state !== 'updating'}
           <div class="restart">
             <p class="meta">
-              <strong>{u.pendingRestart.split(' ').join(' and ')}</strong> still run the previous version. Restarting them ends the Claude
-              and Codex sessions and the terminal running there{v.restartPending ? '' : ', so it waits for you'}.
+              <strong>{u.pendingRestart.split(' ').join(` ${t('and')} `)}</strong>
+              {v.restartPending
+                ? t('still run the previous version. Restarting them ends the Claude and Codex sessions and the terminal running there.')
+                : t('still run the previous version. Restarting them ends the Claude and Codex sessions and the terminal running there, so it waits for you.')}
             </p>
             <form method="POST" action="?/updateRestart" use:enhance>
-              <button class="btn btn-primary" disabled={v.restartPending}>{v.restartPending ? 'Restarting…' : 'Restart now'}</button>
+              <button class="btn btn-primary" disabled={v.restartPending}>{v.restartPending ? t('Restarting…') : t('Restart now')}</button>
             </form>
           </div>
         {/if}
         <dl class="facts">
-          {#if u.deployedSha}<dt>Running</dt><dd><code>{short(u.deployedSha)}</code>{u.deployedAt ? `, deployed ${when(u.deployedAt)}` : ''}</dd>{/if}
-          <dt>Last change</dt><dd>{u.message}{u.at ? ` · ${when(u.at)}` : ''}</dd>
-          <dt>GitHub {u.branch}</dt><dd>{#if data.latestSha}<code>{short(data.latestSha)}</code>, checked as this page opened{:else}not reachable from the app{/if}</dd>
-          <dt>Last check</dt><dd>{u.checkedAt ? when(u.checkedAt) : 'not reported'}</dd>
-          {#if u.actions && state !== 'updating'}<dt>Last actions</dt><dd><code>{u.actions}</code></dd>{/if}
+          {#if u.deployedSha}<dt>{t('Running')}</dt><dd><code>{short(u.deployedSha)}</code>{u.deployedAt ? `, ${t('deployed {when}', { when: when(u.deployedAt) })}` : ''}</dd>{/if}
+          <dt>{t('Last change')}</dt><dd>{u.message}{u.at ? ` · ${when(u.at)}` : ''}</dd>
+          <dt>GitHub {u.branch}</dt><dd>{#if data.latestSha}<code>{short(data.latestSha)}</code>, {t('checked as this page opened')}{:else}{t('not reachable from the app')}{/if}</dd>
+          <dt>{t('Last check')}</dt><dd>{u.checkedAt ? when(u.checkedAt) : t('not reported')}</dd>
+          {#if u.actions && state !== 'updating'}<dt>{t('Last actions')}</dt><dd><code>{u.actions}</code></dd>{/if}
         </dl>
-        <form method="POST" action="?/updateMode" use:enhance class="mode" aria-label="Update mode">
-          <label><input type="radio" name="mode" value="auto" checked={data.updateControl.mode === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Automatic</label>
-          <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Manual: show new versions, update when I click</label>
-          <noscript><button class="btn">Save</button></noscript>
+        <form method="POST" action="?/updateMode" use:enhance class="mode" aria-label={t('Update mode')}>
+          <label><input type="radio" name="mode" value="auto" checked={data.updateControl.mode === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Automatic')}</label>
+          <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Manual: show new versions, update when I click')}</label>
+          <noscript><button class="btn">{t('Save')}</button></noscript>
         </form>
-        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label="Restarts of llm and terminal">
-          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Ask before restarting llm and terminal</label>
-          <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> Restart them by themselves</label>
-          <noscript><button class="btn">Save</button></noscript>
+        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label={t('Restarts of llm and terminal')}>
+          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Ask before restarting llm and terminal')}</label>
+          <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Restart them by themselves')}</label>
+          <noscript><button class="btn">{t('Save')}</button></noscript>
         </form>
         <p class="meta">
-          The host's updater runs every minute, checks {u.branch} on GitHub every few minutes and rebuilds only what changed.
-          On the host the same update is <code>sudo ./beni.sh update</code>.
-          <a href="/settings/logs?file=updater.log">Updater log</a>
+          {t('The host\'s updater runs every minute, checks {branch} on GitHub every few minutes and rebuilds only what changed.', { branch: u.branch })}
+          {t('On the host the same update is')} <code>sudo ./beni.sh update</code>.
+          <a href="/settings/logs?file=updater.log">{t('Updater log')}</a>
         </p>
       </div>
     {:else}
       <p class="muted">
-        The updater is not set up. On the host, <code>sudo ./beni.sh update</code> sets it up and updates; it prints the
-        scheduled task to add (spec 006).
+        {t('The updater is not set up. On the host,')} <code>sudo ./beni.sh update</code>
+        {t('sets it up and updates; it prints the scheduled task to add (spec 006).')}
       </p>
     {/if}
   </section>
 
   <section aria-labelledby="sec-h">
-    <h2 id="sec-h">Security</h2>
+    <h2 id="sec-h">{t('Security')}</h2>
     <div class="card security">
-      <p class="meta">One app password opens the whole assistant. Settings ask for it again and lock after 10 minutes.</p>
+      <p class="meta">{t('One app password opens the whole assistant. Settings ask for it again and lock after 10 minutes.')}</p>
       {#if data.passwordFromEnv}
-        <p class="muted">Set in <code>.env</code> (<code>APP_PASSWORD_HASH</code>). Remove that line and restart <code>web</code> to manage it here.</p>
+        <p class="muted">{t('Set in .env (APP_PASSWORD_HASH). Remove that line and restart web to manage it here.')}</p>
       {:else}
         <details>
-          <summary>Change the app password</summary>
+          <summary>{t('Change the app password')}</summary>
           <form method="POST" action="?/password" class="row" use:enhance>
-            <label class="field"><span>New password (12+)</span><input name="password" type="password" autocomplete="new-password" minlength="12" required /></label>
-            <label class="field"><span>Repeat</span><input name="repeat" type="password" autocomplete="new-password" minlength="12" required /></label>
-            <div class="actions"><button class="btn btn-primary">Change</button></div>
+            <label class="field"><span>{t('New password (12+)')}</span><input name="password" type="password" autocomplete="new-password" minlength="12" required /></label>
+            <label class="field"><span>{t('Repeat')}</span><input name="repeat" type="password" autocomplete="new-password" minlength="12" required /></label>
+            <div class="actions"><button class="btn btn-primary">{t('Change')}</button></div>
           </form>
-          <p class="meta">Every other device is logged out.</p>
+          <p class="meta">{t('Every other device is logged out.')}</p>
         </details>
       {/if}
     </div>
@@ -765,5 +838,53 @@
   }
   code {
     font-size: 0.8125rem;
+  }
+
+  /* Language */
+  .langs {
+    display: grid;
+    gap: var(--space-3);
+  }
+  .langs p {
+    margin: 0;
+  }
+  .langs table {
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .langs th,
+  .langs td {
+    padding: 6px var(--space-3) 6px 0;
+    text-align: left;
+  }
+  .langs thead th {
+    color: var(--ink-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .langs tbody th {
+    font-weight: 500;
+  }
+  .langs tbody tr + tr {
+    border-top: 1px solid var(--ring);
+  }
+  .missing {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--warning);
+  }
+  .missing .btn {
+    flex: none;
+  }
+  .missing .meta {
+    white-space: normal;
+  }
+  @media (max-width: 560px) {
+    .missing {
+      flex-wrap: wrap;
+    }
   }
 </style>

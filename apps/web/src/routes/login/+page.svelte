@@ -1,21 +1,23 @@
 <script lang="ts">
   import Mascot from '#lib/Mascot.svelte';
+  import { useT } from '#lib/i18n/index.ts';
   let { form } = $props();
+  const t = useT();
 </script>
 
 <form method="POST" class="card login rise">
-  <div class="pip"><Mascot mood="charged" size={84} label="Beni, the assistant mascot. Click me." /></div>
+  <div class="pip"><Mascot mood="charged" size={84} label={t('Beni, the assistant mascot. Click me.')} /></div>
   <div>
-    <h1>Assistant</h1>
-    <p class="muted">Enter the app password to continue.</p>
+    <h1>{t('Assistant')}</h1>
+    <p class="muted">{t('Enter the app password to continue.')}</p>
   </div>
   <label>
-    <span class="eyebrow">Password</span>
+    <span class="eyebrow">{t('Password')}</span>
     <!-- svelte-ignore a11y_autofocus -->
     <input type="password" name="password" autocomplete="current-password" required autofocus />
   </label>
   {#if form?.error}<p class="status critical" role="alert">{form.error}</p>{/if}
-  <button class="btn btn-primary">Log in</button>
+  <button class="btn btn-primary">{t('Log in')}</button>
 </form>
 
 <style>

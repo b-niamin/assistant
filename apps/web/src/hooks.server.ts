@@ -6,6 +6,8 @@ import { canonicalRedirect } from '#lib/server/canonical-origin.ts';
 import { claudeTokenMatches } from '#lib/server/claude-token.ts';
 import { isValidSession, PROFILE_COOKIE, SESSION_COOKIE } from '#lib/server/session.ts';
 import { htmlTag, parseTheme, THEME_COOKIE } from '#lib/theme.ts';
+import { LANG_COOKIE, pickLanguage } from '#lib/i18n/languages.ts';
+import { languageSettings } from '#lib/server/languages.ts';
 
 const PUBLIC_PATHS = new Set(['/login', '/healthz', '/setup']);
 
@@ -21,6 +23,9 @@ export const handle: Handle = async ({ event, resolve }) => {
     throw redirect(303, '/setup');
   event.locals.profileId = event.cookies.get(PROFILE_COOKIE) || (await defaultProfile());
   event.locals.theme = parseTheme(event.cookies.get(THEME_COOKIE));
+  // The language of the page (spec 007): this browser's pick from the user menu, else the default.
+  event.locals.lang =
+    event.url.pathname === '/healthz' ? 'en' : pickLanguage(await languageSettings(), event.cookies.get(LANG_COOKIE));
 
   // Tools for Claude (spec 005): a bearer token, never a browser session.
   if (event.url.pathname === '/api/claude') {
@@ -43,7 +48,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     if (ext && !visibleTo(ext, event.locals.profileId)) throw error(404, 'Not found');
   }
 
-  const tag = htmlTag(event.locals.theme);
+  const tag = htmlTag(event.locals.theme, event.locals.lang);
   const response = await resolve(event, { transformPageChunk: ({ html }) => html.replace('<html lang="en">', tag) });
   response.headers.set('X-Content-Type-Options', 'nosniff');
   if (!response.headers.has('Referrer-Policy')) response.headers.set('Referrer-Policy', 'same-origin');

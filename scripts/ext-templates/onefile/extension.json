@@ -6,5 +6,6 @@
   "kind": "onefile",
   "scope": "{{scope}}",
   "shell": {{shell}},
-  "entry": "app.html"
+  "entry": "app.html",
+  "languages": ["en", "pl"]
 }

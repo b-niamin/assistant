@@ -8,6 +8,7 @@ import { error, isHttpError, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { callTool, listTools } from '#lib/extensions/tools.server.ts';
 import { listProfiles } from '#lib/server/session.ts';
+import { languageSettings } from '#lib/server/languages.ts';
 
 async function profileOf(v: unknown, fallback: string): Promise<string> {
   const id = typeof v === 'string' && v ? v : fallback;
@@ -17,7 +18,8 @@ async function profileOf(v: unknown, fallback: string): Promise<string> {
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   const profile = await profileOf(url.searchParams.get('profile'), locals.profileId);
-  return json({ profile, profiles: await listProfiles(), extensions: await listTools(profile) });
+  // languages (spec 007): what the app offers; every extension must have each (`languages` per extension).
+  return json({ profile, profiles: await listProfiles(), languages: await languageSettings(), extensions: await listTools(profile) });
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {

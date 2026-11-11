@@ -1,21 +1,23 @@
 <script lang="ts">
   import type { DataOf } from '$shell';
-  import { Mascot } from '$shell/ui';
+  import { Mascot, useT } from '$shell/ui';
   import type { load } from './+page.server';
 
   let { data, form }: { data: DataOf<typeof load>; form: { error?: string } | null } = $props();
+  // Every text through t(): its translations are in i18n/<lang>.json (spec 007).
+  const t = useT();
 </script>
 
-<svelte:head><title>{{name}} · Assistant</title></svelte:head>
+<svelte:head><title>{t('{{name}}')} · {t('Assistant')}</title></svelte:head>
 
 <header class="head">
   <Mascot mood="steady" size={40} decorative />
-  <h1>{{name}}</h1>
+  <h1>{t('{{name}}')}</h1>
 </header>
 
 <form method="POST" action="?/add" class="card add">
-  <input name="title" placeholder="New item" required maxlength="200" aria-label="New item" />
-  <button class="btn">Add</button>
+  <input name="title" placeholder={t('New item')} required maxlength="200" aria-label={t('New item')} />
+  <button class="btn">{t('Add')}</button>
   {#if form?.error}<p class="muted">{form.error}</p>{/if}
 </form>
 
@@ -23,7 +25,7 @@
   {#each data.items as item (item.id)}
     <li class:done={item.done}>{item.title}</li>
   {:else}
-    <li class="muted empty"><Mascot mood="idle" size={36} decorative /> Nothing yet.</li>
+    <li class="muted empty"><Mascot mood="idle" size={36} decorative /> {t('Nothing yet.')}</li>
   {/each}
 </ul>
 

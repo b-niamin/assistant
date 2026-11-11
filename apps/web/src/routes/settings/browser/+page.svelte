@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { openSidecar } from '#lib/sidecar-client.ts';
+  import { useT } from '#lib/i18n/index.ts';
 
   let { data } = $props();
+  const t = useT();
 
   let screen: HTMLDivElement;
   let phase = $state<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
@@ -26,7 +28,7 @@
       r.addEventListener('disconnect', (e: CustomEvent<{ clean: boolean }>) => {
         if (rfb !== r) return;
         phase = e.detail.clean ? 'closed' : 'error';
-        if (!e.detail.clean) message = 'The browser container did not answer. Is it running?';
+        if (!e.detail.clean) message = t('The browser container did not answer. Is it running?');
       });
       rfb = r;
     } catch (e) {
@@ -57,24 +59,22 @@
   });
 </script>
 
-<svelte:head><title>Browser · Assistant</title></svelte:head>
+<svelte:head><title>{t('Browser')} · {t('Assistant')}</title></svelte:head>
 
 <div class="head">
-  <p class="eyebrow"><a href="/settings">System settings</a></p>
-  <h1>Browser</h1>
+  <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
+  <h1>{t('Browser')}</h1>
   <p class="muted">
-    A Chromium in its own container. Sign in here to services that have no connector; Claude in the
-    container drives this same browser (Playwright over CDP) and sees the same logins. Treat every
-    signed-in tab as a password: sign out of what Claude no longer needs.
+    {t('A Chromium in its own container. Sign in here to services that have no connector; Claude in the container drives this same browser (Playwright over CDP) and sees the same logins. Treat every signed-in tab as a password: sign out of what Claude no longer needs.')}
   </p>
 </div>
 
 {#if !data.configured}
   <p class="card warn">
-    The browser is off: set <code>SIDECAR_TICKET_SECRET</code> in <code>.env</code> and run <code>docker compose up -d</code>.
+    {t('The browser is off: set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}
   </p>
 {:else if !data.reachable}
-  <p class="card warn">The browser container is not running. Start it with <code>docker compose up -d browser</code>.</p>
+  <p class="card warn">{t('The browser container is not running. Start it with')} <code>docker compose up -d browser</code>.</p>
 {/if}
 
 <div class="screen card" bind:this={screen}></div>
@@ -87,15 +87,15 @@
       sendPaste();
     }}
   >
-    <label class="sr" for="paste">Text to paste into the remote browser</label>
-    <input id="paste" type="password" autocomplete="off" placeholder="Paste text, then Ctrl+V in the browser" bind:value={paste} />
-    <button class="btn" disabled={phase !== 'open' || !paste}>Send to clipboard</button>
+    <label class="sr" for="paste">{t('Text to paste into the remote browser')}</label>
+    <input id="paste" type="password" autocomplete="off" placeholder={t('Paste text, then Ctrl+V in the browser')} bind:value={paste} />
+    <button class="btn" disabled={phase !== 'open' || !paste}>{t('Send to clipboard')}</button>
   </form>
   <span class="muted">
-    {#if phase === 'connecting'}Connecting…{:else if phase === 'open'}Connected{:else if phase === 'closed'}Disconnected{:else if phase === 'error'}{message}{/if}
+    {#if phase === 'connecting'}{t('Connecting…')}{:else if phase === 'open'}{t('Connected')}{:else if phase === 'closed'}{t('Disconnected')}{:else if phase === 'error'}{message}{/if}
   </span>
   {#if phase === 'closed' || phase === 'error'}
-    <button class="btn-primary" type="button" onclick={connect}>Reconnect</button>
+    <button class="btn-primary" type="button" onclick={connect}>{t('Reconnect')}</button>
   {/if}
 </div>
 

@@ -11,6 +11,8 @@
   import Mascot from '#lib/Mascot.svelte';
   import TerminalWindow from '#lib/terminal/TerminalWindow.svelte';
   import { dock, refreshDock as refresh } from './dock.svelte.ts';
+  import { useT } from '#lib/i18n/index.ts';
+  const t = useT();
 
   type Phase = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
@@ -43,9 +45,9 @@
       if (result.type === 'success') {
         password = '';
         if (dock.status) dock.status.unlocked = true;
-      } else unlockError = (result.type === 'failure' && (result.data?.error as string)) || 'Could not unlock.';
+      } else unlockError = (result.type === 'failure' && (result.data?.error as string)) || t('Could not unlock.');
     } catch {
-      unlockError = 'Could not unlock.';
+      unlockError = t('Could not unlock.');
     } finally {
       unlocking = false;
     }
@@ -105,54 +107,54 @@
 <!-- While the terminal is open the page behind it is blurred and dimmed; a click there collapses it. -->
 <div class="backdrop" class:shown={dock.open} aria-hidden="true" onclick={() => (dock.open = false)}></div>
 
-<section class="dock" class:open={dock.open} aria-label="Terminal">
+<section class="dock" class:open={dock.open} aria-label={t('Terminal')}>
   <!-- The whole bar toggles the terminal for a mouse; the keyboard has the buttons inside it. -->
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="strip" onclick={(e) => !(e.target as Element).closest('a, button') && toggle()}>
-    <span class="handle" aria-hidden="true" title={dock.open ? 'Collapse' : 'Expand'}></span>
-    <button class="toggle" type="button" onclick={toggle} aria-expanded={dock.open} aria-controls="dock-panel" title={dock.open ? 'Collapse the terminal' : 'Open the terminal'}>
+    <span class="handle" aria-hidden="true" title={dock.open ? t('Collapse') : t('Expand')}></span>
+    <button class="toggle" type="button" onclick={toggle} aria-expanded={dock.open} aria-controls="dock-panel" title={dock.open ? t('Collapse the terminal') : t('Open the terminal')}>
       <span class="mark" aria-hidden="true">›_</span>
-      <span class="label">Terminal</span>
-      {#if started}<span class="status small" class:good={phase === 'open'} title={phase === 'open' ? 'Connected' : 'Not connected'}><span class="sr">{phase === 'open' ? 'Connected' : 'Not connected'}</span></span>{/if}
+      <span class="label">{t('Terminal')}</span>
+      {#if started}<span class="status small" class:good={phase === 'open'} title={phase === 'open' ? t('Connected') : t('Not connected')}><span class="sr">{phase === 'open' ? t('Connected') : t('Not connected')}</span></span>{/if}
       <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
-      {#if dock.open}<span class="hint">Collapse</span>{/if}
+      {#if dock.open}<span class="hint">{t('Collapse')}</span>{/if}
     </button>
     {#if status?.update?.state === 'updating'}
-      <a class="chip" href="/settings#up-h" title="Rebuilding: {status.update.actions}">
-        <span class="status small warning pulse">Updating to {status.update.sha}{status.update.steps ? ` · ${status.update.step}/${status.update.steps}` : ''}</span>
+      <a class="chip" href="/settings#up-h" title={t('Rebuilding: {actions}', { actions: status.update.actions })}>
+        <span class="status small warning pulse">{t('Updating to {sha}', { sha: status.update.sha })}{status.update.steps ? ` · ${status.update.step}/${status.update.steps}` : ''}</span>
       </a>
     {:else if status?.update?.state === 'available'}
-      <a class="chip" href="/settings#up-h" title="A new version is on GitHub: update it from System settings">
-        <span class="status small available">Update available</span>
+      <a class="chip" href="/settings#up-h" title={t('A new version is on GitHub: update it from System settings')}>
+        <span class="status small available">{t('Update available')}</span>
       </a>
     {:else if status?.update?.pendingRestart}
-      <a class="chip" href="/settings#up-h" title="{status.update.pendingRestart} run the previous version: restart them from System settings">
-        <span class="status small warning">Restart needed</span>
+      <a class="chip" href="/settings#up-h" title={t('{services} run the previous version: restart them from System settings', { services: status.update.pendingRestart })}>
+        <span class="status small warning">{t('Restart needed')}</span>
       </a>
     {:else if status?.update?.state === 'interrupted'}
-      <a class="chip" href="/settings#up-h" title="The update's process stopped; the updater resumes it, or resume it from System settings">
-        <span class="status small warning">Update interrupted</span>
+      <a class="chip" href="/settings#up-h" title={t("The update's process stopped; the updater resumes it, or resume it from System settings")}>
+        <span class="status small warning">{t('Update interrupted')}</span>
       </a>
     {:else if status?.update?.state === 'stale'}
-      <a class="chip" href="/settings#up-h" title="The updater has not run for a while: new commits are not deployed">
-        <span class="status small critical">Updates stopped</span>
+      <a class="chip" href="/settings#up-h" title={t('The updater has not run for a while: new commits are not deployed')}>
+        <span class="status small critical">{t('Updates stopped')}</span>
       </a>
     {/if}
   </div>
 
   <div class="panel" id="dock-panel" hidden={!dock.open}>
     {#if !status}
-      <p class="note">Checking the terminal…</p>
+      <p class="note">{t('Checking the terminal…')}</p>
     {:else if !status.configured}
-      <p class="note">The terminal is off. Set <code>SIDECAR_TICKET_SECRET</code> in <code>.env</code> and run <code>docker compose up -d</code>.</p>
+      <p class="note">{t('The terminal is off. Set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</p>
     {:else if !started}
       <form class="unlock" onsubmit={unlock}>
         <Mascot mood="asleep" size={44} decorative />
         <label>
-          <span>The terminal opens a shell, so it asks for the app password again (10 minutes).</span>
-          <input type="password" bind:value={password} autocomplete="current-password" placeholder="App password" required />
+          <span>{t('The terminal opens a shell, so it asks for the app password again (10 minutes).')}</span>
+          <input type="password" bind:value={password} autocomplete="current-password" placeholder={t('App password')} required />
         </label>
-        <button class="btn btn-primary" disabled={unlocking}>Unlock</button>
+        <button class="btn btn-primary" disabled={unlocking}>{t('Unlock')}</button>
         {#if unlockError}<p class="bad" role="alert">{unlockError}</p>{/if}
       </form>
     {/if}

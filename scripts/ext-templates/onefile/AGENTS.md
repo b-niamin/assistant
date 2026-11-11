@@ -23,6 +23,12 @@ Look (required): inside the shell the iframe gets the shell's tokens (`--page`, 
 mascot. Style only with `var(--token, fallback)`, put Beni in the header and empty states, and drop any
 own palette or fonts. Outside the shell the fallbacks apply and the element stays empty.
 
+Languages (required, spec 007): the app speaks every language of the assistant (System settings ->
+Language). Its own UI carries the translations inside the HTML; list them in `extension.json`
+`"languages": ["en", "pl"]`. Inside the shell `window.assistantLang` is the page's language: use it over
+the app's own guess (navigator.language). Its name and description are translated in `i18n/<lang>.json`
+(English text -> translation).
+
 Check after a change: `node scripts/ext.mjs check {{id}}` in the shell repo root, then open `/{{id}}`.
 Commit it in the assistant repo, with `extensions/installed.json`. Settings from its panel in System
 settings arrive as `window.assistantSettings` (read-only).

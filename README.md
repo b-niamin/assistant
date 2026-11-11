@@ -5,7 +5,7 @@
 # Beni Assistant
 
 A self-hosted web app. Apps are added as extensions.
-Claude Code and Codex run in the same stack: they read the extensions' data and write new extensions.
+Claude uses the extensions' data through an MCP server: from claude.ai, or from Claude Code and Codex in the app's terminal.
 Runs on Linux or a Synology NAS with Docker Compose. You reach it over your Tailscale network with HTTPS.
 
 [Install](#quick-start) · [Screenshots](#screenshots) · [Extensions](https://github.com/b-niamin/assistant-extensions) · [Docs](#docs)
@@ -20,11 +20,11 @@ Runs on Linux or a Synology NAS with Docker Compose. You reach it over your Tail
   <tr>
     <td width="33%" valign="top"><h3>Runs on your machine</h3>One Docker Compose stack on a Synology NAS or any Linux host with Docker. The data is in Postgres on that host.</td>
     <td width="33%" valign="top"><h3>Extensions</h3>Each app is an extension with its own page, dashboard tiles and database schema. Install one from System settings or ask Claude to write one.</td>
-    <td width="33%" valign="top"><h3>Agents in the stack</h3>Claude Code and Codex run in a container next to the app. They query extension data through tools and commit code to the checkout.</td>
+    <td width="33%" valign="top"><h3>MCP for Claude</h3>Every extension adds its tools to one MCP server. Add it to claude.ai as a connector, or use it from Claude Code and Codex in the app's terminal.</td>
   </tr>
   <tr>
     <td valign="top"><h3>Profiles</h3>One app password for the whole app. Each profile has its own data.</td>
-    <td valign="top"><h3>Tailnet only</h3>The app listens on 127.0.0.1. Tailscale Serve puts HTTPS in front of it; nothing is published to the LAN or the internet.</td>
+    <td valign="top"><h3>Tailnet only</h3>The app listens on 127.0.0.1 behind Tailscale Serve. Only the MCP server can be published, through Tailscale Funnel, with OAuth sign-in.</td>
     <td valign="top"><h3>Updates</h3>An updater pulls GitHub <code>main</code> and rebuilds only the services whose files changed, on a schedule or from System settings.</td>
   </tr>
 </table>
@@ -62,21 +62,22 @@ Synology steps, installer options and `beni.sh` commands: [docs/install.md](docs
 
 ```mermaid
 flowchart LR
-  you(["Browser<br/>phone, laptop, tablet"]) -- "Tailscale HTTPS" --> web
+  you(["Browser<br/>phone, laptop, tablet"]) -- "Tailscale Serve" --> web
+  claude(["claude.ai<br/>Claude apps"]) -- "Tailscale Funnel, /mcp only" --> web
   subgraph box ["NAS or Linux host, Docker Compose"]
-    llm["llm<br/>Claude Code, Codex"] -- "tools" --> web["web<br/>app and extensions"]
+    term["terminal<br/>Claude Code, Codex"] -- "MCP" --> web["web<br/>app, extensions, MCP server"]
     web --> db[("Postgres<br/>one schema per extension")]
     svc["extension services<br/>background jobs"] --> db
   end
 ```
 
-The core provides login, profiles, the dashboard, System settings and the terminal. Everything else is an
-extension, either from [assistant-extensions](https://github.com/b-niamin/assistant-extensions) or
+The core provides login, profiles, the dashboard, System settings, the terminal and the MCP server.
+Everything else is an extension, either from [assistant-extensions](https://github.com/b-niamin/assistant-extensions) or
 written by Claude in your instance. Details: [architecture spec](specs/000-architecture.md).
 
 ## Docs
 
 - [Extensions repo](https://github.com/b-niamin/assistant-extensions): ready-made extensions and inspirations
 - [Install and run](docs/install.md): installer, Synology steps, `beni.sh`, development
-- [Architecture](specs/000-architecture.md), [extensions](specs/002-extensions.md), [security](specs/004-security.md), [all specs](specs)
+- [Architecture](specs/000-architecture.md), [extensions](specs/002-extensions.md), [MCP and the Claude connector](specs/005-claude-tools.md), [security](specs/004-security.md), [all specs](specs)
 - [AGENTS.md](AGENTS.md): rules for people and AI agents working in this repo

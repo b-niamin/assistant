@@ -65,9 +65,9 @@ GitHub main ──git fetch (checkout owner's credentials)──► <checkout>-u
  6. verify        the touched services run (no crash loop, no failed exit) 15 s later
 ```
 
-**llm and terminal wait for a confirmed restart** (System settings → Updates: "Ask before restarting
-llm and terminal", the default; or "Restart them by themselves", `restarts=auto`). Recreating or
-restarting them ends the Claude and Codex sessions and the terminal running there. With "ask", an update
+**The terminal waits for a confirmed restart** (System settings → Updates: "Ask before restarting the
+terminal", the default; or "Restart it by itself", `restarts=auto`). Recreating or restarting it ends the
+shell and the Claude and Codex sessions running there. With "ask", an update
 builds their images and does everything else, then leaves their `up`/`restart` in `<home>/state`
 (`pending`); the status carries `pendingRestart`, the panel and the dock say "Restart needed", and
 "Restart now" (`restart=<id>` in the control file), `sudo ./beni.sh update --restart`, or "y" at the
@@ -81,7 +81,7 @@ and nothing is built. Every step runs under a time limit (90 minutes for a build
 | Changed path | Action |
 |---|---|
 | `docker-compose.yml` | build every image, `up -d` the whole project |
-| `docker/llm/**` | rebuild and recreate `llm` and `terminal` (ends the running Claude session) |
+| `docker/terminal/**` | rebuild and recreate `terminal` (ends what runs in it) |
 | `docker/browser/**` | rebuild and recreate `browser` |
 | `apps/web/scripts/live-reload.mjs` | restart `web` |
 | `services/terminal/**` (not tests) | restart `terminal` |
@@ -122,7 +122,7 @@ there when a new long-lived service or build context appears.
   The schedule runs `update.sh` without arguments: it finds its checkout in `<home>/checkout`, else by the
   home's name (`<checkout>-updater`), and writes the file on every run.
 
-- **Permissions**: web, llm and terminal run as `HOST_UID` and must be able to write the checkout.
+- **Permissions**: web and terminal run as `HOST_UID` and must be able to write the checkout.
   `install`, every deploy and `install.sh` (as root) run `fix-permissions`: files not owned by
   `HOST_UID` are handed back (a `git pull` or `npm ci` once run as root), Synology ACLs are removed
   (DSM puts them on everything in a shared folder; they show as `r-xr-xr-x+` and deny writes whatever the
@@ -167,6 +167,16 @@ entry: Control Panel → Task Scheduler → Create → Scheduled Task → User-d
 every minute, command `sh <checkout>-updater/update.sh`. An idle run costs a heartbeat and, every 4
 minutes, one `git fetch`.
 
+## The Claude connector switch
+
+The updater also applies System settings → Claude connector (spec 005): `funnel=on|off` in the control
+file. On every run, before anything else and independent of updates, it compares `tailscale funnel status`
+with the switch and runs `tailscale funnel --bg --https=8443 http://127.0.0.1:<MCP_PORT>` (10000 when 8443
+serves something else) or `tailscale funnel --https=<port> off`, then writes `/logs/funnel-status.json`
+(`{want, state: on|off|error|unavailable, port, url, message, at}`, only when it changed, and hourly).
+When Tailscale does not allow Funnel for the machine yet, `message` carries the link that enables it.
+`sudo sh <home>/update.sh funnel` applies the switch at once.
+
 ## In the app
 
 When System settings opens, the web app asks GitHub for the commit of main (git's public ref advertisement,
@@ -177,7 +187,7 @@ said; up to date shows no button. Update leaves a request that the every-minute 
 Services that main's compose file no longer has (renamed, merged, dropped), and that no extension's compose
 file (COMPOSE_FILE) has either, lose their containers at the next update: by label, never with
 `--remove-orphans`, which would take the extensions' services too. With restarts asked first, that removal
-waits for "Restart now" together with the held services (the old `claude` goes when `llm` comes up).
+waits for "Restart now" together with the held services (the old `llm` goes when the new `terminal` comes up).
 
 System settings → Updates: Automatic or Manual (`/logs/updater-control`: `mode=auto|manual`, plus
 `request=<id>` for "Update now" / "Try again" / "Resume" and `cancel=<id>` for "Cancel"; the updater reads

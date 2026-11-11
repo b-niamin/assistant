@@ -325,6 +325,8 @@ done
 # Older installs went by the folder name: pin it, so moving the folder keeps the same containers and volumes.
 sed -i '/^COMPOSE_PROJECT_NAME=$/d' .env
 grep -q '^COMPOSE_PROJECT_NAME=' .env || printf 'COMPOSE_PROJECT_NAME=%s\n' "$PROJECT" >> .env
+# The MCP listener's host port (the Claude connector, spec 005): a free one, also for older installs.
+grep -q '^MCP_PORT=' .env || printf 'MCP_PORT=%s\n' "$(free_port 3101)" >> .env
 
 # Which installed extensions bring a service: their compose.yml joins the stack through COMPOSE_FILE.
 compose_files() {
@@ -353,9 +355,9 @@ mkdir -p extensions
 
 if [ -n "$EXTENSIONS" ]; then
   phase "Installing extensions"
-  quietly "Building the tools image (a few minutes the first time)" dc build llm
+  quietly "Building the terminal image (a few minutes the first time)" dc build terminal
   # shellcheck disable=SC2086 # one word per extension id
-  quietly "Copying $EXTENSIONS from the extensions repo" dc run --rm --no-deps -T --entrypoint node llm scripts/ext.mjs install $EXTENSIONS
+  quietly "Copying $EXTENSIONS from the extensions repo" dc run --rm --no-deps -T --entrypoint node terminal scripts/ext.mjs install $EXTENSIONS
   compose_files
 fi
 
@@ -439,7 +441,7 @@ cat <<NEXT
 $( [ "$origin" = "http://localhost:$PORT" ] && echo "  (No Tailscale found: from your computer run  ssh -L $PORT:localhost:$PORT <this-host>  and open http://localhost:$PORT/setup)")
 
   Then, in a terminal on this host (in $DIR), or the app's terminal once it is set up:
-    $DC exec -it llm claude                           # /login once, Remote Control starts by itself
+    $DC exec -it terminal claude                      # /login once (or from the app's terminal)
 $( [ -f extensions/health/compose.yml ] && echo "    $DC exec -it garmin-sync python -m sync login     # health: connect Garmin (password never stored)")
 
   Later:  ./beni.sh status | doctor | logs | ext available | update   (./beni.sh help)
@@ -481,9 +483,10 @@ fi
 
 step "Claude"
 printf '  Claude Code opens here: type /login, open the link it shows, sign in, then type /exit.\n' > /dev/tty
-printf '  After that Remote Control runs by itself (claude.ai > Code).\n' > /dev/tty
+printf '  It then runs in the terminal at the bottom of the app (unlock it with the lock at the top).\n' > /dev/tty
+printf '  To reach the apps from claude.ai or the Claude app: System settings > Claude connector.\n' > /dev/tty
 if yes_no "Log in to Claude now?"; then
-  dc exec -it llm claude < /dev/tty > /dev/tty 2>&1 || printf '  Later: %s exec -it llm claude\n' "$DC" > /dev/tty
+  dc exec -it terminal claude < /dev/tty > /dev/tty 2>&1 || printf '  Later: %s exec -it terminal claude\n' "$DC" > /dev/tty
 fi
 
 if [ -f extensions/health/compose.yml ]; then

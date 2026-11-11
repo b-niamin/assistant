@@ -3,7 +3,7 @@
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
-  import { AGENT_NAMES, askAgent, dock, refreshDock, runInDock } from '#lib/dock/dock.svelte.ts';
+  import { AGENT_NAMES, askAgent, lockSession, openDock, refreshDock, runInDock } from '#lib/dock/dock.svelte.ts';
   import { hueFor, initials } from '#lib/settings/guide.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -37,13 +37,6 @@
     { id: 'codex', name: 'Codex', mark: 'X', hue: 'var(--hue-aqua)', cmd: 'codex login --device-auth', hint: t('Sign in with ChatGPT: enter the code at the URL it prints.') },
     { id: 'gh', name: 'GitHub CLI', mark: 'G', hue: 'var(--hue-violet)', cmd: 'gh auth login', hint: t('Choose GitHub.com, HTTPS, then log in with a web browser.') }
   ] as const);
-  const REMOTE_LABEL: Record<string, string> = $derived({
-    running: t('Remote Control running'),
-    starting: t('Remote Control starting'),
-    restarting: t('Remote Control restarting'),
-    'signed-out': t('Remote Control waits for the sign-in'),
-    off: t('Remote Control not running')
-  });
 
   // System settings -> Language (spec 007): which languages are ticked, and the default among them.
   let ticked = $state<string[] | null>(null);
@@ -76,7 +69,8 @@
     <p class="lede">{t('Apps, people, the terminal and security, all in one place.')}</p>
   </div>
   {#if !data.locked}
-    <form method="POST" action="?/lock" use:enhance>
+    <!-- Same lock as the header's: the terminal goes too. -->
+    <form method="POST" action="?/lock" use:enhance={() => async ({ update }) => (await update(), await lockSession())}>
       <button class="btn">{t('Lock')}</button>
     </form>
   {/if}
@@ -90,7 +84,8 @@
 {/if}
 
 {#if data.locked}
-  <form method="POST" action={next ? `?/unlock&next=${encodeURIComponent(next)}` : '?/unlock'} class="card unlock">
+  <form method="POST" action={next ? `?/unlock&next=${encodeURIComponent(next)}` : '?/unlock'} class="card unlock"
+    use:enhance={() => async ({ update }) => (await update(), refreshDock())}>
     <h2>{t('Enter the app password again')}</h2>
     <p class="muted">{t('Settings change what everybody sees, so they ask for the password again. They stay open for 10 minutes.')}</p>
     <label>
@@ -112,7 +107,7 @@
       <strong>{t('Add a person')}</strong>
       <span class="meta">{t('A profile with their own data')}</span>
     </a>
-    <button type="button" class="card do" onclick={() => (dock.open = true)} style="--hue: var(--hue-violet)">
+    <button type="button" class="card do" onclick={openDock} style="--hue: var(--hue-violet)">
       <span class="ico" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4 6l4 4-4 4M10 14h6" /></svg></span>
       <strong>{t('Open the terminal')}</strong>
       <span class="meta">{t('At the bottom of every page: Claude Code, Codex, a shell')}</span>
@@ -231,7 +226,7 @@
   <section aria-labelledby="term-h">
     <div class="sh">
       <h2 id="term-h">{t('Terminal')}</h2>
-      <button type="button" class="meta linkish" onclick={() => (dock.open = true)}>{t('Open the terminal')}</button>
+      <button type="button" class="meta linkish" onclick={openDock}>{t('Open the terminal')}</button>
     </div>
     {#if !data.terminal.configured}
       <p class="muted">{t('The terminal is off. Set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</p>
@@ -248,7 +243,7 @@
                 {#if !term.reachable}{t('The terminal container is not answering.')}
                 {:else if !ok}{tool.hint}
                 {:else if tool.id === 'gh'}{t('Lets the tools push to and read your GitHub repositories.')}
-                {:else}{term.background[tool.id] && term.remote[tool.id] !== 'running' ? t('Remote Control running in the background') : REMOTE_LABEL[term.remote[tool.id]]}{/if}
+                {:else}{t('Runs in the terminal: type {cmd}, or let Update, Build it and Install start it.', { cmd: tool.id })}{/if}
               </span>
             </span>
             <span class="state"><span class="status small" class:good={ok}>{ok ? t('Signed in') : t('Not signed in')}</span></span>
@@ -276,6 +271,13 @@
         <a href="/settings/logs">
           <span class="mark" style="--hue: var(--hue-blue)" aria-hidden="true">≡</span>
           <span class="what"><strong>{t('Logs')}</strong><span class="meta">{t('Every log of the app in one place: web, updater, migrations, services')}</span></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+      </li>
+      <li>
+        <a href="/settings/connector">
+          <span class="mark" style="--hue: var(--brand)" aria-hidden="true">✳</span>
+          <span class="what"><strong>{t('Claude connector')}</strong><span class="meta">{t('Use your apps from claude.ai and the Claude apps (MCP)')}</span></span>
           <span class="chev" aria-hidden="true">›</span>
         </a>
       </li>
@@ -399,9 +401,9 @@
           <label><input type="radio" name="mode" value="manual" checked={data.updateControl.mode === 'manual'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Manual: show new versions, update when I click')}</label>
           <noscript><button class="btn">{t('Save')}</button></noscript>
         </form>
-        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label={t('Restarts of llm and terminal')}>
-          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Ask before restarting llm and terminal')}</label>
-          <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Restart them by themselves')}</label>
+        <form method="POST" action="?/updateRestarts" use:enhance class="mode" aria-label={t('Restarts of the terminal')}>
+          <label><input type="radio" name="restarts" value="ask" checked={data.updateControl.restarts !== 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Ask before restarting the terminal (it ends what runs in it)')}</label>
+          <label><input type="radio" name="restarts" value="auto" checked={data.updateControl.restarts === 'auto'} onchange={(e) => e.currentTarget.form?.requestSubmit()} /> {t('Restart it by itself')}</label>
           <noscript><button class="btn">{t('Save')}</button></noscript>
         </form>
         <p class="meta">

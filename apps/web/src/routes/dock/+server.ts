@@ -1,17 +1,14 @@
 /**
- * GET -> what the dock at the bottom of every page shows: the terminal's sign-ins, the Remote Control
- * sessions (the llm container's and any started here in the background), whether an update is
- * being deployed (or the updater stopped), the default AI CLI (claude or codex), and whether this session may open the terminal (unlocked). States only, never file contents. Any logged-in session may read it.
- *
- * POST {start: 'claude' | 'codex'} -> start that agent's Remote Control in the background of the terminal
- * container. Unlocked sessions only, like opening a shell.
+ * GET -> what the header and the dock at the bottom of every page show: the terminal's sign-ins, whether
+ * an update is being deployed (or the updater stopped), the default AI CLI (claude or codex), and whether
+ * this session is unlocked (the header's lock: the terminal shows only then). States only, never file
+ * contents. Any logged-in session may read it.
  */
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { defaultAgent } from '#lib/server/app-config.ts';
 import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
-import { tFor } from '#lib/i18n/index.ts';
-import { codexPairingCode, sidecarsConfigured, startBackgroundRemote, terminalStatus } from '#lib/server/sidecars.ts';
+import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 import { updateView, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 
 export const GET: RequestHandler = async ({ cookies, locals }) => {
@@ -23,7 +20,7 @@ export const GET: RequestHandler = async ({ cookies, locals }) => {
     updaterControl(),
     defaultAgent().catch(() => 'claude' as const)
   ]);
-  // The host's updater: shown in the dock while it updates, when an update was interrupted, or when it has stopped.
+  // The host's updater: shown while it updates, when an update was interrupted, or when it has stopped.
   const update = u
     ? {
         state: updateView(u, c).state,
@@ -35,26 +32,4 @@ export const GET: RequestHandler = async ({ cookies, locals }) => {
       }
     : null;
   return json({ ...status, configured: sidecarsConfigured(), unlocked, update, defaultAgent: agent }, { headers: { 'cache-control': 'no-store' } });
-};
-
-export const POST: RequestHandler = async ({ request, cookies, locals }) => {
-  const sid = cookies.get(SESSION_COOKIE);
-  const t = tFor(locals.lang);
-  if (!locals.authenticated || !sid || !(await isElevated(sid))) throw error(403, t('Re-enter the password first.'));
-  if (!sidecarsConfigured()) throw error(503, t('SIDECAR_TICKET_SECRET is not set.'));
-  const { start, pair } = (await request.json().catch(() => ({}))) as { start?: string; pair?: string };
-  if (pair === 'codex') {
-    console.log(`[dock] ${new Date().toISOString()} codex pairing code requested`);
-    const r = await codexPairingCode(sid);
-    if (!r) throw error(502, t('The terminal container did not answer (an update still building?).'));
-    return json(r, { headers: { 'cache-control': 'no-store' } });
-  }
-  if (start !== 'claude') throw error(400, t('Only Claude starts in the background; Codex runs as a daemon in the llm container.'));
-  console.log(`[dock] ${new Date().toISOString()} start ${start} remote-control in the background`);
-  const code = await startBackgroundRemote(start, sid);
-  if (code === 404)
-    throw error(503, t('The terminal container still runs the previous version: it restarts when the update has finished building.'));
-  if (code === 0) throw error(502, t('The terminal container is not answering.'));
-  if (code !== 200) throw error(502, t('The terminal container could not start it (HTTP {code}).', { code }));
-  return json({ ok: true });
 };

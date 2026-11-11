@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { expect, it } from 'vitest';
-import { githubRepo, isStale, parseControl, parseUpdaterStatus, refFromAdvertisement, setUpdaterControl, updateView, updaterControl, updaterStatus } from './updater';
+import { githubRepo, isStale, parseControl, parseFunnelStatus, parseUpdaterStatus, refFromAdvertisement, setUpdaterControl, updateView, updaterControl, updaterStatus } from './updater';
 
 const sample = {
   status: 'ok',
@@ -52,11 +52,19 @@ it('reads the heartbeat next to the status and tells a stopped updater', async (
 it('keeps the manual mode and the update request for the host', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'upd-'));
   const file = path.join(dir, 'updater-status.json');
-  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '', cancel: '', restarts: 'ask', restart: '' });
-  const c = { mode: 'manual' as const, request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z', restarts: 'auto' as const, restart: '2026-11-09T15:50:00.000Z' };
+  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '', cancel: '', restarts: 'ask', restart: '', funnel: 'off' });
+  const c = { mode: 'manual' as const, request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z', restarts: 'auto' as const, restart: '2026-11-09T15:50:00.000Z', funnel: 'on' as const };
   await setUpdaterControl(c, file);
   expect(await updaterControl(file)).toEqual(c);
-  expect(parseControl('mode=manual\nrequest=$(reboot)\nrestart=;rm\n')).toEqual({ mode: 'manual', request: '', cancel: '', restarts: 'ask', restart: '' });
+  expect(parseControl('mode=manual\nrequest=$(reboot)\nrestart=;rm\nfunnel=yes\n')).toEqual({ mode: 'manual', request: '', cancel: '', restarts: 'ask', restart: '', funnel: 'off' });
+});
+
+it('reads the Claude connector state the updater applied, and nothing else', () => {
+  const ok = { want: 'on', state: 'on', port: '8443', url: 'https://h.tail1.ts.net:8443/mcp', message: '', at: '2026-11-11T21:00:00Z' };
+  expect(parseFunnelStatus(JSON.stringify(ok))).toEqual(ok);
+  expect(parseFunnelStatus(JSON.stringify({ ...ok, url: 'https://evil.example/x', port: '84;43' }))).toMatchObject({ url: '', port: '' });
+  expect(parseFunnelStatus(JSON.stringify({ ...ok, state: 'maybe' }))).toBeNull();
+  expect(parseFunnelStatus('nope')).toBeNull();
 });
 
 it('tells a running update from one whose process died, and a request not taken yet', () => {

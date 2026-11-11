@@ -14,12 +14,14 @@ This folder is an extension of the assistant shell. Read the shell's `AGENTS.md`
   `ext-migrate` service applies them within ~15 s (`/logs/ext-migrate.log`).
 - Settings: fields in `extension.json` `"settings"` become its panel in System settings; read them with
   `ctx.settings.get(name)` and secrets with `ctx.secrets.get(name)`.
-- Tools for Claude: `web/tools.server.ts` (spec 005) for an overview and every write.
 - Languages (required, spec 007): every text the page shows goes through `t()`: `const t = useT()` from
   `$shell/ui` in components, `ctx.t` in server code (`t('Saved')`, `t('{n} km', { n })`,
   `t.n(count, '{n} run', '{n} runs')`, `t.locale` for dates and numbers). Its name, description and
   settings labels are translated too. Each language of the app (System settings -> Language) has
   `i18n/<lang>.json`: English text -> translation. `node scripts/ext.mjs check {{id}}` lists what is missing.
+- Tools for the AI (required, spec 005): `web/tools.server.ts` with a read-only `overview` and one tool per
+  write (validated like the form), each with `readOnly: true|false`. They reach Claude through the
+  `assistant` MCP server, in the terminal and on claude.ai (the Claude connector).
 - Look (required): the shell's layout and tokens (`.card`, `.btn`, `.muted`, `--ink-*`, `--accent`,
   `--hue-*`, `--space-*`; the shell's `specs/001-design.md`) and Beni (`Mascot` from `$shell/ui`) in the
   header and every empty or error state. No UI libraries, no raw hex.

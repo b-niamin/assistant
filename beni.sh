@@ -5,12 +5,12 @@
 #   ./beni.sh update                update to GitHub main now, with a progress bar (the same command the
 #                                   schedule runs: <folder>-updater/update.sh); a running update is followed
 #   ./beni.sh update --status       what the updater does or did; --cancel stops a running update;
-#                                   --restart also restarts llm and terminal when they wait for it
+#                                   --restart also restarts the terminal when it waits for it
 #   ./beni.sh start | stop | restart [service]
 #   ./beni.sh status                containers and the app's health
 #   ./beni.sh doctor                checks the install: permissions, git, .env, database password, ...
-#   ./beni.sh logs [service]        follow logs (web, llm, garmin-sync, ...)
-#   ./beni.sh ext <args>            the extension CLI in the llm container: available, install <id>, list, ...
+#   ./beni.sh logs [service]        follow logs (web, terminal, garmin-sync, ...)
+#   ./beni.sh ext <args>            the extension CLI in the terminal container: available, install <id>, list, ...
 #   ./beni.sh fix-permissions       owner, Synology ACLs and modes in the checkout
 #   ./beni.sh fix-db-password       the database keeps its data but takes the password in .env
 #   ./beni.sh move <new-folder>     move the install (stopped, data kept), e.g. to /volume1/docker/assistant
@@ -156,7 +156,7 @@ doctor() {
     case $(stat -c %a .env) in 600 | 400) ;; *) w ".env is readable by others (mode $(stat -c %a .env)): chmod 600 .env" ;; esac
   fi
 
-  # Files: the containers (web, llm, terminal) write the checkout as HOST_UID.
+  # Files: the containers (web, terminal) write the checkout as HOST_UID.
   uid=$(owner_uid)
   [ "$uid" != 0 ] || f "HOST_UID is 0: the containers would run as root; set it to the owner's uid (id -u)"
   [ "$(stat -c %u "$DIR")" = "$uid" ] || w "the folder belongs to uid $(stat -c %u "$DIR"), the containers run as $uid (HOST_UID)"
@@ -385,7 +385,7 @@ case $cmd in
     exit 0 ;;
   fix-db-password) fix_db_password ;;
   logs) dc logs -f --tail 100 "$@" ;;
-  ext) dc exec llm node scripts/ext.mjs "$@" ;;
+  ext) dc exec terminal node scripts/ext.mjs "$@" ;;
   move) move_to "$@" ;;
   fix-permissions) exec sh scripts/update.sh fix-permissions "$DIR" ;;
   auto-update)

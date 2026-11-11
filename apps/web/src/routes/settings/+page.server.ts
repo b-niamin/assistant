@@ -111,13 +111,13 @@ export const actions: Actions = {
     return { ok: t('Update requested: it starts within a minute.') };
   },
 
-  /** Restarts of llm and terminal: asked for first, or automatic (spec 006). */
+  /** Restarts of the terminal: asked for first, or automatic (spec 006). */
   updateRestarts: async ({ request, cookies, locals }) => {
     const t = tFor(locals.lang);
     if (!(await guard(cookies))) return fail(403, { error: t('Unlock first.') });
     const restarts = str(await request.formData(), 'restarts') === 'auto' ? 'auto' : 'ask';
     await setUpdaterControl({ ...(await updaterControl()), restarts });
-    return { ok: restarts === 'auto' ? t('Updates restart llm and terminal by themselves.') : t('Updates ask before restarting llm and terminal.') };
+    return { ok: restarts === 'auto' ? t('Updates restart the terminal by themselves.') : t('Updates ask before restarting the terminal.') };
   },
 
   /** The AI CLI that Update, Build it and Install start in the dock's terminal. */

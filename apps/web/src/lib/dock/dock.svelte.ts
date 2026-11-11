@@ -1,12 +1,12 @@
+import { deserialize } from '$app/forms';
 import { agentCommand, shellQuote, type Agent } from '#lib/settings/guide.ts';
 
 /**
- * The dock at the bottom of every page (Dock.svelte): the one terminal in the app. Pages hand it work;
- * it opens and does it once the terminal is connected. The Remote menu in the header
- * (RemoteMenu.svelte) reads the same status from `GET /dock`.
+ * The dock at the bottom of every page (Dock.svelte): the one terminal in the app. It is there only while
+ * the session is unlocked, which the lock in the header (LockMenu.svelte) shows and switches. Pages hand
+ * the dock work; it opens and does it once the terminal is connected. Both read the status from `GET /dock`.
  */
 export type DockItem = { run: string; type?: undefined } | { type: string; run?: undefined };
-export type Remote = 'starting' | 'running' | 'restarting' | 'signed-out' | 'off';
 export interface DockStatus {
   configured: boolean;
   reachable: boolean;
@@ -14,17 +14,24 @@ export interface DockStatus {
   claude: boolean;
   codex: boolean;
   gh: boolean;
-  reasons?: { claude: string; codex: string };
-  remote: { claude: Remote; codex: Remote };
-  background: { claude: boolean; codex: boolean };
-  outdated: boolean;
   defaultAgent?: Agent;
   update: { state: string; sha: string; actions: string; step: number; steps: number; pendingRestart: string } | null;
 }
 
-export const dock = $state({ open: false, queue: [] as DockItem[], status: null as DockStatus | null });
+export const dock = $state({
+  open: false,
+  queue: [] as DockItem[],
+  status: null as DockStatus | null,
+  /** The terminal was opened in this page (it stays connected until the lock closes it). */
+  started: false,
+  /** A page wants the terminal while locked: the header's lock asks for the password. */
+  unlockAsked: false
+});
 
-/** Reload the terminal and Remote Control status; keeps the last known one while the app restarts. */
+/** The dock shows while unlocked, and stays while its terminal is connected (the unlock runs out after 10 minutes). */
+export const dockShown = () => !!dock.status?.configured && (dock.status.unlocked || dock.started);
+
+/** Reload the terminal status; keeps the last known one while the app restarts. */
 export async function refreshDock() {
   try {
     const res = await fetch('/dock', { cache: 'no-store' });
@@ -34,10 +41,44 @@ export async function refreshDock() {
   }
 }
 
+/** The same unlock as System settings (10 minutes), without leaving the page. Returns an error (the server's,
+ * else `fallback`, already in the page's language), or ''. */
+export async function unlockSession(password: string, fallback: string): Promise<string> {
+  try {
+    const body = new FormData();
+    body.set('password', password);
+    const res = await fetch('/settings?/unlock', { method: 'POST', body, headers: { 'x-sveltekit-action': 'true' } });
+    const result = deserialize(await res.text());
+    if (result.type !== 'success') return (result.type === 'failure' && (result.data?.error as string)) || fallback;
+    if (dock.status) dock.status.unlocked = true;
+    else await refreshDock();
+    dock.unlockAsked = false;
+    if (dock.queue.length) dock.open = true;
+    return '';
+  } catch {
+    return fallback;
+  }
+}
+
+/** Lock: the session needs the password again, the terminal disconnects and the dock goes away. */
+export async function lockSession() {
+  await fetch('/settings?/lock', { method: 'POST', body: new FormData(), headers: { 'x-sveltekit-action': 'true' } }).catch(() => null);
+  dock.started = false;
+  dock.open = false;
+  dock.queue = [];
+  if (dock.status) dock.status.unlocked = false;
+}
+
 /** Open the dock and run a command in a new tmux window, without disturbing what already runs there. */
 export function runInDock(cmd: string) {
   dock.queue = [...dock.queue, { run: cmd }];
-  dock.open = true;
+  openDock();
+}
+
+/** Open the terminal; while locked, the header's lock asks for the password first. */
+export function openDock() {
+  if (dockShown()) dock.open = true;
+  else dock.unlockAsked = true;
 }
 
 export const AGENT_NAMES: Record<Agent, string> = { claude: 'Claude Code', codex: 'Codex' };

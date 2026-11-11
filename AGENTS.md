@@ -5,7 +5,7 @@ Rules for AI agents (Claude Code, Codex, ...) and humans working in this repo. R
 ## What this is
 
 A private, self-hosted assistant, built from modules. It runs 24/7 under Docker Compose on one
-machine. You usually run INSIDE that stack (the `llm` container), reached through Remote Control:
+machine. You usually run INSIDE that stack (the `terminal` container, the shell at the bottom of the app):
 the checkout you edit at `/workspace` is the code that is running.
 
 Architecture: [specs/000-architecture.md](specs/000-architecture.md). The app is a **shell with installable
@@ -32,9 +32,10 @@ There are no user accounts. One app password guards the whole app; data belongs 
 ## Talking to the extensions (preferred)
 
 Every installed app (extension) is reachable through the `assistant` MCP server (`.mcp.json`,
-`scripts/assistant-mcp.mjs`, spec 005). Start with the `extensions` tool; then `<id>__describe` and
-`<id>__query` (read-only SQL) for native extensions, `<id>__read_data` / `<id>__write_data` for onefile
-apps, plus whatever tools an extension adds (e.g. `health__overview`, `health__add_journal_entry`).
+`scripts/assistant-mcp.mjs`, served by the web app at `/mcp`, spec 005); claude.ai reaches the same server
+as the Claude connector. Start with the `extensions` tool, then each app's `<id>__overview`; plus
+`<id>__describe` and `<id>__query` (read-only SQL) for native extensions, `<id>__read_data` /
+`<id>__write_data` for onefile apps, and whatever else an extension adds (e.g. `health__add_journal_entry`).
 Every tool takes an optional `profile`. Writes go through these tools, never through SQL.
 
 Answering a question that spans apps (e.g. a training plan from health data and the gym tracker) means
@@ -60,7 +61,8 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AG
    check `/logs/ext-migrate.log`.
 3. **A new area is an extension** (`node scripts/ext.mjs new <id>`, see the `new-extension` skill):
    `extensions/<id>/`, its own schema and migrations, role `ext_<id>`. It imports only `$shell` from the
-   shell and must not touch other extensions' tables. Ready-made extensions come from the extensions
+   shell and must not touch other extensions' tables. It adds its MCP tools in `web/tools.server.ts`
+   (a read-only `overview`, one tool per write, `readOnly` on each; spec 005). Ready-made extensions come from the extensions
    repo (`node scripts/ext.mjs available` / `install <id>`); for anything else, a repo or app the owner
    points at is only inspiration (`add-extension` skill). `extensions/` is git-ignored in this repo: it
    is this instance's own state. Its settings live in its panel in

@@ -6,21 +6,22 @@ containers: [spec 004](004-security.md).
 ## Goal
 
 One private, self-hosted assistant on a machine that runs 24/7 (a NAS or any Linux box with Docker),
-built from extensions. Claude runs in its own container, reached through Remote Control: it talks to the
-data and evolves the code on request, but cannot break the running app.
+built from extensions. Claude reaches the apps' data through one MCP server (spec 005): from claude.ai and
+the Claude apps through the Claude connector, or from Claude Code and Codex in the app's own terminal,
+where it also evolves the code on request, but cannot break the running app.
 
 ## Containers
 
 ```
-Tailscale ─► web (SvelteKit, the only published port, on 127.0.0.1)
+Tailscale Serve  ─► web :3000 (SvelteKit, on 127.0.0.1; tailnet only)
+Tailscale Funnel ─► web :3001 (only /mcp and its OAuth; internet, when the Claude connector is on)
                      │
                      ├── db (Postgres 16, internal)
                      │     schemas: core, secrets, ext_query, one per extension
                      │
-                     ├── claude (Claude Code + git + psql, no ports)
-                     │     `claude remote-control` in a restart loop, works on the repo checkout
-                     │
-                     ├── terminal, browser (spec 004: in-app terminal and Chromium, internal network)
+                     ├── terminal (spec 004: the in-app terminal; Claude Code, Codex, gh, psql; no ports)
+                     │     works on the repo checkout, reaches the apps through /mcp
+                     ├── browser (spec 004: Chromium for sign-ins, internal network)
                      ├── migrate (one-shot: migrations + roles), ext-migrate (re-applies on change)
                      ├── backup (daily pg_dump, 14 days kept)
                      └── extension services (each extension's compose.yml, e.g. health's garmin-sync)
@@ -28,9 +29,9 @@ Tailscale ─► web (SvelteKit, the only published port, on 127.0.0.1)
 
 | Container | Does | Access |
 |---|---|---|
-| `web` | UI for every extension, REST API, Claude's tools (spec 005) | db as `app_rw` (+ `SET ROLE ext_<id>`) |
+| `web` | UI for every extension, the MCP server and its OAuth (spec 005) | db as `app_rw` (+ `SET ROLE ext_<id>`) |
 | `db` | Postgres, one schema per extension | — |
-| `claude` | Remote Control, data chat, code changes | repo (bind mount), db as `claude_ro`, internet; **no** Docker socket, no `.env` |
+| `terminal` | the in-app shell: AI CLIs, data chat, code changes | repo (bind mount), db as `claude_ro`, internet; **no** Docker socket, no `.env` |
 | extension service | whatever the extension needs in the background | db as `ext_<id>_svc` (its own schema + `core.profiles`) |
 
 ## Repo layout
@@ -43,9 +44,9 @@ extensions/                   installed extensions (git-ignored; `node scripts/e
 db/migrations/                numbered SQL, additive only
 db/roles.sql                  least-privilege roles, re-applied on every migrate
 db/extension-role.sql         per-extension roles
-docker/llm/, docker/browser/   images
+docker/terminal/, docker/browser/   images
 services/terminal/            in-app terminal sidecar
-scripts/                      ext CLI, MCP server for Claude, auto-update, hooks
+scripts/                      ext CLI, MCP relay for the terminal's CLIs, updater, hooks
 AGENTS.md                     rules for AI agents in this repo (CLAUDE.md points to it)
 .ai/skills/                   project skills (.claude/skills and .agents/skills link here)
 ```
@@ -55,9 +56,11 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
 ## Host and access
 
 - Any x86_64/arm64 machine with Docker and Compose. A small NAS works: the memory limits add up to
-  about 5 GB at peak (db 1 GB, claude 2 GB, web 1.5 GB during a build, the rest small).
-- Access: over Tailscale. `web` publishes one port on 127.0.0.1; HTTPS via `tailscale serve` in front of
-  it (install.sh runs it when Tailscale is there). Nothing is exposed to the internet or the LAN.
+  about 5 GB at peak (db 1 GB, terminal 2 GB, web 1.5 GB during a build, the rest small).
+- Access: over Tailscale. `web` publishes two ports on 127.0.0.1. The app: HTTPS via `tailscale serve`
+  (install.sh runs it when Tailscale is there), tailnet only. The MCP listener: via `tailscale funnel`, on
+  the internet, only while System settings -> Claude connector is on (the host's updater runs it). Nothing
+  else is exposed to the internet or the LAN.
 
 ## Auth and profiles
 
@@ -69,20 +72,21 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
   the first profile.
 - Every per-profile extension table has `profile_id` → `core.profiles(id) ON DELETE CASCADE`.
 
-## Claude container
+## Terminal container (where the AI CLIs run)
 
-- Image: Node 22 + Claude Code + git + psql + python3, non-root user (`HOST_UID`).
+- Image (`docker/terminal`): Node + Claude Code + Codex + gh + git + psql + python3, non-root user (`HOST_UID`).
 - Volumes: the repo checkout (the same files `web` runs), `claude-home` (login state), `/logs`
   read-only. `.env` is shadowed by an empty file.
-- Log in once: `docker compose exec -it llm claude`, then `/login`. The entrypoint then keeps
-  `claude remote-control` running in `/workspace`, restarting it with backoff.
+- Sign in once from System settings -> Terminal (`claude` + `/login`, `codex login`, `gh auth login`).
+  The CLIs run only in the dock's shell, started by hand or by the app (Update, Build it, Install); nothing
+  keeps them running in the background. From outside, Claude uses the Claude connector instead.
 - Data chat: `psql "$CLAUDE_RO_DATABASE_URL"`. `claude_ro` has `SELECT` on core and extension schemas,
   `default_transaction_read_only = on`, a 30 s statement timeout, and no access to `secrets` or to an
   extension's `secret_*` tables.
 
 ## Keeping Claude from breaking things
 
-1. **No Docker socket.** Claude cannot stop, remove or rebuild containers.
+1. **No Docker socket.** The AI cannot stop, remove or rebuild containers.
 2. **Deploy = commit to the checkout.** `web` runs `scripts/live-reload.mjs`: it builds into
    `build-next/` and swaps it into `build/` only after a successful build, so a broken edit never
    replaces the running app. Compose/Dockerfile edits apply only through auto-update (spec 006) or a

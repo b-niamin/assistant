@@ -1,9 +1,9 @@
 /**
- * Tools for Claude (spec 005), server side: lists every extension's tools and runs one as a profile.
- * Generic tools come from the shell, so any extension is usable by Claude without extra code:
+ * Tools for the AI (spec 005), server side: lists every extension's tools and runs one as a profile.
+ * Generic tools come from the shell, so any extension is usable without extra code:
  *   native  -> describe (tables and columns of its schema), query (read-only SQL as its own role)
  *   onefile -> read_data (its saved localStorage), write_data (set or remove one key)
- * A native extension adds its own tools (e.g. writes with validation) in web/tools.server.ts.
+ * Every extension adds its own in web/tools.server.ts (an `overview`, and each write with validation).
  */
 import { error } from '@sveltejs/kit';
 import * as env from '$app/env/private';
@@ -24,6 +24,8 @@ function nativeGeneric(ext: ExtensionInfo): ExtTool[] {
   return [
     {
       name: 'describe',
+      title: `${ext.name}: tables`,
+      readOnly: true,
       description:
         `Tables and columns of the "${schema}" schema of ${ext.name}. ` +
         (ext.scope === 'shared' ? 'Data is shared by all profiles.' : 'Rows belong to a profile: filter by profile_id.'),
@@ -38,6 +40,8 @@ function nativeGeneric(ext: ExtensionInfo): ExtTool[] {
     },
     {
       name: 'query',
+      title: `${ext.name}: SQL query`,
+      readOnly: true,
       description:
         `Read-only SQL (one SELECT) over the "${schema}" schema of ${ext.name}, run as the extension's own ` +
         `role. Returns up to ${MAX_ROWS} rows. Call describe first for the tables.`,
@@ -78,11 +82,16 @@ function onefileGeneric(ext: ExtensionInfo): ExtTool[] {
   return [
     {
       name: 'read_data',
+      title: `${ext.name}: saved data`,
+      readOnly: true,
       description: `Everything ${ext.name} saved (its localStorage: key -> value, JSON values parsed).`,
       run: async (_a, ctx) => Object.fromEntries(Object.entries(await kvAll(ext, ctx.profileId)).map(([k, v]) => [k, parse(v)]))
     },
     {
       name: 'write_data',
+      title: `${ext.name}: change saved data`,
+      readOnly: false,
+      destructive: true,
       description:
         `Set one localStorage key of ${ext.name} (value is stored as given; pass JSON text for JSON values), ` +
         `or remove it with remove: true. Read the data first and keep its format: the app reads it back.`,

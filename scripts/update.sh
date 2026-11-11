@@ -6,10 +6,11 @@
 #                                     update when automatic updates are on or the app asked for one, and
 #                                     finish an update that was interrupted
 #   sh <home>/update.sh --now         update now, also without a terminal (and retry a failed update)
-#   sh <home>/update.sh --restart     the same, and restart llm/terminal if they wait for it (see HELD)
+#   sh <home>/update.sh --restart     the same, and restart the terminal if it waits for it (see HELD)
 #   sh <home>/update.sh status        what it does or did (--json: the raw status)
 #   sh <home>/update.sh cancel        stop a running update; the containers that ran before keep running
 #   sh scripts/update.sh install      once: <home> with a mirror of GitHub and this script, and the schedule
+#   sh <home>/update.sh funnel        apply the Claude connector switch (Tailscale Funnel) now, see funnel_apply
 #   sh scripts/update.sh fix-permissions | plan | acl-paths
 #
 # <home> is <checkout>-updater, next to the checkout. `sudo ./beni.sh update [--status|--cancel|--restart]` runs it.
@@ -30,7 +31,7 @@
 # Output: <home>/status.json and, for the app, /logs/updater-status.json, /logs/updater.log,
 # /logs/updater-build.log and /logs/updater-heartbeat (written every few seconds while an update runs).
 set -u
-PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:/var/packages/ContainerManager/target/usr/bin:${PATH:-}
+PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin:/var/packages/ContainerManager/target/usr/bin:/var/packages/Tailscale/target/bin:${PATH:-}
 umask 022
 
 BRANCH=${ASSISTANT_BRANCH:-main}
@@ -38,9 +39,9 @@ FETCH_EVERY=${ASSISTANT_FETCH_EVERY:-240}         # seconds between GitHub check
 BUILD_TIMEOUT=${ASSISTANT_BUILD_TIMEOUT:-5400}    # one image build (NAS builds are slow)
 STEP_TIMEOUT=${ASSISTANT_STEP_TIMEOUT:-900}       # any other step
 MAX_ATTEMPTS=3                                    # an interrupted or failed update is tried this often
-# Recreating or restarting these ends what runs in them (Claude and Codex sessions, the terminal): with
-# restarts=ask (the default, System settings -> Updates) the update leaves them to a confirmed restart.
-HELD=${ASSISTANT_HELD_SERVICES:-llm terminal}
+# Recreating or restarting these ends what runs in them (the terminal and the Claude or Codex sessions in it):
+# with restarts=ask (the default, System settings -> Updates) the update leaves them to a confirmed restart.
+HELD=${ASSISTANT_HELD_SERVICES:-terminal}
 
 say() { printf '[update] %s\n' "$*"; }
 # An error also lands in <home>/last-error and the app's updater.log: a scheduled task's output is
@@ -67,7 +68,7 @@ plan() {
   while IFS= read -r p; do
     case $p in
       docker-compose.yml) echo all ;;
-      docker/llm/*) echo build:llm; echo build:terminal ;;
+      docker/terminal/*) echo build:terminal ;;
       docker/browser/*) echo build:browser ;;
       apps/web/scripts/live-reload.mjs) echo restart:web ;;
       services/terminal/*.test.mjs) ;;
@@ -93,7 +94,7 @@ setup_paths() {
   [ -n "$d" ] || d=$(cd "$here/.." 2>/dev/null && pwd)
   [ -f "$d/docker-compose.yml" ] && [ -d "$d/.git" ] || die "not an assistant checkout: $d"
   DIR=$(cd "$d" && pwd -P)
-  # The containers that edit the checkout (web, claude, terminal) run as HOST_UID from .env, so that
+  # The containers that edit the checkout (web, terminal) run as HOST_UID from .env, so that
   # uid owns the checkout, whoever owns the directory itself (a clone made as root, say).
   OWNER_UID=$(sed -n 's/^HOST_UID=\([0-9][0-9]*\)[[:space:]]*$/\1/p' "$DIR/.env" 2>/dev/null | tail -n 1)
   [ -n "$OWNER_UID" ] || OWNER_UID=$(stat -c %u "$DIR")
@@ -148,17 +149,16 @@ buildable() {
     awk '!seen[$0]++'
 }
 
-# The image of the agents' container (it has git and sh): the throwaway containers run it. The service was
-# called claude before llm (an install updating across the rename still has that one); terminal is built
-# from the same Dockerfile.
+# The image of the terminal container (it has git and sh): the throwaway containers run it. Older installs
+# had the same image as `llm` (and before that `claude`); an install updating across that change still has one.
 claude_image() {
   img=""
-  for v in llm claude terminal; do
+  for v in terminal llm claude; do
     c=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$v" | head -n 1)
     [ -z "$c" ] || img=$(docker inspect -f '{{.Config.Image}}' "$c" 2>/dev/null)
     [ -z "$img" ] || break
   done
-  echo "${img:-$PROJECT-llm}"
+  echo "${img:-$PROJECT-terminal}"
 }
 
 # --- output for the app ----------------------------------------------------------------------------
@@ -228,12 +228,14 @@ state_save() {
 }
 
 # The app's choice (System settings -> Updates), in the logs volume: `mode=auto|manual`,
-# `restarts=ask|auto`, and the clicks: `request=<id>` ("Update now", "Resume"), `cancel=<id>` ("Cancel"),
-# `restart=<id>` ("Restart now"). Read as data, never run.
+# `restarts=ask|auto`, `funnel=on|off` (the Claude connector, see funnel_apply), and the clicks:
+# `request=<id>` ("Update now", "Resume"), `cancel=<id>` ("Cancel"), `restart=<id>` ("Restart now").
+# Read as data, never run.
 read_control() {
-  MODE=auto REQUEST="" CANCEL="" RESTARTS="" RESTART_REQ=""
+  MODE=auto REQUEST="" CANCEL="" RESTARTS="" RESTART_REQ="" FUNNEL=""
   f=$LOGS_MP/updater-control
   if [ -n "$LOGS_MP" ] && [ -r "$f" ]; then
+    FUNNEL=$(sed -n 's/^funnel=//p' "$f" | grep -x -e on -e off | tail -n 1)
     MODE=$(sed -n 's/^mode=//p' "$f" | grep -x -e auto -e manual | tail -n 1)
     RESTARTS=$(sed -n 's/^restarts=//p' "$f" | grep -x -e auto -e ask | tail -n 1)
     REQUEST=$(sed -n 's/^request=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
@@ -360,7 +362,7 @@ step_name() {
 }
 
 # --- fix-permissions -------------------------------------------------------------------------------
-# Files web, claude and terminal (HOST_UID) cannot change break live-reload, git and npm: left by a
+# Files web and terminal (HOST_UID) cannot change break live-reload, git and npm: left by a
 # `git pull` or `npm ci` run as root, or by Synology ACLs, which DSM puts on everything under a shared
 # folder and which deny writes whatever the owner (`ls` shows r-xr-xr-x+). Root only; cheap when clean.
 # The ACL is removed from the checkout directory too, so new files no longer inherit one.
@@ -641,6 +643,81 @@ deploy() {
   return 0
 }
 
+# --- the Claude connector: Tailscale Funnel (spec 005) ---------------------------------------------
+# System settings -> Claude connector writes funnel=on|off to the control file. Funnel publishes ONE local
+# port to the internet: the web app's public listener (MCP_PORT in .env, 127.0.0.1:3101), which answers
+# only the MCP and OAuth paths (apps/web/server.mjs); the app itself stays on the tailnet. Funnel offers
+# HTTPS ports 443, 8443 and 10000: this takes 8443, or 10000 when 8443 already serves something else.
+# Tailscale must allow Funnel for this machine once (the `funnel` node attribute in the tailnet policy);
+# until then `tailscale funnel` prints a link to enable it, which goes to the app as the message.
+FUNNEL_PORTS="8443 10000"
+# funnel_has <ours|on|used> <port> <mcp-port>: tests `tailscale funnel status --json` (stdin, whitespace
+# removed). ours: the port's only path proxies to our listener. on: funnel is on for the port. used: the
+# port serves anything.
+funnel_has() {
+  st=$(cat)
+  case $1 in
+    ours) printf '%s' "$st" | grep -q ":$2\":{\"Handlers\":{\"/\":{\"Proxy\":\"http://127.0.0.1:$3\"}}" ;;
+    on) printf '%s' "$st" | grep -q "\"AllowFunnel\":{[^}]*:$2\":true" ;;
+    used) printf '%s' "$st" | grep -q -e "\"$2\":{" -e ":$2\":{" ;;
+    *) return 1 ;;
+  esac
+}
+funnel_status_now() { limit 15 tailscale funnel status --json 2>/dev/null | tr -d ' \t\r\n'; }
+
+funnel_apply() {
+  [ -n "$LOGS_MP" ] || return 0
+  want=${FUNNEL:-off}
+  mcp=$(sed -n 's/^MCP_PORT=\([0-9][0-9]*\)[[:space:]]*$/\1/p' "$DIR/.env" 2>/dev/null | tail -n 1)
+  mcp=${mcp:-3101}
+  state="" port="" url="" msg=""
+  if ! command -v tailscale >/dev/null 2>&1; then
+    state=unavailable msg="Tailscale is not installed on this host."
+  else
+    st=$(funnel_status_now)
+    for p in $FUNNEL_PORTS; do printf '%s' "$st" | funnel_has ours "$p" "$mcp" && { port=$p; break; }; done
+    if [ "$want" = on ]; then
+      if [ -z "$port" ] || ! printf '%s' "$st" | funnel_has on "$port" "$mcp"; then
+        if [ -z "$port" ]; then
+          for p in $FUNNEL_PORTS; do printf '%s' "$st" | funnel_has used "$p" "$mcp" || { port=$p; break; }; done
+        fi
+        if [ -z "$port" ]; then
+          state=error msg="Ports 8443 and 10000 already serve something else; free one (tailscale serve status)."
+        else
+          out=$(limit 25 tailscale funnel --bg --https="$port" "http://127.0.0.1:$mcp" 2>&1 </dev/null)
+          st=$(funnel_status_now)
+          if printf '%s' "$st" | funnel_has on "$port" "$mcp"; then log "Claude connector: funnel on, port $port"
+          else
+            link=$(printf '%s' "$out" | grep -o 'https://login\.tailscale\.com[^ ]*' | head -n 1)
+            state=error
+            if [ -n "$link" ]; then msg="Tailscale does not allow Funnel for this machine yet: enable it at $link"
+            else msg="tailscale funnel failed: $(printf '%s' "$out" | tr '\n' ' ' | cut -c1-240)"; fi
+            log "Claude connector: $msg"
+          fi
+        fi
+      fi
+      [ -n "$state" ] || state=on
+    else
+      if [ -n "$port" ]; then
+        limit 25 tailscale funnel --https="$port" off >/dev/null 2>&1 </dev/null || true
+        log "Claude connector: funnel off (port $port)"
+      fi
+      state=off port=""
+    fi
+    if [ "$state" = on ]; then
+      dns=$(limit 15 tailscale status --json 2>/dev/null | sed -n 's/.*"DNSName": *"\([^"]*\)\.".*/\1/p' | head -n 1)
+      [ -z "$dns" ] || url="https://$dns:$port/mcp"
+    fi
+  fi
+  body=$(printf '{"want":%s,"state":%s,"port":%s,"url":%s,"message":%s' "$(json_str "$want")" "$(json_str "$state")" "$(json_str "$port")" "$(json_str "$url")" "$(json_str "$msg")")
+  # Written when something changed (without root that is a container per write), and at least hourly.
+  if [ "$body" != "$(cat "$HOME_DIR/funnel-status.body" 2>/dev/null)" ] || [ -n "$(find "$HOME_DIR/funnel-status.body" -mmin +60 2>/dev/null)" ]; then
+    printf '%s' "$body" > "$HOME_DIR/funnel-status.body"
+    printf '%s,"at":%s}\n' "$body" "$(json_str "$(iso)")" | logs_put funnel-status.json
+  fi
+  return 0
+}
+
 # --- run ---------------------------------------------------------------------------------------------
 cmd_run() {
   setup_paths "${1:-}"
@@ -649,6 +726,8 @@ cmd_run() {
   heartbeat
   iso > "$HOME_DIR/last-run" 2>/dev/null; rm -f "$HOME_DIR/last-error"
   read_control
+  # Quick, and independent of updates: the Claude connector's switch.
+  funnel_apply; flush_log
   state_load
 
   # "Cancel" in the app: stop the update that holds the lock (once per click).
@@ -977,6 +1056,9 @@ SYNO
   fi
 }
 
+# For the unit test: funnel-has <ours|on|used> <port> <mcp-port>, status JSON on stdin.
+if [ "${1:-}" = funnel-has ]; then shift; if funnel_has "$@"; then echo yes; else echo no; fi; exit 0; fi
+
 # --- arguments: [command] [--now] [--json] [--manual] [checkout] -------------------------------------
 CMD="" NOW=0 JSON=0 MANUAL=0 RESTART_NOW=0 ARG=""
 for a in "$@"; do
@@ -985,7 +1067,7 @@ for a in "$@"; do
     --json) JSON=1 ;;
     --manual) MANUAL=1 ;;
     --restart) RESTART_NOW=1 NOW=1 ;;
-    run | status | cancel | install | fix-permissions | plan | acl-paths) [ -n "$CMD" ] || CMD=$a ;;
+    run | status | cancel | install | fix-permissions | plan | acl-paths | funnel) [ -n "$CMD" ] || CMD=$a ;;
     -h | --help | help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) die "unknown option $a" ;;
     *) ARG=$a ;;
@@ -999,6 +1081,7 @@ case ${CMD:-run} in
   acl-paths) acl_paths ;;
   fix-permissions) setup_paths "$ARG"; fix_ownership; flush_log ;;
   run) cmd_run "$ARG" ;;
+  funnel) setup_paths "$ARG"; read_control; funnel_apply; flush_log; cat "$HOME_DIR/funnel-status.body" 2>/dev/null; echo ;;
   install) cmd_install "$ARG" ;;
   status) cmd_status "$ARG" ;;
   cancel)

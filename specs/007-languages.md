@@ -71,7 +71,8 @@ language (`one`, `few`, `many`, `other` for Polish; `one`, `other` for German).
   (`ext: i18n: home: no i18n/pl.json (112 texts to translate)`); the `add-extension` skill says to
   translate before handing it over, and `ext check <id>` must print no `i18n:` warnings.
 - `ext languages` lists the app's languages and every gap; `ext check` reads the languages from the
-  running app (`GET /api/claude`, which also lists each extension's `languages`), or `--languages pl`.
+  running app (the `extensions` tool of its MCP server, which also lists each extension's `languages`),
+  or `--languages pl`.
 - The keys come from the code (`t('...')`, `t.n(n, '...', '...')`, `title: '...'` in `tiles.server.ts`)
   and from the manifest. Only literal strings are found: a text built at runtime must be a key on its own.
 - System settings -> Language shows the apps that lack a language and an "Ask Claude to translate"

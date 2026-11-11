@@ -4,7 +4,8 @@
 # Extensions that bring a background service add their own extensions/<id>/compose.yml; install.sh lists
 # them in COMPOSE_FILE in .env, so `docker compose` picks them up from this folder.
 #
-# Only `web` publishes a port, on 127.0.0.1 for Tailscale Serve. Everything else is internal.
+# Only `web` publishes ports, on 127.0.0.1: the app for Tailscale Serve (tailnet only), and the MCP listener
+# for Tailscale Funnel (internet, only when the Claude connector is on). Everything else is internal.
 # Code is bind-mounted, so a commit in this checkout is live on the next tick / rebuild.
 # Keep the compose project name stable: volumes are prefixed with it.
 
@@ -77,7 +78,7 @@ services:
   # Web UI + API. Live-reload builds into build-next/ and swaps it in only after a successful build.
   # Bound to 127.0.0.1: reach it through Tailscale (`tailscale serve --bg 3000` on the host), not the LAN.
   web:
-    # Same base (glibc) as the llm image and the same uid as the checkout owner, so both containers
+    # Same base (glibc) as the terminal image and the same uid as the checkout owner, so both containers
     # can share apps/web/node_modules and .svelte-kit/ without permission clashes.
     image: node:26-trixie-slim
     user: '${HOST_UID:-1000}'
@@ -88,8 +89,12 @@ services:
     command: ['sh', '-c', 'node scripts/live-reload.mjs 2>&1 | tee -a /logs/web.log']
     ports:
       - '127.0.0.1:${WEB_PORT:-3000}:3000'
+      # The public listener: only the MCP server and its OAuth (spec 005). Tailscale Funnel publishes it
+      # when System settings -> Claude connector is on; the host's updater runs `tailscale funnel` for that.
+      - '127.0.0.1:${MCP_PORT:-3101}:3001'
     environment:
       NODE_ENV: production
+      MCP_PORT: '3001'
       NODE_OPTIONS: --max-old-space-size=1024
       PORT: '3000'
       # The public origin: baked into the build for CSRF and url.origin (vite.config.ts paths.origin, read
@@ -107,7 +112,7 @@ services:
       SECRETS_KEY: ${SECRETS_KEY:-}
       # Signs the single-use tickets for the terminal and browser sidecars (spec 004). Empty = both off.
       SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
-      # Lets Claude call the extensions' tools at /api/claude (spec 005). Empty = off.
+      # Lets the AI CLIs in the terminal call the extensions' tools at /mcp (spec 005). Empty = off.
       CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
       # What "Extend the system" offers; empty = the catalog.json of github.com/b-niamin/assistant-extensions.
       EXTENSIONS_CATALOG_URL: ${EXTENSIONS_CATALOG_URL:-}
@@ -120,25 +125,24 @@ services:
     networks: [default, sidecars]
     mem_limit: 1536m
 
-  # The AI agents: Claude Code and Codex (once signed in), reachable through Remote Control. See docker/llm/README.md.
-  # NO docker socket and NO .env: it can edit code and read data, not touch containers or secrets.
-  llm:
-    # What Remote Control calls this machine (claude.ai/code, the Codex apps); ASSISTANT_HOSTNAME in .env changes it.
-    hostname: ${ASSISTANT_HOSTNAME:-beni-assistant}
+  # In-app terminal (spec 004): the dock at the bottom of every page, with Claude Code, Codex and gh. Logins
+  # typed there (`claude` + /login, `codex login`, `gh auth login`) live in the claude-home volume. No port, no
+  # docker socket, no .env; the web app proxies to it only with a single-use ticket, which it re-checks.
+  # See docker/terminal/README.md.
+  terminal:
     build:
-      context: ./docker/llm
+      context: ./docker/terminal
       # Must match the owner of this checkout on the host (Synology: `id -u`, often 1026).
       args:
         UID: ${HOST_UID:-1000}
     restart: unless-stopped
     depends_on:
       migrate: { condition: service_completed_successfully }
-    tty: true
-    stdin_open: true
     working_dir: /workspace
     environment:
+      SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
       CLAUDE_RO_DATABASE_URL: postgresql://claude_ro:${CLAUDE_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
-      # Tools for Claude (spec 005): the `assistant` MCP server in .mcp.json calls the web app with this.
+      # Tools for the agents (spec 005): the `assistant` MCP server in .mcp.json calls the web app's /mcp with this.
       CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
       ASSISTANT_URL: http://web:3000
       DEFAULT_PROFILE: ${DEFAULT_PROFILE:-}
@@ -150,46 +154,16 @@ services:
       GIT_COMMITTER_EMAIL: ${GIT_AUTHOR_EMAIL:-noreply@anthropic.com}
       # Optional: fine-grained PAT with Contents read/write on this ONE repo, so commits get pushed.
       GITHUB_TOKEN: ${CLAUDE_GITHUB_TOKEN:-}
+      TZ: ${APP_TIMEZONE:-UTC}
     volumes:
       - .:/workspace
       # Shadow the secrets file: the container sees an empty .env.
       - /dev/null:/workspace/.env:ro
       - claude-home:/home/claude
-      # The Codex daemon's control socket (~/.codex/app-server-control links here), shared with the terminal.
-      - codex-daemon:/tmp/codex-daemon-${HOST_UID:-1000}
       - logs:/logs:ro
-    # sidecars: drives the in-app browser over CDP (browser:9223, see .mcp.json).
+    # sidecars: the web app reaches it there, and it drives the in-app browser over CDP (browser:9223).
     networks: [default, sidecars]
     mem_limit: 2g
-
-  # In-app terminal (spec 004): the dock at the bottom of every page. Same image and home volume as `llm`, so
-  # `claude /login`, `codex login`, `gh auth login` typed here are what Claude Remote uses. No port, no
-  # docker socket, no .env; the web app proxies to it only with a single-use ticket, which it re-checks.
-  terminal:
-    # Remote Control started from the app's "Start in background" runs here: named after the host too.
-    hostname: ${ASSISTANT_HOSTNAME:-beni-assistant}-terminal
-    build:
-      context: ./docker/llm
-      args:
-        UID: ${HOST_UID:-1000}
-    restart: unless-stopped
-    working_dir: /workspace
-    entrypoint: ['node', '/workspace/services/terminal/server.mjs']
-    environment:
-      SIDECAR_TICKET_SECRET: ${SIDECAR_TICKET_SECRET:-}
-      CLAUDE_RO_DATABASE_URL: postgresql://claude_ro:${CLAUDE_DB_PASSWORD}@db:5432/${POSTGRES_DB:-assistant}
-      # Tools for Claude (spec 005): the `assistant` MCP server in .mcp.json calls the web app with this.
-      CLAUDE_TOOLS_TOKEN: ${CLAUDE_TOOLS_TOKEN:-}
-      ASSISTANT_URL: http://web:3000
-      TZ: ${APP_TIMEZONE:-UTC}
-    volumes:
-      - .:/workspace
-      - /dev/null:/workspace/.env:ro
-      - claude-home:/home/claude
-      # So `codex remote-control pair` (the Remote menu's "Pair a device") reaches the daemon in llm.
-      - codex-daemon:/tmp/codex-daemon-${HOST_UID:-1000}
-    networks: [default, sidecars]
-    mem_limit: 768m
 
   # In-app browser (spec 004): System settings -> Browser. Chromium + noVNC; its signed-in profile is
   # in the browser-profile volume (treat it as a secret). Only reachable on the internal sidecars network.
@@ -226,7 +200,7 @@ services:
 
 networks:
   default:
-  # Internal: web, llm, terminal and browser only. No internet, nothing else can reach noVNC/CDP.
+  # Internal: web, terminal and browser only. No internet, nothing else can reach noVNC/CDP.
   sidecars:
     internal: true
   # The browser's own way out to the internet, shared with no other service.
@@ -235,14 +209,7 @@ networks:
 volumes:
   browser-profile:
   db-data:
-  # The agents' home (logins of Claude, Codex, gh): still named claude-home, so the rename to llm kept them.
+  # The agents' home (logins of Claude, Codex, gh): still named claude-home, so older installs keep their logins.
   claude-home:
-  # Codex keeps its daemon's socket in /tmp/codex-daemon-<uid>, outside the home volume: llm runs the daemon,
-  # the terminal asks it for pairing codes. In memory, so a restart never leaves a stale socket behind.
-  codex-daemon:
-    driver_opts:
-      type: tmpfs
-      device: tmpfs
-      o: uid=${HOST_UID:-1000},gid=${HOST_UID:-1000},mode=0700
   logs:
   backups:

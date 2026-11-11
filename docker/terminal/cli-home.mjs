@@ -5,10 +5,10 @@
  * The image installs them as root into /usr/local, which the `claude` user cannot write: Claude Code's
  * auto-update failed with "no write permission to npm prefix" and Codex's "Update now" with EACCES. The
  * image sets NPM_CONFIG_PREFIX=~/.npm-global, so `npm install -g` (what both updaters run) writes into the
- * home volume, and ~/.npm-global/bin comes first on PATH. An update made in llm is the one the terminal uses
- * too (same volume), and it survives container restarts and image rebuilds.
+ * home volume, and ~/.npm-global/bin comes first on PATH. An update survives container restarts and image
+ * rebuilds.
  *
- * On every start of llm this copies each CLI from the image into ~/.npm-global when the home copy is missing
+ * On every start of the terminal container this copies each CLI from the image into ~/.npm-global when the home copy is missing
  * or older than the image's (a rebuild with a newer version). A newer home copy, from a self-update, stays.
  * Offline: it copies files, it does not download anything.
  */

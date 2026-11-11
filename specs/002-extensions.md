@@ -6,15 +6,17 @@ Status: **Built** (extensions come from the extensions repo or are built by Clau
 
 A small **core shell** with **extensions** (apps), like a phone:
 
-- The shell owns what every app needs: the stack (Docker Compose on the host), Claude with Remote Control,
+- The shell owns what every app needs: the stack (Docker Compose on the host), the AI's way in (one MCP
+  server, spec 005, for claude.ai and for the AI CLIs in the in-app terminal),
   the app password, profiles, the database, the layout and navigation, the dashboard, and **System
   settings**, where every extension has its own panel (like the iOS Settings app).
 - An extension is one area: Training & Health, the gym tracker, later Home Assistant, a calendar,
-  learning, Strava, ... They live side by side and do not call each other. Claude talks to each of them
-  (spec 005) and combines them, e.g. a training plan from health data and the gym log.
+  learning, Strava, ... They live side by side and do not call each other. Each one adds its own tools to
+  the MCP server by one contract (`web/tools.server.ts`, spec 005), so Claude can use and combine them,
+  e.g. a training plan from health data and the gym log.
 - **Ready-made extensions** come from the extensions repo
   ([assistant-extensions](https://github.com/b-niamin/assistant-extensions)): `ext install <id>`.
-- **Claude Remote builds the rest.** The owner points it at something (their repo, someone
+- **The AI builds the rest** (Claude Code or Codex in the terminal). The owner points it at something (their repo, someone
   else's repo, an app from [onefile-apps](https://github.com/b-niamin/onefile-apps), a link, an idea):
   that is inspiration only. Claude writes the extension in `extensions/<id>/`, adapted to this instance.
 - Some extensions keep data per profile (health, learning), some share one data set (Home Assistant, a

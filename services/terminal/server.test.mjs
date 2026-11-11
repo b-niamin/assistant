@@ -1,7 +1,7 @@
 // Run: node --test services/terminal
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { connect } from 'node:net';
@@ -61,27 +61,13 @@ test('server: rejects without ticket, runs a shell with one', async (t) => {
   });
   await new Promise((r) => srv.stdout.once('data', r));
 
-  // Remote Control state from the claude container's files: fresh, stale (no heartbeat) or missing.
-  const remote = path.join(TMUX_TMPDIR, '.beni/remote');
-  mkdirSync(remote, { recursive: true });
-  writeFileSync(path.join(remote, 'claude.json'), '{"state":"running","since":1}');
-  writeFileSync(path.join(remote, 'codex.json'), '{"state":"running","since":1}');
-  // The last attempt's known failure, as a word: an older one that was fixed since does not count.
-  mkdirSync(path.join(TMUX_TMPDIR, '.codex/app-server-daemon'), { recursive: true });
-  writeFileSync(path.join(TMUX_TMPDIR, '.codex/app-server-daemon/daemon.stderr.log'), 'Starting app-server\n401 Unauthorized\nStarting app-server\nbody: {"detail":"Multi-factor authentication required"}\n');
-  writeFileSync(path.join(remote, 'claude.log'), 'Starting app-server\n401 Unauthorized\nStarting app-server\nconnected\n');
-  const old = new Date(Date.now() - 5 * 60_000);
-  utimesSync(path.join(remote, 'codex.json'), old, old);
+  // Sign-ins: booleans only. Nothing is signed in in a fresh home; a gh hosts file counts for gh.
+  mkdirSync(path.join(TMUX_TMPDIR, '.config/gh'), { recursive: true });
+  writeFileSync(path.join(TMUX_TMPDIR, '.config/gh/hosts.yml'), 'github.com:\n');
   const status = await (await fetch(`http://127.0.0.1:${port}/status`)).json();
-  assert.deepEqual(status.remote, { claude: 'running', codex: 'off' });
-  assert.equal(status.claude, false);
-  assert.deepEqual(status.background, { claude: false, codex: false });
-  assert.deepEqual(status.reasons, { claude: '', codex: 'mfa' });
-  // Starting a background Remote Control needs a ticket and a known agent.
-  const post = (q) => fetch(`http://127.0.0.1:${port}/remote?${q}`, { method: 'POST' }).then((r) => r.status);
-  assert.equal(await post('agent=claude'), 403);
-  assert.equal((await fetch(`http://127.0.0.1:${port}/remote/pair`, { method: 'POST' })).status, 403);
-  assert.equal(await post(`agent=rm&ticket=${mintTicket(SECRET, 'terminal', 'sid')}`), 403);
+  assert.deepEqual(status, { claude: false, codex: false, gh: true });
+  // Remote Control is gone: its old endpoints answer 404.
+  assert.equal((await fetch(`http://127.0.0.1:${port}/remote?agent=claude`, { method: 'POST' })).status, 404);
 
   const upgrade = (q) =>
     new Promise((resolve) => {

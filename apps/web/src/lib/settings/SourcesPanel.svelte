@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { onDestroy } from 'svelte';
-  import { dock } from '#lib/dock/dock.svelte.ts';
+  import { openDock } from '#lib/dock/dock.svelte.ts';
   import { busy, type SourceState, type SourceStatus, type SourcesResult } from '#lib/extensions/sources.ts';
   import type { SettingField } from '#lib/extensions/types.ts';
   import { hueFor } from './guide.ts';
@@ -120,7 +120,7 @@
             <div class="connect">
               {#if s.help}<p class="small">{s.help}</p>{/if}
               {#if s.command}
-                <p class="cmd"><code>{s.command}</code> <button type="button" class="small linkish" onclick={() => (dock.open = true)}>{t('Open the terminal')}</button></p>
+                <p class="cmd"><code>{s.command}</code> <button type="button" class="small linkish" onclick={openDock}>{t('Open the terminal')}</button></p>
               {/if}
             </div>
           {/if}

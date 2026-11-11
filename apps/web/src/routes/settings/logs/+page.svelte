@@ -71,7 +71,7 @@
   </div>
   <p class="meta">
     {t.n(shown.length, '{n} line', '{n} lines')}{data.file ? ` ${t('from the end of {file}', { file: data.file })}` : `, ${t('newest of every log, merged by time')}`}.
-    {t('Logs of the llm and terminal containers:')} <code>docker compose logs llm terminal</code> {t('on the host.')}
+    {t('Logs of the terminal container:')} <code>docker compose logs terminal</code> {t('on the host.')}
   </p>
 {/if}
 

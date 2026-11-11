@@ -25,7 +25,7 @@ export interface UpdaterStatus {
   attempt: number;
   /** The app's last request the updater took ('' when none, or an older updater). */
   request: string;
-  /** Services that still run the previous version until a confirmed restart ("llm terminal"), '' when none. */
+  /** Services that still run the previous version until a confirmed restart ("terminal"), '' when none. */
   pendingRestart: string;
   /** The app's last "Restart now" the updater took. */
   restartRequest: string;
@@ -125,10 +125,12 @@ export interface UpdaterControl {
   request: string;
   /** When "Cancel" was last clicked during an update (ISO), '' if never. */
   cancel?: string;
-  /** Restarts of llm and terminal (they end the sessions in them): asked for first (default) or automatic. */
+  /** Restarts of the terminal (they end the sessions in it): asked for first (default) or automatic. */
   restarts?: 'ask' | 'auto';
   /** When "Restart now" was last clicked (ISO), '' if never. */
   restart?: string;
+  /** The Claude connector (spec 005): the updater turns Tailscale Funnel on or off for the public MCP listener. */
+  funnel?: 'on' | 'off';
 }
 
 const controlFile = (statusFile: string) => path.join(path.dirname(statusFile), 'updater-control');
@@ -142,7 +144,8 @@ export function parseControl(raw: string): UpdaterControl {
     request: id(get('request')),
     cancel: id(get('cancel')),
     restarts: get('restarts') === 'auto' ? 'auto' : 'ask',
-    restart: id(get('restart'))
+    restart: id(get('restart')),
+    funnel: get('funnel') === 'on' ? 'on' : 'off'
   };
 }
 
@@ -157,7 +160,8 @@ export async function setUpdaterControl(c: UpdaterControl, file = STATUS_FILE())
     `restarts=${c.restarts ?? 'ask'}`,
     c.request && `request=${c.request}`,
     c.cancel && `cancel=${c.cancel}`,
-    c.restart && `restart=${c.restart}`
+    c.restart && `restart=${c.restart}`,
+    `funnel=${c.funnel === 'on' ? 'on' : 'off'}`
   ].filter(Boolean);
   await writeFile(`${target}.tmp`, `${lines.join('\n')}\n`, { mode: 0o644 });
   await rename(`${target}.tmp`, target);
@@ -207,4 +211,42 @@ export async function latestOnGithub(repoUrl: string, branch: string): Promise<s
   }
   latestCache.set(key, { at: Date.now(), sha });
   return sha;
+}
+
+/**
+ * The Claude connector's state as the host's updater last applied it (/logs/funnel-status.json, spec 005):
+ * `on` with the public URL, `off`, `error` (with a message, e.g. Funnel not allowed for this machine yet)
+ * or `unavailable` (no Tailscale on the host). null: no updater, or one from before the connector.
+ */
+export interface FunnelStatus {
+  want: 'on' | 'off';
+  state: 'on' | 'off' | 'error' | 'unavailable';
+  port: string;
+  url: string;
+  message: string;
+  at: string;
+}
+
+export function parseFunnelStatus(raw: string): FunnelStatus | null {
+  let j: Record<string, unknown>;
+  try {
+    j = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  const states = ['on', 'off', 'error', 'unavailable'];
+  if (!j || typeof j !== 'object' || !states.includes(j.state as string)) return null;
+  const url = text(j.url, 300);
+  return {
+    want: j.want === 'on' ? 'on' : 'off',
+    state: j.state as FunnelStatus['state'],
+    port: /^\d{1,5}$/.test(String(j.port ?? '')) ? String(j.port) : '',
+    url: /^https:\/\/[a-z0-9.-]+(:\d+)?\/mcp$/i.test(url) ? url : '',
+    message: text(j.message, 400),
+    at: text(j.at, 40)
+  };
+}
+
+export async function funnelStatus(file = STATUS_FILE()): Promise<FunnelStatus | null> {
+  return parseFunnelStatus(await readFile(path.join(path.dirname(file), 'funnel-status.json'), 'utf8').catch(() => ''));
 }

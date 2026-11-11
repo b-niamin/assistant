@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { infoOf, jsonSafe, validTools } from './tools';
+import { infoOf, jsonSafe, toolProblems, validTools } from './tools';
 
 vi.mock('$app/env/private', () => ({ CLAUDE_TOOLS_TOKEN: undefined }));
 const { claudeTokenMatches } = await import('#lib/server/claude-token.ts');
@@ -16,6 +16,19 @@ describe('extension tools', () => {
   });
   it('gives every tool an object schema', () => {
     expect(infoOf({ name: 'a', description: 'x' }).input).toEqual({ type: 'object', properties: {} });
+  });
+  it('marks reads and writes; a read is never destructive', () => {
+    expect(infoOf({ name: 'log_set', description: 'x' })).toMatchObject({ title: 'log set', readOnly: false, destructive: false });
+    expect(infoOf({ name: 'a', description: 'x', readOnly: true, destructive: true })).toMatchObject({ readOnly: true, destructive: false });
+  });
+  it('checks the tools contract: an overview, descriptions, declared reads', () => {
+    const overview = { name: 'overview', description: 'Everything the app holds now.', readOnly: true, run };
+    expect(toolProblems([overview])).toEqual([]);
+    expect(toolProblems([])).toEqual(['no read-only `overview` tool (one call that sums up what the app holds now)']);
+    expect(toolProblems([overview, { name: 'add', description: 'x', run }])).toEqual([
+      'add: describe it for the AI (what it does and returns)',
+      'add: say readOnly: true or false'
+    ]);
   });
   it('makes rows JSON-safe', () => {
     expect(jsonSafe({ n: 10n, d: new Date('2026-01-02T00:00:00Z') })).toEqual({ n: '10', d: '2026-01-02T00:00:00.000Z' });

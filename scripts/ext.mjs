@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ext: manage the assistant's extensions (spec 002). Run from the repo root, e.g. in the llm container.
+ * ext: manage the assistant's extensions (spec 002). Run from the repo root, e.g. in the terminal container.
  * Installed extensions live in extensions/<id>/ (git-ignored in the core repo). Ready-made ones come from
  * the extensions repo (EXTENSIONS_REPO); new ones Claude builds, taking any source only as inspiration
  * (the add-extension skill). Nothing is fetched at runtime, only by these commands.
@@ -32,6 +32,7 @@ import {
   lintExtension,
   lookWarnings,
   translationWarnings,
+  toolWarnings,
   readRegistry,
   RESERVED_IDS,
   SHELL_API,
@@ -71,17 +72,24 @@ const loadReg = () => readRegistry(DIR);
 
 /**
  * The languages the app offers (System settings -> Language, spec 007): --languages pl,de, else asked
- * from the running app (GET /api/claude, CLAUDE_TOOLS_TOKEN), else null when it cannot be reached.
+ * from the running app (the `extensions` tool of its MCP server /mcp, CLAUDE_TOOLS_TOKEN), else null when it
+ * cannot be reached.
  */
 async function appLanguages(opts = {}) {
   if (typeof opts.languages === 'string') return ['en', ...opts.languages.split(',').map((s) => s.trim()).filter((s) => /^[a-z]{2}$/.test(s))];
   try {
-    const res = await fetch(`${ASSISTANT_URL}/api/claude`, {
-      headers: { authorization: `Bearer ${process.env.CLAUDE_TOOLS_TOKEN ?? ''}` },
+    const res = await fetch(`${ASSISTANT_URL}/mcp`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${process.env.CLAUDE_TOOLS_TOKEN ?? ''}`,
+        'content-type': 'application/json',
+        accept: 'application/json'
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'extensions', arguments: {} } }),
       signal: AbortSignal.timeout(5000)
     });
     if (!res.ok) return null;
-    const body = await res.json();
+    const body = (await res.json())?.result?.structuredContent;
     return Array.isArray(body?.languages?.enabled) ? body.languages.enabled : null;
   } catch {
     return null;
@@ -310,12 +318,14 @@ const commands = {
     const ids = pos.length ? pos : reg.extensions.map((e) => e.id);
     const problems = [];
     const look = [];
+    const tools = [];
     for (const id of ids) {
       const root = path.join(DIR, id);
       try {
         const manifest = JSON.parse(readFileSync(path.join(root, 'extension.json'), 'utf8'));
         problems.push(...validateManifest(manifest, id));
         look.push(...lookWarnings(root, manifest, id));
+        tools.push(...toolWarnings(root, id));
       } catch (e) {
         problems.push(`${id}: ${e.message}`);
       }
@@ -323,6 +333,7 @@ const commands = {
     }
     // Our look is required for every new extension (add-extension skill); older ones only get a warning.
     for (const w of look) console.warn(`ext: look: ${w}`);
+    for (const w of tools) console.warn(`ext: tools: ${w}`);
     // Translations into the app's languages: warnings, like the look (spec 007).
     await translationReport(ids, opts);
     try {

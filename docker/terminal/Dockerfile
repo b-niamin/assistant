@@ -1,5 +1,5 @@
-# Claude Code workspace container. Edits the bind-mounted repo at /workspace, reads data through the
-# read-only `claude_ro` role, and is reachable from claude.ai via Remote Control.
+# The in-app terminal (spec 004): a shell with Claude Code, Codex and gh, editing the bind-mounted repo at
+# /workspace and reading data through the read-only `claude_ro` role.
 FROM node:26-trixie-slim
 
 RUN apt-get update \
@@ -8,7 +8,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g @anthropic-ai/claude-code
-# Other agent CLIs (log in through System settings -> Terminal) and the browser driver for Claude.
+# Codex (log in through System settings -> Terminal) and the browser driver for the agents.
 RUN npm install -g @openai/codex@0.167.0 @playwright/mcp@0.0.84
 
 # Python for extension services' unit tests (offline; their own requirements are not installed here).
@@ -30,7 +30,7 @@ WORKDIR /workspace
 ENV NPM_CONFIG_PREFIX=/home/claude/.npm-global
 ENV PATH=/home/claude/.npm-global/bin:$PATH
 
-COPY --chown=claude entrypoint.sh /usr/local/bin/claude-entrypoint
+COPY --chown=claude entrypoint.sh /usr/local/bin/terminal-entrypoint
 COPY --chown=claude codex-config.mjs /usr/local/lib/codex-config.mjs
 COPY --chown=claude cli-home.mjs /usr/local/lib/cli-home.mjs
-ENTRYPOINT ["sh", "/usr/local/bin/claude-entrypoint"]
+ENTRYPOINT ["sh", "/usr/local/bin/terminal-entrypoint"]

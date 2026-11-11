@@ -426,13 +426,13 @@ export function generateTiles({ webRoot = WEB_ROOT, exts, emit }) {
 }
 
 /**
- * Tools for Claude (spec 005): a native extension may ship web/tools.server.ts exporting
+ * Tools for the AI (spec 005): every extension, native or onefile, ships web/tools.server.ts exporting
  * `tools: ExtTool[]`. Same lazy-import map as the tiles, in generated/tools.server.ts.
  */
 export function generateTools({ webRoot = WEB_ROOT, exts, emit }) {
   const file = path.join(webRoot, 'src', 'lib', 'extensions', 'generated', 'tools.server.ts');
   const ids = exts
-    .filter((e) => e.manifest.kind === 'native' && existsSync(path.join(e.root, 'web', 'tools.server.ts')))
+    .filter((e) => existsSync(path.join(e.root, 'web', 'tools.server.ts')))
     .map((e) => e.manifest.id);
   const lines = ids.map((id) => `  ${JSON.stringify(id)}: () => import('$extensions/${id}/web/tools.server'),`);
   emit(
@@ -574,6 +574,24 @@ export function lookWarnings(root, manifest, id) {
     if (/#[0-9a-fA-F]{6}\b/.test(files.filter((f) => f.endsWith('.svelte')).map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n')))
       warnings.push(`${id}: raw hex colours in its pages (use the shell tokens: --ink, --accent, --hue-*, ...)`);
   }
+  return warnings;
+}
+
+/**
+ * The tools contract (spec 005), checked from the source: web/tools.server.ts with a read-only `overview`,
+ * and every tool saying whether it only reads. Warnings, like the look: older extensions keep working.
+ * @param {string} root
+ * @param {string} id
+ */
+export function toolWarnings(root, id) {
+  const file = path.join(root, 'web', 'tools.server.ts');
+  if (!existsSync(file)) return [`${id}: no web/tools.server.ts (export const tools: ExtTool[], with a read-only overview)`];
+  const src = readFileSync(file, 'utf8');
+  const warnings = [];
+  if (!/name:\s*['"]overview['"]/.test(src)) warnings.push(`${id}: no \`overview\` tool (one call that sums up what the app holds now)`);
+  const names = (src.match(/name:\s*['"][a-z][a-z0-9_]*['"]/g) ?? []).length;
+  const declared = (src.match(/readOnly:\s*(true|false)/g) ?? []).length;
+  if (declared < names) warnings.push(`${id}: say readOnly: true or false on every tool (${declared} of ${names} do)`);
   return warnings;
 }
 

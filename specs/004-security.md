@@ -13,7 +13,8 @@ browser inside the app) are isolated.
 
 | Actor | Can | Must not |
 |---|---|---|
-| Someone on the internet | nothing: the app is reachable only on the tailnet (Tailscale Serve), no published port but `127.0.0.1:3000` | reach any container |
+| Someone on the internet | nothing, while the Claude connector is off: the app is reachable only on the tailnet (Tailscale Serve). With it on: the MCP listener's discovery files, client registration and the sign-in page (Tailscale Funnel, spec 005) | anything without the app password or a token from it; any other path (the public listener answers 404) |
+| A Claude connector client (OAuth, approved with the app password) | the MCP tools of the extensions, for any profile | the app's pages, settings, terminal, browser; tokens of other connections |
 | Device on the tailnet without the password | see `/login` | anything else |
 | Profile user (knows the app password) | use extensions | open System settings without re-entering the password; read stored keys |
 | Admin (re-entered the password in the last 10 min) | System settings, terminal, browser, extension secrets | read a stored API key back in the UI (write-only) |
@@ -28,14 +29,15 @@ browser inside the app) are isolated.
 |---|---|---|
 | App password | `APP_PASSWORD_HASH` (scrypt) in `.env` | web |
 | Extension secrets | `secrets.extension_secrets`, AES-256-GCM, key `SECRETS_KEY` from `.env` | web only; an extension reads only the names it declares; never sent back to the browser, only a hint |
-| Claude tools token | `CLAUDE_TOOLS_TOKEN` in `.env` (spec 005) | web, llm, terminal |
+| Claude tools token | `CLAUDE_TOOLS_TOKEN` in `.env` (spec 005); refused on the public listener | web, terminal |
+| Claude connector tokens | `core.oauth_tokens`, SHA-256 hashes only (spec 005) | web (`app_rw`); not `claude_ro` |
 | Extension service logins (e.g. Garmin) | `<id>.secret_*` tables, Fernet (`TOKEN_ENCRYPTION_KEY`) | that extension's service (`ext_<id>_svc`) |
-| Claude Code / Codex / gh logins | files in the `claude-home` volume | `claude` and `terminal` containers |
-| Browser sessions (cookies) | `browser-profile` volume | `browser` container; usable over CDP by `claude` |
+| Claude Code / Codex / gh logins | files in the `claude-home` volume | `terminal` container |
+| Browser sessions (cookies) | `browser-profile` volume | `browser` container; usable over CDP from `terminal` |
 | Sidecar ticket key | `SIDECAR_TICKET_SECRET` in `.env` | web, terminal |
 
-`claude_ro` (Claude's data chat) has no access to `secrets` and no `SELECT` on `core.sessions`. The
-`claude` and `terminal` containers see an empty `.env`. Backups contain only ciphertext: keep `.env`
+`claude_ro` (Claude's data chat) has no access to `secrets` and no `SELECT` on `core.sessions` or the
+OAuth tables. The `terminal` container sees an empty `.env`. Backups contain only ciphertext: keep `.env`
 backed up separately, or the backups cannot decrypt extension secrets and service logins.
 
 ## Admin gate (step-up)
@@ -55,9 +57,9 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
                                              sidecars network (internal: no internet, no other services)
                                      ┌──────────────────────────┴───────────────────────────┐
                               terminal:7681 (re-checks ticket)                     browser:6080 (noVNC)
-                              shell in tmux, claude image,                         Chromium on Xvfb,
-                              claude-home + checkout                               browser-profile volume
-                                                                                   CDP :9223 ──► claude (playwright MCP)
+                              shell in tmux, Claude Code,                          Chromium on Xvfb,
+                              Codex, claude-home + checkout                        browser-profile volume
+                                                                                   CDP :9223 ──► terminal (playwright MCP)
 ```
 
 - **Tickets** (`sidecar-ticket.js`, same code in `services/terminal/ticket.mjs`): HMAC-SHA256 over
@@ -65,31 +67,32 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
   session only; each nonce is accepted once by the proxy and once by the terminal. A leaked ticket is
   useless without the session cookie, after 60 s, or after first use. Cross-site WebSocket hijacking is
   stopped by the Origin check (browsers do not apply CORS to WebSockets).
-- **Terminal**: own container from the claude image; no Docker socket, no `.env`, no port. The shell
-  gets a clean environment (the ticket key is not in it). It shares `claude-home` with the `claude`
-  container on purpose: `claude` then `/login`, `codex login --device-auth`, `gh auth login` typed here
-  are what Claude Remote uses. tmux keeps a half-finished login alive across reconnects. Sessions end
-  after 8 h. The terminal lives only in the dock at the bottom of every page; `GET /dock` (any logged-in
-  session) returns sign-in booleans and Remote Control states, never file contents, plus whether the
-  session is unlocked. Opening a shell still needs the unlock and a ticket.
-- **Remote Control**: the `llm` container's entrypoint keeps `claude remote-control` and, once Codex
-  is signed in, `codex remote-control --no-daemon` running in `/workspace`, restarting them with backoff.
-  Each writes its state to `~/.beni/remote/<agent>.json` (heartbeat every 30 s); the terminal's `/status`
-  reports it, and a stale file reads as off. The Remote menu can also start one in the background of the
-  terminal container (`POST /dock` for an unlocked session -> `POST terminal:7681/remote` with a
-  single-use ticket; fixed commands only, in tmux session `remote-<agent>`). Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
+- **Terminal**: own container (`docker/terminal`); no Docker socket, no `.env`, no port. The shell
+  gets a clean environment (the ticket key is not in it). Claude Code, Codex and gh are signed in here
+  (`claude` then `/login`, `codex login --device-auth`, `gh auth login`; logins in `claude-home`) and run
+  only here: nothing runs them in the background and nothing reaches them from outside (Remote Control was
+  removed; the Claude connector replaces it). tmux keeps a session alive across reconnects. Sessions end
+  after 8 h. The terminal lives only in the dock at the bottom of every page, and the dock exists only
+  while the session is unlocked (the lock in the header). `GET /dock` (any logged-in session) returns
+  sign-in booleans, never file contents, plus whether the session is unlocked. Opening a shell needs the
+  unlock and a ticket. Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
 - **Browser**: Chromium with a persistent profile on a virtual display. x11vnc listens on loopback
   only (no VNC password); websockify (noVNC) accepts only handshakes with `Origin: $PUBLIC_ORIGIN`, which
   the web proxy sends and a page inside this browser cannot; websockify and a CDP bridge listen on the internal `sidecars` network, which only web,
-  llm, terminal and browser join. The browser reaches the internet through its own `browser-egress`
+  terminal and browser join. The browser reaches the internet through its own `browser-egress`
   network, so a page cannot reach Postgres or extension services. Chromium runs with `--no-sandbox` (Docker
   blocks the user namespaces its sandbox needs); the container is the sandbox: non-root, no secrets
   except its own profile, no host mounts.
 - **Claude drives the browser** through the `browser` MCP server (`.mcp.json`, `@playwright/mcp`
-  over CDP at `localhost:9222`, forwarded by socat in the llm container). Enable it once in Claude
+  over CDP at `localhost:9222`, forwarded by socat in the terminal container). Enable it once in Claude
   Code when asked (project MCP servers need approval).
 
 ### Risks we accept, and what limits them
+
+- With the Claude connector on, the sign-in page is on the internet, and the app password is what stands
+  between it and the apps' data. Limits: 10 attempts per 15 minutes for everyone together (which also
+  means someone guessing can make the owner wait), PKCE, short access tokens, the connection list with
+  Remove, and the switch that ends every connection. Use a long app password before turning it on.
 
 - Whoever has an elevated session has a shell with the owner's CLI logins and the browser's sessions.
   That is the feature. Limits: tailnet only, password re-entry, 10-minute window, logs.
@@ -128,14 +131,14 @@ defence against the owner's own Claude.
 Checked and fine: no Docker socket in any container (auto-update runs on the host and trusts only its
 own mirror of GitHub main, spec 006), only `web` publishes a port (127.0.0.1), CSRF (SvelteKit
 origin check for forms, explicit Origin check on `PATCH /api/kv`, JSON endpoints need a CORS preflight),
-WebSocket Origin + ticket checks, CSP and the onefile sandbox, `/api/claude` bearer check (constant time,
-fails closed on other paths), extension migrations as `ext_<id>_owner`, secrets never sent back to the UI.
+WebSocket Origin + ticket checks, CSP and the onefile sandbox, the `/mcp` bearer checks (constant time for
+`CLAUDE_TOOLS_TOKEN`, which the public listener refuses; hashed OAuth tokens), extension migrations as `ext_<id>_owner`, secrets never sent back to the UI.
 
 ## Deploy (human steps)
 
 ```sh
 echo "SIDECAR_TICKET_SECRET=$(openssl rand -hex 32)" >> .env
-docker compose up -d --build        # new terminal + browser containers, rebuilt claude image
+docker compose up -d --build        # terminal + browser containers
 ```
 
 After the 2026-11-06 audit: `docker compose up -d --build browser` (noVNC origin check, A3). Migration 009

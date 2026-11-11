@@ -137,6 +137,19 @@ describe('lint', () => {
   });
 });
 
+describe('tools contract', () => {
+  it('warns about a missing tools file, overview, or undeclared reads', () => {
+    const dir = fixture([], {
+      'good/web/tools.server.ts': `export const tools = [{ name: 'overview', readOnly: true, description: 'x', run: () => 1 }];`,
+      'half/web/tools.server.ts': `export const tools = [{ name: 'log_set', description: 'x', run: () => 1 }];`,
+      'none/extension.json': '{}'
+    });
+    expect(lib.toolWarnings(path.join(dir, 'good'), 'good')).toEqual([]);
+    expect(lib.toolWarnings(path.join(dir, 'half'), 'half').join()).toMatch(/no `overview`.*readOnly/);
+    expect(lib.toolWarnings(path.join(dir, 'none'), 'none').join()).toMatch(/no web\/tools.server.ts/);
+  });
+});
+
 describe('tile codegen', () => {
   it('maps only native extensions that ship web/tiles.server.ts', () => {
     const dir = fixture(

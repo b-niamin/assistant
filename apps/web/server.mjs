@@ -9,11 +9,16 @@
  * An upgrade is proxied only when ALL hold: the Origin is this app's ORIGIN, the request carries a
  * session cookie, and the ticket is valid, unused, for that sidecar and minted for that session.
  * Tickets come from POST /settings/ticket, which requires an elevated session (password re-entered).
+ *
+ * A second listener, MCP_PORT (3001), is the public one: Tailscale Funnel publishes it to the internet when
+ * the Claude connector is on (spec 005). It answers only the MCP server and its OAuth paths (paths.js),
+ * marks those requests (x-beni-public, stripped on the main listener) and has no WebSocket proxy.
  */
 import { createServer } from 'node:http';
 import { connect } from 'node:net';
 import { handler } from './build/handler.js';
 import { createVerifier, sidHash } from './src/lib/server/sidecar-ticket.js';
+import { isMcpPath, isOAuthApi } from './src/lib/mcp/paths.js';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -37,7 +42,42 @@ function cookie(header, name) {
 
 const deny = (socket, code, text) => socket.end(`HTTP/1.1 ${code} ${text}\r\nConnection: close\r\n\r\n`);
 
-const server = createServer(handler);
+/**
+ * SvelteKit refuses form posts whose Origin is not ORIGIN. The OAuth endpoints that clients' servers call
+ * (token, register, revoke) use no cookies, so any Origin is fine there; the authorize form is posted from
+ * the Funnel address, the same host as ORIGIN on another port, and asks for the app password itself.
+ */
+function fixOrigin(req) {
+  if (req.method !== 'POST' || !ORIGIN) return;
+  const p = new URL(req.url ?? '/', 'http://local').pathname;
+  if (isOAuthApi(p)) req.headers.origin = ORIGIN;
+  else if (p === '/mcp/oauth/authorize') {
+    try {
+      if (new URL(req.headers.origin ?? '').hostname === new URL(ORIGIN).hostname) req.headers.origin = ORIGIN;
+    } catch {
+      /* no or bad Origin: SvelteKit refuses it */
+    }
+  }
+}
+
+const server = createServer((req, res) => {
+  delete req.headers['x-beni-public'];
+  fixOrigin(req);
+  handler(req, res);
+});
+
+const PUBLIC_PORT = Number(process.env.MCP_PORT ?? 3001);
+const publicServer = createServer((req, res) => {
+  const p = new URL(req.url ?? '/', 'http://local').pathname;
+  if (!isMcpPath(p)) {
+    res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
+    return;
+  }
+  req.headers['x-beni-public'] = '1';
+  fixOrigin(req);
+  handler(req, res);
+});
+publicServer.on('upgrade', (_req, socket) => deny(socket, 404, 'Not Found'));
 
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url ?? '/', 'http://local');
@@ -92,3 +132,4 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 server.listen(PORT, HOST, () => console.log(`Listening on http://${HOST}:${PORT}`));
+if (PUBLIC_PORT) publicServer.listen(PUBLIC_PORT, HOST, () => console.log(`MCP (public listener) on http://${HOST}:${PUBLIC_PORT}`));

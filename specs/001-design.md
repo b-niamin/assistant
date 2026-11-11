@@ -126,20 +126,23 @@ fits. The source's own palette, fonts and logo are dropped.
 
 ## Dock and terminal
 
-The header reads `[Beni] [extensions nav] <spacer> [Remote] [avatar]`. The avatar
+The header reads `[Beni] [extensions nav] <spacer> [update state] [lock] [avatar]`. The avatar
 (`lib/user-menu/UserMenu.svelte`) is a round badge with the profile's initial; its menu shows the
 profile's full name, switches profiles, picks the theme (Light, Dark, System: the `theme` cookie, written
 by the server as `data-theme` on `<html>` so nothing flashes) and leads to System settings and Log out.
 
-Every page ends in the dock (`lib/dock/Dock.svelte`): a 40 px bar fixed to the bottom with the terminal
-toggle on the left and the update state on the right. The Remote menu (`lib/dock/RemoteMenu.svelte`) sits
-in the header and shares the dock's status. The Remote button's dot sums up the Remote Control
-sessions: green when Claude and Codex both run, orange when one does, grey when none. Its menu lists each
-with its state and, when one is down, "Start in background" (a detached tmux session `remote-<agent>` in
-the terminal container, `POST /dock`), "Unlock to start" or "Sign in". The states come from `GET /dock`
-every 30 s; normally the `llm` container keeps the sessions up on its own. Expanding the dock opens
-the app's only terminal (created on first open, kept connected while collapsed, open or closed
-remembered per browser). Locked, it asks for the app password inline (the System settings unlock).
+The lock (`lib/dock/LockMenu.svelte`) shows whether this session is unlocked (the app password typed again,
+10 minutes, the same unlock as System settings). Locked, a closed padlock, and there is no terminal on any
+page; a click opens a small password prompt under it. Unlocked, an open violet padlock, and the dock
+appears at the bottom; a click locks again and closes the terminal. A terminal that is connected stays
+when the 10 minutes run out, until the lock is clicked. Left of the lock, a chip appears only when the
+host's updater needs attention: Updating, Update, Restart needed, Update interrupted, Updates stopped
+(links to System settings -> Updates). The state comes from `GET /dock` every 30 s.
+
+The dock (`lib/dock/Dock.svelte`) is a 40 px bar fixed to the bottom with the terminal toggle. Expanding
+it opens the app's only terminal (created on first open, kept connected while collapsed, open or closed
+remembered per browser). A page that wants the terminal while locked (a Sign in button, Build it) opens
+the lock's password prompt first, then runs its command.
 Pages hand it work: `runInDock` runs a command in a new tmux window ("Extend the system", the sign-ins
 in System settings → Terminal), `askAgent` starts the default AI CLI there with a prompt as its first
 message (`claude '<prompt>'` or `codex '<prompt>'`) for "Build it" and "Install". An extension panel's

@@ -42,9 +42,11 @@ Native:
   profile.
 - Schema changes: `db/migrations/NNN_name.sql`, additive. `ext-migrate` applies them within ~15 s
   (`/logs/ext-migrate.log`).
-- Tools for Claude: the shell already gives `describe` and read-only `query`. Add `web/tools.server.ts`
-  (`export const tools: ExtTool[]`) for an overview or for writes (validate input, write via `ctx.db`).
-  See `extensions/health/web/tools.server.ts` and spec 005.
+- Tools for the AI (required, both kinds): `web/tools.server.ts` (`export const tools: ExtTool[]`) with a
+  read-only `overview` and one tool per write (validate input; write via `ctx.db`, or `ctx.kv` for a
+  onefile app's localStorage), each with `title` and `readOnly: true|false` (`destructive: true` when it
+  overwrites or deletes). The templates start one; `ext check` warns without it. Examples:
+  `extensions/health/web/tools.server.ts`, `extensions/gym/web/tools.server.ts`; spec 005.
 - Look (required): the shell's layout and tokens (`specs/001-design.md`) and Beni from `$shell/ui` in the
   header and every empty or error state, and its `"accessory"` in `extension.json` (what Beni wears, list in
   `specs/001-design.md`). No UI libraries, no raw hex. See the `add-extension` skill, step 4.

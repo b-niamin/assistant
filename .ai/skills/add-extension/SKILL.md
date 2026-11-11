@@ -89,18 +89,21 @@ Every extension wears the assistant's layout and has Beni, the mascot, woven in.
   the panel at System settings -> <name>; code reads `ctx.settings.get(name)` and `ctx.secrets.get(name)`;
   a onefile app gets `window.assistantSettings`. An extra view, if fields are not enough:
   `web/routes/settings/+page.svelte` (linked from its panel).
-- **Tools for Claude**: the shell gives `describe`/`query` (native) and `read_data`/`write_data` (onefile).
-  Add `web/tools.server.ts` for a ready-made overview and for every write (spec 005).
+- **Tools for the AI (required)**: `web/tools.server.ts`, native and onefile alike (spec 005, "The extension
+  tools contract"): a read-only `overview` that sums up what the app holds now, one tool per write
+  (validated like the form; onefile writes keep the app's data format, via `ctx.kv`), and `readOnly` on
+  every tool. They reach Claude on claude.ai (the Claude connector) and in the terminal. The shell adds
+  `describe`/`query` (native) and `read_data`/`write_data` (onefile).
 - **Dashboard**: `web/tiles.server.ts` (spec 003).
 - **Data stays its own**: its own schema; never read another extension's tables (go through Claude).
 
 ## 6. Check and hand over
 
-1. `node scripts/ext.mjs check <id>` (no `look:` or `i18n:` warnings) and `cd apps/web && npm test && npm run check`.
+1. `node scripts/ext.mjs check <id>` (no `look:`, `i18n:` or `tools:` warnings) and `cd apps/web && npm test && npm run check`.
    Open `/<id>` in light and dark: it must look like the rest of the app, with Beni.
 2. Migrations apply by themselves within ~15 s (`/logs/ext-migrate.log`); the web app rebuilds
    (`build ok` in `/logs/web.log`).
-3. Call the `assistant` MCP server: `extensions` lists it and one of its tools answers.
+3. Call the `assistant` MCP server: `extensions` lists it, and `<id>__overview` answers.
 4. Nothing to commit for the extension itself: `extensions/` is this instance's state, git-ignored in the
    core repo. Commit only shell changes you made. To share it, offer to copy it into the extensions repo.
 5. Tell the owner, in their language: what it does, where to open it, and what to fill in its panel (System settings

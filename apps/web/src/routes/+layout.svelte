@@ -2,7 +2,8 @@
   import '../app.css';
   import Mascot from '#lib/Mascot.svelte';
   import Dock from '#lib/dock/Dock.svelte';
-  import RemoteMenu from '#lib/dock/RemoteMenu.svelte';
+  import LockMenu from '#lib/dock/LockMenu.svelte';
+  import { dockShown } from '#lib/dock/dock.svelte.ts';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
   import { page } from '$app/state';
   import { provideLanguage, useT } from '#lib/i18n/index.ts';
@@ -26,14 +27,14 @@
         {/each}
       </nav>
       <div class="right">
-        <RemoteMenu />
+        <LockMenu />
         <UserMenu profiles={data.profiles} profileId={data.profileId} theme={data.theme} lang={data.lang} languages={data.languages} />
       </div>
     </div>
   </header>
 {/if}
 
-<main class:docked={data.authenticated}>{@render children()}</main>
+<main class:docked={data.authenticated && dockShown()}>{@render children()}</main>
 
 {#if data.authenticated}<Dock />{/if}
 

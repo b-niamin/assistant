@@ -32,7 +32,7 @@ free one (`assistant-2`) and says so.
 Two steps stay in a terminal because they log in to outside accounts:
 
 ```sh
-docker compose exec -it llm claude                      # /login once; Remote Control then runs by itself
+docker compose exec -it terminal claude                 # /login once (or from the app's terminal)
 docker compose exec -it garmin-sync python -m sync login   # only with the health extension (password never stored)
 ```
 
@@ -53,9 +53,11 @@ extension that brings a background service.
    Update in System settings if you chose manual updates.
 5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and
    your profile.
-6. **Claude**: `cd /volume1/docker/assistant && docker compose exec -it llm claude`, then `/login`
-   and `/exit`. Remote Control keeps running from then on (or log in from the terminal in the bar at the bottom of the app; Codex too, which then starts its own Remote Control).
-7. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
+6. **Claude Code and Codex**: unlock with the lock at the top of the app, then System settings → Terminal
+   → Sign in (or `docker compose exec -it terminal claude`, then `/login` and `/exit`). They run in the
+   terminal at the bottom of the app.
+7. **Claude connector** (claude.ai and the Claude apps): see below.
+8. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
    `docker compose exec garmin-sync python -m sync backfill`.
 
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
@@ -102,12 +104,27 @@ authentication failed": put the old `.env` back, run `sudo ./beni.sh fix-db-pass
 `install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
 Its tool output goes to `install.log`; only the tail is shown when a step fails.
 
+## Claude connector (claude.ai, the Claude apps)
+
+The app's MCP server can be added to Claude as a custom connector. claude.ai calls it from the internet,
+so only that server is published, through Tailscale Funnel; the app stays on the tailnet.
+
+1. Once, in the Tailscale admin console: allow Funnel for this machine (Access controls, the `funnel`
+   node attribute; Tailscale's Funnel docs show the snippet). If you skip it, the settings page shows the
+   link Tailscale prints to enable it.
+2. System settings → Claude connector → Turn on. The host's updater runs `tailscale funnel` within a
+   minute, and the page shows the address (`https://<machine>.<tailnet>.ts.net:8443/mcp`).
+3. claude.ai → Settings → Connectors → Add custom connector, with that address. Connect, pick the profile,
+   type the app password.
+
+Turning it off removes the Funnel and every connection. Details: [spec 005](../specs/005-claude-tools.md).
+
 ## Extensions
 
 ```sh
-docker compose exec llm node scripts/ext.mjs available       # what the extensions repo offers
-docker compose exec llm node scripts/ext.mjs install <id>    # then ./install.sh if it has a service
-docker compose exec llm node scripts/ext.mjs update <id>
+docker compose exec terminal node scripts/ext.mjs available       # what the extensions repo offers
+docker compose exec terminal node scripts/ext.mjs install <id>    # then ./install.sh if it has a service
+docker compose exec terminal node scripts/ext.mjs update <id>
 ```
 
 Or just ask Claude: "add the gym tracker", "build me a habit tracker inspired by <link>".

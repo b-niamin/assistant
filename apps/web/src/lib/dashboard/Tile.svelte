@@ -4,6 +4,7 @@
   import TileChart from './TileChart.svelte';
   import Mascot from '#lib/Mascot.svelte';
   import { page } from '$app/state';
+  import { invalidateAll } from '$app/navigation';
   import { accessoryFor } from '#lib/mascot.ts';
   import { useT } from '#lib/i18n/index.ts';
   const t = useT();
@@ -42,7 +43,7 @@
   <header>
     <h2><a href={linkOf(resolved)}>{title}</a></h2>
     <span class="src" title={shared ? t('Shared by all profiles') : t('Your profile')}>
-      {#if source !== title}{source}{/if}{#if shared}<span class="shared" aria-label={t('shared')}>⇄</span>{/if}
+      {#if source !== title}{source}{/if}{#if shared}<span class="shared" aria-hidden="true">⇄</span><span class="sr">{t('shared')}</span>{/if}
     </span>
   </header>
 
@@ -57,6 +58,7 @@
       <div class="pipnote">
         <Mascot mood="tired" size={36} accessory={worn} decorative />
         <p class="soft">{r.reason === 'timeout' ? t('Still loading. Open to see more.') : t('Unavailable right now.')}</p>
+        <button type="button" class="btn retry" onclick={() => invalidateAll()}>{t('Try again')}</button>
       </div>
     {:else}
       {@const d = r.data}
@@ -317,5 +319,10 @@
     .tile.lg {
       grid-column: auto;
     }
+  }
+  /* Above the card's stretched link. */
+  .retry {
+    position: relative;
+    z-index: 2;
   }
 </style>

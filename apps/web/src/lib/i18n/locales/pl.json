@@ -639,5 +639,19 @@
   "{unit} starts within a few seconds.": "{unit} wystartuje w ciągu kilku sekund.",
   "Your apps' background work: services, scheduled runs, and what they can reach": "Praca w tle aplikacji: usługi, zaplanowane uruchomienia i do czego mają dostęp",
   "Motion: reduced": "Ruch: ograniczony",
-  "Reduce motion": "Ogranicz ruch"
+  "Reduce motion": "Ogranicz ruch",
+  "Set up": "Konfiguracja",
+  "Welcome. Let's set up your assistant.": "Witaj. Skonfigurujmy twojego asystenta.",
+  "This server has no setup code. Run ./install.sh again (it writes SETUP_TOKEN into .env and prints it), then reload this page.": "Ten serwer nie ma kodu konfiguracji. Uruchom ponownie ./install.sh (zapisze SETUP_TOKEN w .env i go wypisze), potem odśwież tę stronę.",
+  "Setup code": "Kod konfiguracji",
+  "(printed by install.sh)": "(wypisany przez install.sh)",
+  "(12+ characters; one password for the whole app)": "(co najmniej 12 znaków; jedno hasło do całej aplikacji)",
+  "Repeat it": "Powtórz je",
+  "(of the app and of every app you add; more in System settings)": "(aplikacji i każdej dodanej aplikacji; więcej w Ustawieniach systemu)",
+  "Your name": "Twoje imię",
+  "Profile id": "Id profilu",
+  "Finish setup": "Zakończ konfigurację",
+  "Next: System settings, where you add apps and more profiles.": "Dalej: Ustawienia systemu, gdzie dodasz aplikacje i kolejne profile.",
+  "Wrong setup code (install.sh printed it; it is SETUP_TOKEN in .env).": "Zły kod konfiguracji (wypisał go install.sh; to SETUP_TOKEN w .env).",
+  "Profile id: lowercase letters, digits and dashes.": "Id profilu: małe litery, cyfry i myślniki."
 }

@@ -1,6 +1,9 @@
 <script lang="ts">
   import Mascot from '#lib/Mascot.svelte';
+  import { tFor } from '#lib/i18n/index.ts';
   let { data, form } = $props();
+  // No language is set yet: the browser's (the server picked it from Accept-Language).
+  const t = $derived(tFor(data.lang));
 
   // The profile id follows the name ("Zoë Ann" -> "zoe-ann") until it is edited by hand.
   let name = $state('');
@@ -22,36 +25,35 @@
   });
 </script>
 
-<svelte:head><title>Set up · Assistant</title></svelte:head>
+<svelte:head><title>{t('Set up')} · {t('Assistant')}</title></svelte:head>
 
-<div class="wrap">
+<div class="wrap" lang={data.lang}>
   <Mascot mood="charged" size={72} decorative />
-  <h1>Welcome. Let's set up your assistant.</h1>
+  <h1>{t("Welcome. Let's set up your assistant.")}</h1>
   {#if !data.tokenSet}
     <p class="card">
-      This server has no setup code. Run <code>./install.sh</code> again (it writes <code>SETUP_TOKEN</code> into
-      <code>.env</code> and prints it), then reload this page.
+      {t('This server has no setup code. Run ./install.sh again (it writes SETUP_TOKEN into .env and prints it), then reload this page.')}
     </p>
   {:else}
     <form method="POST" class="card">
       {#if form?.error}<p class="err" role="alert">{form.error}</p>{/if}
-      <label>Setup code <span class="muted">(printed by install.sh)</span>
+      <label>{t('Setup code')} <span class="muted">{t('(printed by install.sh)')}</span>
         <input name="code" autocomplete="off" required />
       </label>
-      <label>App password <span class="muted">(12+ characters; one password for the whole app)</span>
+      <label>{t('App password')} <span class="muted">{t('(12+ characters; one password for the whole app)')}</span>
         <input name="password" type="password" autocomplete="new-password" minlength="12" required />
       </label>
-      <label>Repeat it
+      <label>{t('Repeat it')}
         <input name="repeat" type="password" autocomplete="new-password" minlength="12" required />
       </label>
-      <label>Language <span class="muted">(of the app and of every app you add; more in System settings)</span>
+      <label>{t('Language')} <span class="muted">{t('(of the app and of every app you add; more in System settings)')}</span>
         <select name="language">
-          {#each data.languages as l (l.code)}<option value={l.code} lang={l.code}>{l.name}</option>{/each}
+          {#each data.languages as l (l.code)}<option value={l.code} lang={l.code} selected={l.code === data.lang}>{l.name}</option>{/each}
         </select>
       </label>
       <div class="two">
-        <label>Your name <input name="name" placeholder="Alex" maxlength="40" required bind:value={name} /></label>
-        <label>Profile id <input
+        <label>{t('Your name')} <input name="name" placeholder="Alex" maxlength="40" required bind:value={name} /></label>
+        <label>{t('Profile id')} <input
             name="profile"
             placeholder="alex"
             pattern="[a-z][a-z0-9-]*"
@@ -62,8 +64,8 @@
           /></label
         >
       </div>
-      <button class="btn">Finish setup</button>
-      <p class="muted small">Next: System settings, where you add AI keys, apps and more profiles.</p>
+      <button class="btn">{t('Finish setup')}</button>
+      <p class="muted small">{t('Next: System settings, where you add apps and more profiles.')}</p>
     </form>
   {/if}
 </div>

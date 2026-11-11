@@ -7,30 +7,45 @@ import type { PageServerLoad } from './$types';
 import { isConfigured, passwordProblem, setPassword, setupTokenMatches, setupTokenSet } from '#lib/server/app-config.ts';
 import { db } from '#lib/server/db.ts';
 import { isLanguage, LANGUAGES } from '#lib/i18n/languages.ts';
+import { tFor } from '#lib/i18n/index.ts';
 import { saveLanguageSettings } from '#lib/server/languages.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { createSession, elevateSession, PROFILE_COOKIE, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
 
 const limiter = createLimiter(10, 15 * 60 * 1000);
 
-export const load: PageServerLoad = async () => {
+/** No language is chosen yet: the browser's first one the app knows (Accept-Language), else English. */
+function browserLanguage(header: string | null): string {
+  for (const part of (header ?? '').split(',')) {
+    const code = part.trim().slice(0, 2).toLowerCase();
+    if (code === 'en' || isLanguage(code)) return code;
+  }
+  return 'en';
+}
+
+export const load: PageServerLoad = async ({ request }) => {
   if (await isConfigured()) throw redirect(303, '/');
-  return { tokenSet: setupTokenSet(), languages: LANGUAGES.map((l) => ({ code: l.code, name: l.name })) };
+  return {
+    tokenSet: setupTokenSet(),
+    lang: browserLanguage(request.headers.get('accept-language')),
+    languages: LANGUAGES.map((l) => ({ code: l.code, name: l.name }))
+  };
 };
 
 export const actions: Actions = {
   default: async ({ request, cookies, url, getClientAddress }) => {
     if (await isConfigured()) throw redirect(303, '/');
     const ip = getClientAddress();
-    if (!limiter.attempt(ip)) return fail(429, { error: 'Too many attempts. Try again in 15 minutes.' });
+    const t = tFor(browserLanguage(request.headers.get('accept-language')));
+    if (!limiter.attempt(ip)) return fail(429, { error: t('Too many attempts. Try again in 15 minutes.') });
     const f = await request.formData();
-    if (!setupTokenMatches(String(f.get('code') ?? ''))) return fail(401, { error: 'Wrong setup code (install.sh printed it; it is SETUP_TOKEN in .env).' });
+    if (!setupTokenMatches(String(f.get('code') ?? ''))) return fail(401, { error: t('Wrong setup code (install.sh printed it; it is SETUP_TOKEN in .env).') });
     const password = String(f.get('password') ?? '');
     const problem = passwordProblem(password, String(f.get('repeat') ?? ''));
-    if (problem) return fail(400, { error: problem });
+    if (problem) return fail(400, { error: t(problem) });
     const name = String(f.get('name') ?? '').trim().slice(0, 40) || 'Me';
     const profileId = String(f.get('profile') ?? '').trim().toLowerCase();
-    if (!/^[a-z][a-z0-9-]{0,31}$/.test(profileId)) return fail(400, { error: 'Profile id: lowercase letters, digits and dashes.' });
+    if (!/^[a-z][a-z0-9-]{0,31}$/.test(profileId)) return fail(400, { error: t('Profile id: lowercase letters, digits and dashes.') });
 
     // The app's language (spec 007): offered next to English, and the default.
     const language = String(f.get('language') ?? '');

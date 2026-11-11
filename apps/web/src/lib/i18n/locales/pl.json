@@ -447,5 +447,10 @@
   "Default AI": "Domyślne AI",
   "Default AI, for Update, Build it and Install:": "Domyślne AI dla „Aktualizuj”, „Zbuduj” i „Zainstaluj”:",
   "The languages of the app. Every app (extension) is built in all of them: when one lacks a language, the AI translates it as it installs it.": "Języki aplikacji. Każda aplikacja (rozszerzenie) jest budowana we wszystkich: jeśli jakiejś brakuje języka, AI tłumaczy ją przy instalacji.",
-  "To change {name}, click Update: {agent} opens in the terminal at the bottom with the request started, for you to finish.": "Aby zmienić {name}, kliknij Aktualizuj: {agent} otworzy się w terminalu na dole z rozpoczętą prośbą, którą dokończysz."
+  "To change {name}, click Update: {agent} opens in the terminal at the bottom with the request started, for you to finish.": "Aby zmienić {name}, kliknij Aktualizuj: {agent} otworzy się w terminalu na dole z rozpoczętą prośbą, którą dokończysz.",
+  "type to replace": "wpisz, aby zastąpić",
+  "Unchanged": "Bez zmian",
+  "Connect": "Połącz",
+  "This extension has no accounts.": "To rozszerzenie nie ma kont.",
+  "Nothing to save here.": "Nie ma tu nic do zapisania."
 }

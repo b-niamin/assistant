@@ -128,17 +128,17 @@
               {#each own as f (f.name)}
                 {@const sl = f.type === 'secret' ? slot(f.name) : undefined}
                 <label class="field wide">
-                  <span>{f.label}{#if f.type === 'secret'} <span class="muted">({sl?.updatedAt ? `set${sl.keyHint ? `, ends in …${sl.keyHint}` : ''}; type to replace` : 'not set'})</span>{/if}</span>
+                  <span>{f.label}{#if f.type === 'secret'} <span class="muted">({sl?.updatedAt ? `${t('set')}${sl.keyHint ? `, ${t('ends in …{hint}', { hint: sl.keyHint })}` : ''}; ${t('type to replace')}` : t('not set')})</span>{/if}</span>
                   {#if f.type === 'secret'}
                     <input name="field:{f.name}" type="password" autocomplete="off" disabled={!secretsAvailable}
-                      placeholder={sl?.updatedAt ? 'Unchanged' : ''} required={!sl?.updatedAt} />
+                      placeholder={sl?.updatedAt ? t('Unchanged') : ''} required={!sl?.updatedAt} />
                   {:else}
                     <input name="field:{f.name}" inputmode={f.type === 'number' ? 'decimal' : undefined} value={values[f.name] ?? ''} />
                   {/if}
                   {#if f.help}<span class="help">{f.help}</span>{/if}
                 </label>
               {/each}
-              <div><button class="btn">{s.state === 'connected' ? 'Save' : 'Connect'}</button></div>
+              <div><button class="btn">{s.state === 'connected' ? t('Save') : t('Connect')}</button></div>
             </form>
           {/if}
 

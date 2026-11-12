@@ -86,4 +86,6 @@ export type DataOf<L extends (...args: any[]) => any> = Awaited<ReturnType<L>>;
 /** Connected accounts in its System settings panel (spec 002): `export const sources: ExtSources` in web/sources.server.ts. */
 export type { ExtSources, SourceAction, SourceActionInput, SourceFact, SourceState, SourceStatus, SourceSync, SyncState } from '#lib/extensions/sources.ts';
 export type { ExtTool, ToolSchema } from '#lib/extensions/tools.ts';
+/** Throw from a tool's run for a call that is wrong (not a failure of the tool). Since shell 2. */
+export { ToolError } from '#lib/extensions/args.ts';
 export type { ExtTile, TileData, TileKpi, TileListItem, TilePoint, TileSeries, TileSize, TileTone } from '#lib/extensions/tiles.ts';

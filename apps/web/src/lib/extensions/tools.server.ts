@@ -9,6 +9,7 @@ import { error } from '@sveltejs/kit';
 import * as env from '$app/env/private';
 import { db } from '#lib/server/db.ts';
 import type { ExtensionContext } from '#lib/sdk/index.ts';
+import { checkArguments } from './args';
 import { kvAll, kvApply, validatePatch } from './kv.server';
 import { allExtensions, visibleTo } from './registry.server';
 import { contextFor } from './runtime.server';
@@ -154,5 +155,7 @@ export async function callTool(extensionId: string, name: string, args: unknown,
   const tool = (await toolsOf(ctx.extension)).find((t) => t.name === name);
   if (!tool) throw error(404, `${extensionId} has no tool ${name}`);
   const a = args && typeof args === 'object' && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
+  // The tool gets what its schema declares; a wrong call is answered with every wrong field, not run.
+  checkArguments(`${extensionId}__${name}`, tool.input, a);
   return jsonSafe(await tool.run(a, ctx));
 }

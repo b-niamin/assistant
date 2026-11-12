@@ -97,6 +97,10 @@ export const tools: ExtTool[] = [
   `destructive: true` marks a write that removes or replaces data.
 - `profile` is reserved: the shell adds it for the terminal and strips it before `run`; use
   `ctx.dataProfileId`. Claude connector connections never get it (they act for their own profile).
+- The shell checks the arguments against `input` before `run` (type, enum, required, minimum/maximum,
+  lengths, items, pattern, oneOf/anyOf) and answers a wrong call with every wrong field, so `run` only
+  checks business rules. Throw `ToolError` from `$shell` for a call that is wrong in a way the schema
+  cannot say.
 - What `run` returns goes back as JSON text and as `structuredContent`; a thrown error comes back as a
   tool error (`isError`) with its message.
 - The shell adds raw tools: `describe` and `query` (read-only SQL) for native, `read_data` and

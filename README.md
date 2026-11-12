@@ -61,7 +61,7 @@ Synology steps, installer options and `beni.sh` commands: [docs/install.md](docs
     <td width="50%"><img src="docs/screenshots/home.png" alt="The Home extension: weather, lights, doors and today's calendar" /><p align="center"><b>Home</b>: an extension, Home Assistant data and weather</p></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/settings.png" alt="System settings: a sidebar of sections and an overview of updates, backups, the Claude connector, the terminal, the worker and the apps" /><p align="center"><b>System settings</b>: apps, updates, backups, the worker</p></td>
+    <td><img src="docs/screenshots/settings.png" alt="System settings: a sidebar of sections and an overview of updates, backups, MCP on the internet, the terminal, the worker and the apps" /><p align="center"><b>System settings</b>: apps, updates, backups, the worker</p></td>
     <td><img src="docs/screenshots/terminal.png" alt="The terminal docked at the bottom of a page" /><p align="center"><b>Terminal</b>: a shell with Claude Code and Codex</p></td>
   </tr>
 </table>

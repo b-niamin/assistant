@@ -111,7 +111,7 @@ must be reachable over public HTTPS. The rest of the app must not be.
   (`x-beni-public`, stripped on the main listener), and `hooks.server.ts` refuses any other path from it.
 - **Tailscale Funnel** publishes that listener at `https://<machine>.<tailnet>.ts.net:8443` (10000 when
   8443 serves something else). The app's own address stays tailnet-only (Tailscale Serve).
-- **The switch** is System settings -> Claude connector (`/settings/connector`). It writes `funnel=on|off`
+- **The switch** is System settings -> MCP on the internet (`/settings/connector`), once for the server. It writes `funnel=on|off`
   to `/updater/control` (a volume only web mounts, spec 006); the host's updater (spec 006, runs every minute as root) applies it with
   `tailscale funnel --bg --https=8443 http://127.0.0.1:<MCP_PORT>` (or `... off`) and reports the state,
   port and URL in `/logs/funnel-status.json`. No container gets the Tailscale socket. On the host,
@@ -130,7 +130,7 @@ must be reachable over public HTTPS. The rest of the app must not be.
     public listener does not serve) that asks for nothing. It files a request in `core.oauth_requests`
     (with the address the client names in `resource`, RFC 8707), sets a cookie tying it to this browser,
     and shows the client's name, return host and a code such as `KQPT-WMRA`, refreshing itself. The owner
-    approves the request in the app on the tailnet (Profile settings -> Claude and MCP) by picking one of
+    approves the request in the app on the tailnet (MCP connector, `/settings/mcp`) by picking one of
     the profile's addresses. The page then sends the browser back with a single-use code (or
     `access_denied`). The app password never crosses the Funnel, so there
     is nothing to guess and no shared rate limit to lock the owner out. Requests end after 10 minutes, at
@@ -141,25 +141,25 @@ must be reachable over public HTTPS. The rest of the app must not be.
     `/mcp/oauth/revoke` (RFC 7009).
   - Only SHA-256 hashes of codes and tokens are stored (`core.oauth_tokens`); `claude_ro` cannot read the
     OAuth tables.
-- **MCP addresses** (`core.mcp_endpoints`, `lib/mcp/endpoints.server.ts`, Profile settings -> Claude and
-  MCP, `/settings/profile`): each profile has a built-in address with every app and writes allowed
+- **MCP addresses** (`core.mcp_endpoints`, `lib/mcp/endpoints.server.ts`, each profile's MCP connector,
+  `/settings/mcp`): each profile has a built-in address with every app and writes allowed
   ("All apps", cannot be removed), and its own ones: a name, the apps ticked, may change data or not. The
   address to paste into Claude is `<Funnel URL>/mcp/x/<id>`. A connection follows its address: a change
   of ticks applies at its next call, removing the address removes its connections. The scope a token
   reports is `mcp:read` or `mcp:read mcp:write` from the address.
 - **Connections**: each approval is a row in `core.oauth_grants` (profile, address, end), listed and
-  removable in the profile's settings; System settings -> Claude connector lists all of them and every
-  tool call. Removing a profile removes its addresses and connections. Turning the
+  removable in the profile's MCP connector, with its latest tool calls (each profile sees only its own).
+  Removing a profile removes its addresses and connections. Turning the
   connector off removes them all, and every waiting request.
 - **CSRF**: SvelteKit refuses form posts whose Origin is not `ORIGIN`. `server.mjs` sets it for the token,
   register and revoke endpoints (no cookies there). The authorize page takes no posts.
 
 ### Adding it to Claude
 
-1. System settings -> Claude connector -> Turn on. Within a minute the page shows the address.
-2. claude.ai -> Settings -> Connectors -> Add custom connector: a name and that address.
-   Use an address from Profile settings -> Claude and MCP ("All apps", or one of the profile's own).
-3. Connect: a page with a code opens. In the app (on the tailnet), Profile settings -> Claude and MCP
+1. Once for the server: System settings -> MCP on the internet -> Turn on.
+2. claude.ai -> Settings -> Connectors -> Add custom connector: a name and an address from the
+   profile's MCP connector ("All apps", or one of the profile's own).
+3. Connect: a page with a code opens. In the app (on the tailnet), MCP connector
    shows the same code under "Waiting for approval": pick the address and Approve. The page in Claude
    moves on by itself.
 4. Turn the connector on in a chat's tools menu. The Claude apps get it from the account.

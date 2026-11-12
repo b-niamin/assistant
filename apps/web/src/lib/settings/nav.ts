@@ -6,6 +6,7 @@
 export type NavId =
   | 'overview'
   | 'profile'
+  | 'mcp'
   | 'apps'
   | 'profiles'
   | 'language'
@@ -45,7 +46,8 @@ export const SETTINGS_NAV: NavGroup[] = [
         href: '/settings/profile',
         label: 'My profile',
         icon: ['M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z', 'M3.5 17c1-3 3.5-4.5 6.5-4.5s5.5 1.5 6.5 4.5']
-      }
+      },
+      { id: 'mcp', href: '/settings/mcp', label: 'MCP connector', icon: ['M10 3v14M3.9 6.5l12.2 7M3.9 13.5l12.2-7'] }
     ]
   },
   {
@@ -75,12 +77,6 @@ export const SETTINGS_NAV: NavGroup[] = [
   {
     label: 'AI',
     items: [
-      {
-        id: 'connector',
-        href: '/settings/connector',
-        label: 'Claude connector',
-        icon: ['M10 3v14M3.9 6.5l12.2 7M3.9 13.5l12.2-7']
-      },
       { id: 'ai', href: '/settings/ai', label: 'Terminal and AI', icon: ['M3.5 4.5h13v11h-13z', 'M6.5 8l2.5 2-2.5 2M10.5 12.5h3'] }
     ]
   },
@@ -88,6 +84,12 @@ export const SETTINGS_NAV: NavGroup[] = [
     label: 'This server',
     items: [
       { id: 'updates', href: '/settings/updates', label: 'Updates', icon: ['M16 10a6 6 0 1 1-1.8-4.3', 'M16 3.5v3.5h-3.5'] },
+      {
+        id: 'connector',
+        href: '/settings/connector',
+        label: 'MCP on the internet',
+        icon: ['M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'M3 10h14M10 3c-2 2-2.8 4.4-2.8 7s.8 5 2.8 7c2-2 2.8-4.4 2.8-7S12 5 10 3z']
+      },
       {
         id: 'backups',
         href: '/settings/backups',

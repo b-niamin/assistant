@@ -18,7 +18,8 @@ The rest happens in the browser, in the wizard at `/setup`:
 1. **You**: the setup code, the app password, your name and profile, the app's language.
 2. **Apps**: ready-made apps from the extensions repo's `catalog.json`, installed with `ext install` in the
    terminal at the bottom of the page.
-3. **Updates and Claude**: automatic or manual updates, and whether the Claude connector is on.
+3. **Updates and Claude**: automatic or manual updates (with the steps to schedule the updater when it does
+   not run yet), and whether MCP is reachable from the internet.
 4. **Done**: what is next (signing in to Claude Code or Codex, connecting Claude, adding the others at home).
 
 Everything there can be changed later in **Settings** (`/settings`).
@@ -64,7 +65,7 @@ in the `worker` on their own after `ext install`; only an extension with its own
 6. **Claude Code and Codex**: unlock with the lock at the top of the app, then Settings → Terminal and AI
    → Sign in (or `docker compose exec -it terminal claude`, then `/login` and `/exit`). They run in the
    terminal at the bottom of the app.
-7. **Claude connector** (claude.ai and the Claude apps): see below.
+7. **MCP connector** (claude.ai and the Claude apps): see below.
 8. **Garmin** (health extension): System settings -> Training & Health -> "Sign in in the terminal" runs
    `ext-run health garmin-sync python -m sync login` in the app's terminal (on the host:
    `docker compose exec -it worker ext-run ...`);
@@ -172,7 +173,7 @@ Once the app works, remove the old files: `sudo docker volume rm <project>_db-da
 `install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
 Its tool output goes to `install.log`; only the tail is shown when a step fails.
 
-## Claude connector (claude.ai, the Claude apps)
+## MCP connector (claude.ai, the Claude apps)
 
 The app's MCP server can be added to Claude as a custom connector. claude.ai calls it from the internet,
 so only that server is published, through Tailscale Funnel; the app stays on the tailnet.
@@ -180,12 +181,12 @@ so only that server is published, through Tailscale Funnel; the app stays on the
 1. Once, in the Tailscale admin console: allow Funnel for this machine (Access controls, the `funnel`
    node attribute; Tailscale's Funnel docs show the snippet). If you skip it, the settings page shows the
    link Tailscale prints to enable it.
-2. System settings → Claude connector → Turn on. The host's updater runs `tailscale funnel` within a
-   minute, and the page shows that it is on.
-3. Profile settings (menu under the avatar) → Claude and MCP: copy an address ("All apps", or add your own
-   with the apps it shows and whether it may change data).
+2. System settings → MCP on the internet → Turn on (once for the server). The host's updater runs
+   `tailscale funnel` within a minute, and the page shows that it is on.
+3. Each person: MCP connector (menu under the avatar, or Settings → You): copy an address ("All apps", or
+   add your own with the apps it shows and whether it may change data).
 4. claude.ai → Settings → Connectors → Add custom connector, with that address. Connect opens a page with a
-   code; approve the same code in Profile settings → Claude and MCP.
+   code; approve the same code in MCP connector → Waiting for approval.
 
 Turning it off removes the Funnel and every connection. Details: [spec 005](../specs/005-claude-tools.md).
 

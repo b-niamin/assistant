@@ -83,10 +83,10 @@ function cookieOf(request: Request): string {
 
 function waiting(client: string, returnsTo: string, code: string): Response {
   const app = appOrigin();
-  const link = app ? `<a href="${escapeHtml(app)}/settings/profile" target="_blank" rel="noreferrer">${escapeHtml(app.replace(/^https?:\/\//, ''))}</a>` : 'the app';
+  const link = app ? `<a href="${escapeHtml(app)}/settings/mcp" target="_blank" rel="noreferrer">${escapeHtml(app.replace(/^https?:\/\//, ''))}</a>` : 'the app';
   return page(
     `<p><strong>${escapeHtml(client)}</strong> (returns to ${escapeHtml(returnsTo)}) asks to use the assistant's apps.</p>
-<p>Approve it in the app on your tailnet: open ${link}, your profile's settings, Claude and MCP.</p>
+<p>Approve it in the app on your tailnet: open ${link}, MCP connector, Waiting for approval.</p>
 <p class="code" aria-label="Request code">${escapeHtml(code)}</p>
 <p class="small">Check that the app shows the same code. This page moves on by itself once you decide; the request ends after ${REQUEST_TTL_S / 60} minutes.</p>`,
     3

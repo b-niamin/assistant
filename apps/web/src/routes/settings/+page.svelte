@@ -42,10 +42,10 @@
       },
       {
         href: '/settings/connector',
-        title: t('Claude connector'),
+        title: t('MCP on the internet'),
         tone: s.connector.tone,
         value: { on: t('On'), off: t('Off'), turning: t('Turning on…'), error: t('Not reachable') }[s.connector.state],
-        meta: t('Your apps in claude.ai and the Claude apps')
+        meta: t('Lets each profile connect Claude')
       },
       {
         href: '/settings/ai',
@@ -85,7 +85,7 @@
     <form method="POST" action={next ? `?/unlock&next=${encodeURIComponent(next)}` : '?/unlock'} class="card unlock"
       use:enhance={() => async ({ update }) => (await update(), refreshDock())}>
       <h1>{t('System settings')}</h1>
-      <p class="muted">{t('Settings change what everybody sees, so they ask for the password again. They stay open for 10 minutes.')}</p>
+      <p class="muted">{t('Settings ask for the password again, and stay open for 10 minutes.')}</p>
       {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
       <label>
         <span class="sr">{t('App password')}</span>

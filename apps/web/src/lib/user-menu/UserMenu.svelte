@@ -78,11 +78,11 @@
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 10.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" /><path d="M3.5 17c1-3 3.5-4.5 6.5-4.5s5.5 1.5 6.5 4.5" /></svg>
           {t('Profile settings')}
         </a>
-        <a class="item" href="/settings/profile#mcp-h" onclick={() => (open = false)}>
+        <a class="item" href="/settings/mcp" aria-current={here('/settings/mcp') ? 'page' : undefined} onclick={() => (open = false)}>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v14M3.9 6.5l12.2 7M3.9 13.5l12.2-7" /></svg>
-          {t('Claude and MCP')}
+          {t('MCP connector')}
         </a>
-        <a class="item" href="/settings" aria-current={here('/settings') && !here('/settings/profile') ? 'page' : undefined} onclick={() => (open = false)}>
+        <a class="item" href="/settings" aria-current={here('/settings') && !here('/settings/profile') && !here('/settings/mcp') ? 'page' : undefined} onclick={() => (open = false)}>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" /><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" /></svg>
           {t('System settings')}
         </a>

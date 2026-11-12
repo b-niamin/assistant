@@ -19,7 +19,7 @@
 
 <svelte:head><title>{t('Terminal and AI')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Terminal and AI')} lede={t('The AI tools in the terminal at the bottom of every page: who is signed in, and which one Update, Build it and Install start.')}>
+<PageHead title={t('Terminal and AI')} lede={t('The AI tools in the terminal at the bottom of every page.')}>
   {#snippet actions()}
     <button type="button" class="btn" onclick={openDock}>{t('Open the terminal')}</button>
   {/snippet}
@@ -73,7 +73,7 @@
     {/each}
     <noscript><button class="btn">{t('Save')}</button></noscript>
   </form>
-  <p class="meta">{t('Update, Build it and Install start it in the terminal with the request already typed.')}</p>
+  <p class="meta">{t('Update, Build it and Install start it.')}</p>
 </section>
 
 <section class="sec" aria-labelledby="claude-h">
@@ -83,8 +83,8 @@
       <a href="/settings/connector">
         <span class="mark" style="--hue: var(--brand)" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M10 3v14M3.9 6.5l12.2 7M3.9 13.5l12.2-7" /></svg></span>
         <span class="what">
-          <strong>{t('Claude connector')}</strong>
-          <span class="meta">{t('Use your apps from claude.ai and the Claude apps (MCP)')}</span>
+          <strong>{t('MCP on the internet')}</strong>
+          <span class="meta">{t('For the whole server')}</span>
         </span>
         <span class="status small" class:good={connector === 'on'} class:warning={connector === 'turning'} class:critical={connector === 'error'}>
           {connector === 'on' ? t('On') : connector === 'turning' ? t('Turning on…') : connector === 'error' ? t('Not reachable') : t('Off')}
@@ -93,11 +93,11 @@
       </a>
     </li>
     <li>
-      <a href="/settings/profile#mcp-h">
+      <a href="/settings/mcp">
         <span class="mark" style="--hue: var(--hue-blue)" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2L10 5.8" /><path d="M11.5 8.5a3 3 0 0 0-4.2 0l-2.6 2.6a3 3 0 0 0 4.2 4.2l1.1-1.1" /></svg></span>
         <span class="what">
-          <strong>{t('Your addresses')}</strong>
-          <span class="meta">{t('Which apps each Claude sees, and approving new connections: in your profile.')}</span>
+          <strong>{t('MCP connector')}</strong>
+          <span class="meta">{t('Your addresses and connections')}</span>
         </span>
         <span class="chev" aria-hidden="true">›</span>
       </a>

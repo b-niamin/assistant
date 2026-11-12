@@ -13,7 +13,7 @@
     ...(data.funnel === 'on'
       ? [
           {
-            href: '/settings/profile#mcp-h',
+            href: '/settings/mcp',
             title: t('Connect claude.ai and the Claude apps'),
             meta: t('Over MCP: chat with Claude on the web or your phone about your data. Copy your address into claude.ai, Settings, Connectors.')
           }

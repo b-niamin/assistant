@@ -332,6 +332,12 @@ if [ -n "$EXTENSIONS" ]; then
   compose_files
 fi
 
+# The backup folder (BACKUP_DIR, next to the checkout): Docker on a Synology does not make a missing
+# bind-mount folder, it refuses to start the container. Root only: a backup holds .env.
+backups=$(sed -n 's/^BACKUP_DIR=//p' .env | tail -n 1); backups=${backups:-../assistant-backups}
+case $backups in /*) ;; ../*) backups=$(dirname "$DIR")/${backups#../} ;; *) backups=$DIR/$backups ;; esac
+[ -d "$backups" ] || (umask 077 && mkdir -p "$backups") || die "cannot create the backup folder $backups"
+
 # 4. start
 if [ "$START" = manual ]; then
   phase "Preparing the stack for your own tool (not starting it)"
@@ -392,8 +398,6 @@ phase "Done"
 grep -q '^INSTALLED_AT=' .env || printf 'INSTALLED_AT=%s\n' "$(date -u +%Y-%m-%dT%H:%MZ)" >> .env
 sed -i '/^START_MODE=/d' .env && printf 'START_MODE=%s\n' "$START" >> .env
 token=$(sed -n 's/^SETUP_TOKEN=//p' .env)
-backups=$(sed -n 's/^BACKUP_DIR=//p' .env | tail -n 1); backups=${backups:-../assistant-backups}
-case $backups in /*) ;; ../*) backups=$(dirname "$DIR")/${backups#../} ;; *) backups=$DIR/$backups ;; esac
 if [ "$START" = manual ] && [ -n "$(dc ps -q 2>/dev/null)" ]; then
   say "The stack is running. ./beni.sh update rebuilds or restarts what a pulled change touches."
 elif [ "$START" = manual ]; then

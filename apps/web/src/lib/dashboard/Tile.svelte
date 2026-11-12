@@ -230,6 +230,7 @@
     margin: 0;
     padding: 0;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
     font-size: 0.875rem;
   }
@@ -239,6 +240,7 @@
     gap: var(--space-3);
   }
   .list li span:first-child {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -247,6 +249,7 @@
     color: var(--ink-3);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .empty {
     display: grid;

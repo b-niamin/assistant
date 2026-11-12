@@ -10,6 +10,7 @@ import { extensionById, saveExtensionSwitches } from '#lib/extensions/registry.s
 import { deleteSecret, listSecretSlots, secretsAvailable, setSecret } from '#lib/server/extension-secrets.ts';
 import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
 import { localizeExtension, tFor } from '#lib/i18n/index.ts';
+import { claimedFields } from '#lib/extensions/sources.ts';
 
 async function guard(sid: string | undefined, id?: string) {
   if (!(await isElevated(sid))) throw redirect(303, id ? `/settings?next=extensions/${encodeURIComponent(id)}` : '/settings');
@@ -63,8 +64,12 @@ export const actions: Actions = {
     await guard(cookies.get(SESSION_COOKIE));
     const ext = await extOf(params.id);
     const t = tFor(locals.lang, ext.id);
+    // Fields a connected-account card edits are not in this form: leave them as they are.
+    const sources = await sourcesOf(ext, { locals });
+    const claimed = sources?.ok ? claimedFields(sources.sources) : new Set<string>();
+    const only = ext.settings.filter((f) => f.type !== 'secret' && !claimed.has(f.name)).map((f) => f.name);
     try {
-      await saveSettings(ext, await request.formData());
+      await saveSettings(ext, await request.formData(), only);
     } catch (e) {
       return fail(400, { error: t((e as Error).message) });
     }

@@ -192,13 +192,18 @@ const readyMade = (repoDir) =>
     ? readdirSync(path.join(repoDir, READY)).filter((f) => ID_RE.test(f) && existsSync(path.join(repoDir, READY, f, 'extension.json')))
     : [];
 
-/** Copy extensions-repo/extensions/<id> into extensions/<id> and check its manifest; returns the manifest. */
+/**
+ * Copy extensions-repo/extensions/<id> into extensions/<id>; returns the manifest. It is checked first,
+ * in the fresh clone, as `ext check` would (manifest, imports from the shell only, migrations without
+ * privileged statements): ext-migrate and live-reload pick a copied folder up within seconds, so a bad
+ * one must never get there.
+ */
 function copyFromRepo(repoDir, id) {
   const src = path.join(repoDir, READY, id);
   if (!existsSync(path.join(src, 'extension.json')))
     die(`no extension "${id}" in ${EXTENSIONS_REPO}; available: ${readyMade(repoDir).join(', ') || 'none'}`);
   const manifest = JSON.parse(readFileSync(path.join(src, 'extension.json'), 'utf8'));
-  const problems = validateManifest(manifest, id, src);
+  const problems = [...validateManifest(manifest, id, src), ...lintExtension(src, id)];
   if (problems.length) die(`problems:\n  - ${problems.join('\n  - ')}`);
   cpSync(src, path.join(DIR, id), { recursive: true, filter: (f) => path.basename(f) !== '.git' });
   return manifest;

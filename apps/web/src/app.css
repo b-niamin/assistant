@@ -236,6 +236,13 @@ form[aria-busy='true'] button:disabled {
   border-radius: var(--radius-sm);
   background: var(--surface);
 }
+/* A link that looks like a button: same box, no underline. */
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
 .btn-primary {
   border-color: var(--accent-fill);
   background: var(--accent-fill);

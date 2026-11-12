@@ -22,7 +22,7 @@
 <svelte:head><title>{ext.name} · {t('System settings')}</title></svelte:head>
 
 <header class="head">
-  <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
+  <p class="eyebrow"><a href="/settings/apps">{t('Apps')}</a></p>
   <div class="ident">
     <span class="mark" style="--hue: {hueFor(ext.id)}" aria-hidden="true">{initials(ext.name)}</span>
     <div class="title">

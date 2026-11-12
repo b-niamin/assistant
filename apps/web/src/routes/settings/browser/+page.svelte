@@ -62,7 +62,6 @@
 <svelte:head><title>{t('Browser')} · {t('Assistant')}</title></svelte:head>
 
 <div class="head">
-  <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
   <h1>{t('Browser')}</h1>
   <p class="muted">
     {t('A Chromium in its own container. Sign in here to services that have no connector; Claude in the container drives this same browser (Playwright over CDP) and sees the same logins. Treat every signed-in tab as a password: sign out of what Claude no longer needs.')}

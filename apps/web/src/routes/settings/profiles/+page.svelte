@@ -17,7 +17,6 @@
 <svelte:head><title>{t('Profiles')} · {t('System settings')}</title></svelte:head>
 
 <div class="head">
-  <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
   <h1>{t('Profiles')}</h1>
   <p class="lede">
     {t('Everyone at home gets their own profile: their own data, apps and dashboard. Profiles are not accounts; anyone with the app password can switch between them from the menu at the top.')}

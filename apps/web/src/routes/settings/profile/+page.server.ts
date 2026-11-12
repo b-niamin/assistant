@@ -1,13 +1,14 @@
 /**
- * Profile settings (the menu under the avatar): what belongs to the profile in use. Today: Claude and
- * MCP (spec 005). The profile's MCP addresses to paste into Claude (the built-in one with every app, and
+ * Profile settings (the menu under the avatar): what belongs to the profile in use: its name, how the app
+ * looks in this browser (cookies, no server side) and Claude and MCP (spec 005). The profile's MCP addresses to paste into Claude (the built-in one with every app, and
  * its own: a name, the apps ticked, may change data or not), the connections waiting for approval, its
  * connections and its latest tool calls. Needs the unlocked session, like System settings: approving a
  * connection lets the internet in.
  */
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { extensionsFor } from '#lib/extensions/registry.server.ts';
+import { db } from '#lib/server/db.ts';
+import { extensionsFor, invalidate } from '#lib/extensions/registry.server.ts';
 import { localizeExtension, tFor } from '#lib/i18n/index.ts';
 import { cleanName, createEndpoint, deleteEndpoint, listEndpoints, updateEndpoint } from '#lib/mcp/endpoints.server.ts';
 import { decideRequest, listConnections, pendingRequests, recentToolCalls, removeConnection } from '#lib/mcp/oauth.server.ts';
@@ -56,6 +57,17 @@ async function readForm(request: Request, profileId: string) {
 }
 
 export const actions: Actions = {
+  /** The profile's own name (the id stays: data hangs on it). */
+  rename: async ({ request, cookies, locals }) => {
+    const t = tFor(locals.lang);
+    if (!(await guard(cookies))) return fail(403, { error: t('Unlock first.') });
+    const name = String((await request.formData()).get('name') ?? '').trim();
+    if (!name || name.length > 40) return fail(400, { error: t('Name: 1 to 40 characters.') });
+    await db()`UPDATE core.profiles SET name = ${name} WHERE id = ${locals.profileId}`;
+    invalidate();
+    return { ok: t('Renamed to {name}.', { name }) };
+  },
+
   create: async ({ request, cookies, locals }) => {
     const t = tFor(locals.lang);
     if (!(await guard(cookies))) return fail(403, { error: t('Unlock first.') });

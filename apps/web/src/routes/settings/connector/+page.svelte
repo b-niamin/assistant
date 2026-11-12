@@ -41,7 +41,6 @@
 <svelte:head><title>{t('Claude connector')} · {t('System settings')}</title></svelte:head>
 
 <div class="head">
-  <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
   <div class="name">
     <Mascot mood={live ? 'charged' : 'steady'} size={48} decorative />
     <h1>{t('Claude connector')}</h1>

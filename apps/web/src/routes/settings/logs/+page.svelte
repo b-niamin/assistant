@@ -31,7 +31,6 @@
 <svelte:head><title>{t('Logs')} · {t('System settings')}</title></svelte:head>
 
 <div class="head">
-  <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
   <div class="name">
     <span class="mark" style="--hue: var(--hue-blue)" aria-hidden="true">≡</span>
     <h1>{t('Logs')}</h1>

@@ -49,7 +49,7 @@
 
 <div class="hero">
   <div class="head">
-    <p class="eyebrow"><a href="/settings">{t('System settings')}</a></p>
+    <p class="eyebrow"><a href="/settings/apps">{t('Apps')}</a></p>
     <h1>{t('Extend the system')}</h1>
   </div>
   <div class="pip">

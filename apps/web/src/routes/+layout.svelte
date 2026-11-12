@@ -10,6 +10,8 @@
   let { data, children } = $props();
   provideLanguage(() => data.lang);
   const t = useT();
+  // The first-run wizard is a page of its own: no header (the dock stays, it installs the apps).
+  const wizard = $derived(page.url.pathname === '/setup' || page.url.pathname.startsWith('/setup/'));
 
   // A thin bar at the top while a page loads, shown only after 150 ms so quick ones do not flicker.
   let loading = $state(false);
@@ -29,7 +31,7 @@
 
 <a class="skip" href="#main">{t('Skip to content')}</a>
 
-{#if data.authenticated}
+{#if data.authenticated && !wizard}
   <!-- While the terminal is open the page behind it is out of reach for Tab and screen readers too. -->
   <header inert={dock.open && dockShown()}>
     <div class="bar">

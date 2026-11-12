@@ -4,11 +4,12 @@
 #   curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh | sudo sh
 #   # or, from a checkout:  ./install.sh [extension ...]
 #
-# In a terminal it asks a few questions (folder, port, tailnet port, extensions, auto-update), each with a
-# default that avoids what is already running. Unattended: ASSISTANT_YES=1 takes the defaults; the
-# answers can also be given up front as ASSISTANT_DIR, WEB_PORT, ASSISTANT_HTTPS_PORT,
-# ASSISTANT_EXTENSIONS (or arguments: sh -s -- health gym) and ASSISTANT_AUTO_UPDATE=0|1. ASSISTANT_PROJECT
-# names the compose project of a new install (default: the folder name; pinned in .env).
+# It asks nothing: every choice has a default that avoids what is already running, and the rest (the app
+# password, your profile, the language, the apps, updates, the Claude connector) is the web wizard at
+# /setup. Defaults can be changed up front: ASSISTANT_DIR, WEB_PORT, ASSISTANT_HTTPS_PORT,
+# ASSISTANT_EXTENSIONS (or arguments: sh -s -- health gym), ASSISTANT_AUTO_UPDATE=0|1 and
+# ASSISTANT_START=manual (you start the stack yourself). ASSISTANT_PROJECT names the compose project of a
+# new install (default: the folder name; pinned in .env).
 #
 # What it does, and nothing else:
 #   1. checks Docker + Compose, clones the repo (ASSISTANT_REPO, ASSISTANT_DIR) if not run from a checkout,
@@ -17,7 +18,7 @@
 #   4. lists the installed extensions' compose.yml in COMPOSE_FILE, builds and starts the stack,
 #   5. publishes it on your tailnet with `tailscale serve` if Tailscale is installed,
 #   6. sets up the updater (scripts/update.sh, spec 006; ASSISTANT_AUTO_UPDATE=0 = manual updates, from the app),
-#   7. prints the address and the one-time setup code for the web wizard (/setup).
+#   7. waits for the app and prints its address and the one-time setup code for the web wizard (/setup).
 # Re-running it is safe: it keeps .env and the installed extensions, and only (re)starts the stack.
 # Run it again after Claude installs an extension that brings a background service.
 set -eu
@@ -25,7 +26,7 @@ set -eu
 PATH=$PATH:/usr/local/bin:/var/packages/ContainerManager/target/usr/bin:/var/packages/Tailscale/target/bin
 
 REPO=${ASSISTANT_REPO:-https://github.com/b-niamin/assistant.git}
-EXTENSIONS=${*:-${ASSISTANT_EXTENSIONS-health gym}}
+EXTENSIONS=${*:-${ASSISTANT_EXTENSIONS-}}
 
 # Output: a numbered line per phase, "  ·" for news, "  ✓"/"  ✗" for steps. Tool output (docker builds,
 # ext, auto-update) goes to install.log in the checkout, and only its tail is shown when a step fails.
@@ -58,81 +59,13 @@ elif command -v docker-compose >/dev/null 2>&1; then DC="docker-compose"
 else die "Docker Compose is missing."; fi
 docker info >/dev/null 2>&1 || die "Cannot talk to Docker. Run it with sudo (curl ... | sudo sh), or as a user in the docker group."
 
-# 0. the questions (only in a terminal, only for a new install; Enter takes the default)
+# 0. the defaults (a new install only; a re-run keeps what .env says)
 port_used() { # a host port something already listens on, or a container publishes
   { netstat -ltn 2>/dev/null || ss -ltn 2>/dev/null; } | grep -qE "[:.]$1[[:space:]]" && return 0
   docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE "[:.]$1->"
 }
 free_port() { p=$1; while port_used "$p"; do p=$((p + 1)); done; echo "$p"; }
 tailnet_https_used() { command -v tailscale >/dev/null 2>&1 && tailscale serve status --json 2>/dev/null | grep -q "\"$1\""; }
-ask() { # $1 = variable, $2 = question, $3 = default
-  if [ -n "$3" ]; then printf '\033[1m?\033[0m %s [%s]: ' "$2" "$3"; else printf '\033[1m?\033[0m %s ' "$2"; fi > /dev/tty
-  IFS= read -r a < /dev/tty || a=""
-  eval "$1=\${a:-\$3}"
-}
-# The extensions repo's catalog.json, "id<TAB>name<TAB>description" per ready-made extension (max 20).
-CATALOG_URL=${EXTENSIONS_CATALOG_URL:-https://raw.githubusercontent.com/b-niamin/assistant-extensions/main/catalog.json}
-catalog_extensions() {
-  { curl -fsSL "$CATALOG_URL" 2>/dev/null || wget -qO- "$CATALOG_URL" 2>/dev/null; } | awk '
-    /"inspirations"/ { stop = 1 }
-    stop { next }
-    /"id":/ { if (id != "") print id "\t" name "\t" desc; id = $0; sub(/.*"id": *"/, "", id); sub(/".*/, "", id); name = ""; desc = "" }
-    /"name":/ { name = $0; sub(/.*"name": *"/, "", name); sub(/",? *$/, "", name) }
-    /"description":/ { desc = $0; sub(/.*"description": *"/, "", desc); sub(/",? *$/, "", desc) }
-    END { if (id != "") print id "\t" name "\t" desc }' | grep -E '^[a-z][a-z0-9-]*	' | head -n 20
-}
-# Checkboxes: ↑/↓ move, Space ticks, Enter confirms (a typed number ticks that line too).
-pick_extensions() {
-  list=$(catalog_extensions)
-  if [ -z "$list" ]; then
-    ask EXTENSIONS "Extensions to install (could not read the catalog; ids, space separated, - for none)" "$EXTENSIONS"
-    [ "$EXTENSIONS" = - ] && EXTENSIONS=""
-    return
-  fi
-  chosen=" $(printf '%s' "$EXTENSIONS" | tr ',' ' ') "
-  total=$(printf '%s\n' "$list" | wc -l | tr -d ' ')
-  cols=$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2)
-  [ "${cols:-0}" -ge 30 ] 2>/dev/null || cols=80
-  cur=1
-  saved=$(stty -g < /dev/tty)
-  trap 'stty "$saved" < /dev/tty; printf "\033[?25h" > /dev/tty; exit 130' INT TERM
-  stty -icanon -echo min 1 time 0 < /dev/tty
-  printf '\n  \033[1mExtensions\033[0m  (↑/↓ move, Space tick, Enter confirm)\n\033[?25l' > /dev/tty
-  drawn=no
-  while :; do
-    [ "$drawn" = yes ] && printf '\033[%sA' "$((total + 1))" > /dev/tty
-    drawn=yes
-    i=0
-    printf '%s\n' "$list" | while IFS='	' read -r id name desc; do
-      i=$((i + 1))
-      case "$chosen" in *" $id "*) box='\033[38;5;208m[x]\033[0m' ;; *) box='[ ]' ;; esac
-      if [ "$i" = "$cur" ]; then mark='\033[1m›'; else mark=' '; fi
-      printf "\r\033[K  $mark $box %s\033[0m\n" "$name" > /dev/tty
-    done
-    desc=$(printf '%s\n' "$list" | sed -n "${cur}p" | cut -f3 | cut -c1-$((cols - 6)))
-    printf '\r\033[K    \033[2m%s\033[0m\n' "$desc" > /dev/tty
-    key=$(dd bs=1 count=1 < /dev/tty 2>/dev/null)
-    case "$key" in
-      "$(printf '\033')")
-        rest=$(dd bs=1 count=2 < /dev/tty 2>/dev/null)
-        case "$rest" in '[A' | 'OA') [ "$cur" -gt 1 ] && cur=$((cur - 1)) ;; '[B' | 'OB') [ "$cur" -lt "$total" ] && cur=$((cur + 1)) ;; esac ;;
-      k) [ "$cur" -gt 1 ] && cur=$((cur - 1)) ;;
-      j) [ "$cur" -lt "$total" ] && cur=$((cur + 1)) ;;
-      ' ' | [1-9])
-        n=$cur
-        case "$key" in [1-9]) n=$key ;; esac
-        id=$(printf '%s\n' "$list" | sed -n "${n}p" | cut -f1)
-        [ -n "$id" ] || continue
-        case "$chosen" in *" $id "*) chosen=$(printf '%s' "$chosen" | sed "s/ $id / /") ;; *) chosen="$chosen$id " ;; esac ;;
-      '' | "$(printf '\r')") break ;;
-    esac
-  done
-  stty "$saved" < /dev/tty
-  trap - INT TERM
-  printf '\033[?25h' > /dev/tty
-  EXTENSIONS=$(printf '%s' "$chosen" | xargs)
-  printf '\033[1A\r\033[K  \033[32m✓\033[0m Extensions: %s\n' "${EXTENSIONS:-none}" > /dev/tty
-}
 if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant; else default_dir=$HOME/assistant; fi
 in_checkout=no
 [ -f docker-compose.yml ] && [ -f scripts/ext.mjs ] && [ -f install.sh ] && in_checkout=yes
@@ -141,14 +74,8 @@ if [ -n "${ASSISTANT_DIR:-}" ] && [ "$in_checkout" = yes ] && [ "$(cd "$ASSISTAN
   in_checkout=no
 fi
 if [ "$in_checkout" = yes ]; then DIR=$(pwd); else DIR=${ASSISTANT_DIR:-}; fi
-interactive=no
-[ "${ASSISTANT_YES:-0}" != 1 ] && (exec < /dev/tty) 2>/dev/null && interactive=yes
-if [ "$interactive" = yes ] && [ -z "$DIR" ]; then
-  printf '\n  Assistant installer. Press Enter to take the suggestion in [brackets].\n\n' > /dev/tty
-  ask DIR "Install folder" "$default_dir"
-fi
 DIR=${DIR:-$default_dir}
-# A finished install has INSTALLED_AT in .env; an interrupted one is asked again (its ports stay).
+# A finished install has INSTALLED_AT in .env; an interrupted one runs again (its ports stay).
 complete=no
 [ -f "$DIR/.env" ] && grep -q '^INSTALLED_AT=' "$DIR/.env" && complete=yes
 if [ -f "$DIR/.env" ]; then
@@ -160,7 +87,7 @@ else
   elif tailnet_https_used 443; then HTTPS_PORT=8443; while tailnet_https_used "$HTTPS_PORT"; do HTTPS_PORT=$((HTTPS_PORT + 1)); done
   else HTTPS_PORT=443; fi
 fi
-# How it is started (now = by this installer, manual = Container Manager & co.): asked once, kept in .env.
+# How it is started (now = by this installer, manual = Container Manager & co.): kept in .env.
 saved_start=$(sed -n 's/^START_MODE=//p' "$DIR/.env" 2>/dev/null | tail -n 1)
 START=${ASSISTANT_START:-${saved_start:-now}}
 if [ "$complete" = yes ]; then
@@ -168,27 +95,6 @@ if [ "$complete" = yes ]; then
   [ $# -gt 0 ] || [ -n "${ASSISTANT_EXTENSIONS+x}" ] || EXTENSIONS=""
 else
   AUTO=${ASSISTANT_AUTO_UPDATE:-1}
-  if [ "$interactive" = yes ]; then
-    if [ ! -f "$DIR/.env" ]; then
-      [ -n "${WEB_PORT:-}" ] || ask PORT "Local port for the app (free ones only)" "$PORT"
-      if command -v tailscale >/dev/null 2>&1 && [ -z "${ASSISTANT_HTTPS_PORT:-}" ]; then
-        ask HTTPS_PORT "HTTPS port on your tailnet (443 = plain https://<machine>...; another keeps what is served there)" "$HTTPS_PORT"
-      fi
-    fi
-    if [ $# -eq 0 ] && [ -z "${ASSISTANT_EXTENSIONS+x}" ]; then
-      pick_extensions
-    fi
-    if [ -z "${ASSISTANT_AUTO_UPDATE:-}" ]; then
-      ask a_upd "Update by itself from GitHub main? (n = only when you click Update in the app) (y/n)" y
-      case $a_upd in [nN]*) AUTO=0 ;; *) AUTO=1 ;; esac
-    fi
-    if [ -z "${ASSISTANT_START:-}" ]; then
-      printf '  Start: 1 = now, by this installer (recommended)\n         2 = I start it myself (Synology Container Manager, Portainer, docker compose)\n' > /dev/tty
-      ask a_start "How to start it? (1/2)" 1
-      case $a_start in 2*) START=manual ;; *) START=now ;; esac
-    fi
-    printf '\n' > /dev/tty
-  fi
   ASSISTANT_AUTO_UPDATE=$AUTO
   [ -f "$DIR/.env" ] || ! port_used "$PORT" || die "port $PORT is already in use; pick another (WEB_PORT=...)"
 fi
@@ -445,67 +351,20 @@ cat <<NEXT
   Setup code:  $token
 $( [ "$origin" = "http://localhost:$PORT" ] && echo "  (No Tailscale found: from your computer run  ssh -L $PORT:localhost:$PORT <this-host>  and open http://localhost:$PORT/setup)")
 
-  Then, in a terminal on this host (in $DIR), or the app's terminal once it is set up:
-    $DC exec -it terminal claude                      # /login once (or from the app's terminal)
-$( [ -f extensions/health/compose.yml ] && echo "    $DC exec -it garmin-sync python -m sync login     # health: connect Garmin (password never stored)")
-
+  The wizard there sets the app password, your profile and language, the apps, updates and Claude.
   Later:  ./beni.sh status | doctor | logs | ext available | update   (./beni.sh help)
 
 NEXT
 
-# 8. guided first run (terminal, new install only): walk through the steps above one by one.
-[ "$interactive" = yes ] && [ "$complete" = no ] || exit 0
-yes_no() { ask _yn "$1 (y/n)" y; case $_yn in [nN]*) return 1 ;; *) return 0 ;; esac; }
-n_step=0
-step() { n_step=$((n_step + 1)); printf '\n\033[1m== Step %s: %s\033[0m\n' "$n_step" "$*" > /dev/tty; }
-
-if [ "$START" = manual ]; then
-  step "start it"
-  printf '  Start the stack now with your tool (see above); this waits for it.\n' > /dev/tty
-fi
-step "wait for the app"
-printf '  The web app builds itself on the first start (a few minutes on a small NAS).\n' > /dev/tty
-if command -v curl >/dev/null 2>&1; then
-  n=0
-  until curl -fs -o /dev/null "http://127.0.0.1:$PORT/healthz"; do
-    n=$((n + 1)); [ "$n" -le 180 ] || { printf '  Still not up after 15 minutes; check: %s logs web\n' "$DC" > /dev/tty; break; }
-    printf '.' > /dev/tty; sleep 5
-  done
-  printf '\n  The app is up.\n' > /dev/tty
-fi
-
-step "first-run setup in the browser"
-printf '  Open   %s/setup\n  Code   %s\n  Choose the app password and your profile there.\n' \
-  "$(sed -n 's/^PUBLIC_ORIGIN=//p' .env)" "$token" > /dev/tty
-ask _ "Press Enter when the setup page says you are done" ""
-
-if [ -d /volume1 ]; then
-  step "update schedule (Synology)"
-  printf '  DSM: Control Panel > Task Scheduler > Create > Scheduled Task > User-defined script.\n' > /dev/tty
-  printf '  User root, daily, every minute, first run 00:00, last run time 23:59 (not 00:59),\n  and the command printed above by [update].\n' > /dev/tty
-  ask _ "Press Enter when the task is saved" ""
-fi
-
-step "Claude"
-printf '  Claude Code opens here: type /login, open the link it shows, sign in, then type /exit.\n' > /dev/tty
-printf '  It then runs in the terminal at the bottom of the app (unlock it with the lock at the top).\n' > /dev/tty
-printf '  To reach the apps from claude.ai or the Claude app: System settings > Claude connector.\n' > /dev/tty
-if yes_no "Log in to Claude now?"; then
-  dc exec -it terminal claude < /dev/tty > /dev/tty 2>&1 || printf '  Later: %s exec -it terminal claude\n' "$DC" > /dev/tty
-fi
-
-if [ -f extensions/health/compose.yml ]; then
-  step "Garmin (health extension)"
-  printf '  Your Garmin email and password (and an MFA code if asked). The password is never stored.\n' > /dev/tty
-  if yes_no "Connect Garmin now?"; then
-    if dc exec -it garmin-sync python -m sync login < /dev/tty > /dev/tty 2>&1; then
-      if yes_no "Download your Garmin history in the background (takes a while)?"; then
-        dc exec -d garmin-sync python -m sync backfill && printf '  Started; progress in /logs/garmin-sync.log.\n' > /dev/tty
-      fi
-    else
-      printf '  Later: %s exec -it garmin-sync python -m sync login\n' "$DC" > /dev/tty
-    fi
-  fi
-fi
-
-printf '\n\033[1mAll set.\033[0m Open %s and say hello to Beni.\n\n' "$(sed -n 's/^PUBLIC_ORIGIN=//p' .env)" > /dev/tty
+# 8. wait for the app, then hand over to the browser: the wizard at /setup does the rest.
+[ "$START" = now ] && [ "$complete" = no ] && command -v curl >/dev/null 2>&1 || exit 0
+printf '  The web app builds itself on the first start (a few minutes on a small NAS).\n'
+n=0
+until curl -fs -o /dev/null "http://127.0.0.1:$PORT/healthz"; do
+  n=$((n + 1)); [ "$n" -le 180 ] || { say "Still not up after 15 minutes; check: $DC logs web"; exit 0; }
+  [ -t 1 ] && printf '\r  \033[2m…\033[0m waiting for the app \033[2m%ss\033[0m\033[K' "$((n * 5))"
+  sleep 5
+done
+[ -t 1 ] && printf '\r\033[K'
+ok "The app is up"
+printf '\n\033[1mAll set.\033[0m Open %s/setup and enter the setup code %s\n\n' "$(sed -n 's/^PUBLIC_ORIGIN=//p' .env)" "$token"

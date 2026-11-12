@@ -9,6 +9,7 @@
   let name = $state('');
   let profile = $state('');
   let profileEdited = $state(false);
+  let busy = $state(false);
   const slug = (s: string) =>
     s
       .normalize('NFKD')
@@ -27,33 +28,39 @@
 
 <svelte:head><title>{t('Set up')} · {t('Assistant')}</title></svelte:head>
 
-<div class="wrap" lang={data.lang}>
+<div class="intro">
   <Mascot mood="charged" size={72} decorative />
   <h1>{t("Welcome. Let's set up your assistant.")}</h1>
-  {#if !data.tokenSet}
-    <p class="card">
-      {t('This server has no setup code. Run ./install.sh again (it writes SETUP_TOKEN into .env and prints it), then reload this page.')}
-    </p>
-  {:else}
-    <form method="POST" class="card">
-      {#if form?.error}<p class="err" role="alert">{form.error}</p>{/if}
-      <label>{t('Setup code')} <span class="muted">{t('(printed by install.sh)')}</span>
-        <input name="code" autocomplete="off" required />
-      </label>
-      <label>{t('App password')} <span class="muted">{t('(12+ characters; one password for the whole app)')}</span>
-        <input name="password" type="password" autocomplete="new-password" minlength="12" required />
-      </label>
-      <label>{t('Repeat it')}
-        <input name="repeat" type="password" autocomplete="new-password" minlength="12" required />
-      </label>
-      <label>{t('Language')} <span class="muted">{t('(of the app and of every app you add; more in System settings)')}</span>
-        <select name="language">
-          {#each data.languages as l (l.code)}<option value={l.code} lang={l.code} selected={l.code === data.lang}>{l.name}</option>{/each}
-        </select>
-      </label>
+  <p>{t('Four short steps. Everything here can be changed later in the settings.')}</p>
+</div>
+
+{#if !data.tokenSet}
+  <p class="card panel">
+    {t('This server has no setup code. Run ./install.sh again (it writes SETUP_TOKEN into .env and prints it), then reload this page.')}
+  </p>
+{:else}
+  <form method="POST" class="card panel" onsubmit={() => (busy = true)}>
+    {#if form?.error}<p class="err" role="alert">{form.error}</p>{/if}
+    <label>
+      <span>{t('Setup code')}</span>
+      <input name="code" autocomplete="off" spellcheck="false" required />
+      <span class="meta">{t('The installer printed it at the end, next to the address.')}</span>
+    </label>
+
+    <fieldset>
+      <legend>{t('App password')}</legend>
+      <p class="meta">{t('One password for the whole app, at least 12 characters. Everyone at home uses it.')}</p>
       <div class="two">
-        <label>{t('Your name')} <input name="name" placeholder="Alex" maxlength="40" required bind:value={name} /></label>
-        <label>{t('Profile id')} <input
+        <label><span class="sr">{t('App password')}</span><input name="password" type="password" autocomplete="new-password" minlength="12" required placeholder={t('Password')} /></label>
+        <label><span class="sr">{t('Repeat it')}</span><input name="repeat" type="password" autocomplete="new-password" minlength="12" required placeholder={t('Repeat it')} /></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{t('You')}</legend>
+      <div class="two">
+        <label><span class="meta">{t('Your name')}</span><input name="name" placeholder="Alex" maxlength="40" required bind:value={name} /></label>
+        <label><span class="meta">{t('Profile id')}</span><input
             name="profile"
             placeholder="alex"
             pattern="[a-z][a-z0-9-]*"
@@ -64,47 +71,69 @@
           /></label
         >
       </div>
-      <button class="btn">{t('Finish setup')}</button>
-      <p class="muted small">{t('Next: System settings, where you add apps and more profiles.')}</p>
-    </form>
-  {/if}
-</div>
+      <label>
+        <span class="meta">{t('Language of the app and of every app you add')}</span>
+        <select name="language">
+          {#each data.languages as l (l.code)}<option value={l.code} lang={l.code} selected={l.code === data.lang}>{l.name}</option>{/each}
+        </select>
+      </label>
+    </fieldset>
+
+    <button class="btn btn-primary" disabled={busy}>{busy ? t('Setting up…') : t('Continue')}</button>
+  </form>
+{/if}
 
 <style>
-  .wrap {
-    max-width: 460px;
-    margin: var(--space-6) auto;
+  .panel {
     display: grid;
     gap: var(--space-4);
-    justify-items: center;
-    text-align: center;
-  }
-  form {
-    display: grid;
-    gap: var(--space-3);
-    width: 100%;
-    text-align: left;
+    padding: var(--space-5);
+    margin: 0;
   }
   label {
     display: grid;
     gap: 4px;
-    font-size: 0.875rem;
-    font-weight: 600;
   }
-  .muted {
-    font-weight: 400;
+  label > span:first-child:not(.meta):not(.sr) {
+    font-weight: var(--weight-bold);
+    font-size: var(--text-sm);
+  }
+  fieldset {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-4) 0 0;
+    border: 0;
+    border-top: 1px solid var(--ring);
+  }
+  legend {
+    float: left;
+    padding: 0;
+    font-weight: var(--weight-bold);
+    font-size: var(--text-sm);
+  }
+  fieldset > p {
+    margin: 0;
+    clear: both;
   }
   .two {
+    clear: both;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-3);
   }
-  .err {
-    margin: 0;
-    color: #c0392b;
+  input,
+  select {
+    width: 100%;
+    box-sizing: border-box;
   }
-  .small {
-    font-size: 0.8125rem;
-    margin: 0;
+  .btn {
+    justify-self: stretch;
+    padding-block: 10px;
+  }
+  @media (max-width: 480px) {
+    .two {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

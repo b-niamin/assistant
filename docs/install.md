@@ -5,24 +5,28 @@ Synology walkthrough, the everyday `beni.sh` commands, extensions and developmen
 
 ## What the installer does
 
-It asks a few questions, each with a suggestion you take with Enter: the folder
-(`/volume1/docker/assistant` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS
-port on your tailnet (443, or 8443 when something is already served there), the extensions to install
-(checkboxes from the extensions repo's `catalog.json`) and whether to update itself from `main` ([spec 006](../specs/006-auto-update.md)). Then it
-clones this repo, writes `.env` with random secrets, installs the extensions, starts the stack, runs
-`tailscale serve` and prints the address plus a one-time setup code. Open `/setup` there, set the app
-password and your profile; everything else is in **System settings** (`/settings`).
+It asks nothing. Every choice has a default that stays clear of what already runs: the folder
+(`/volume1/docker/assistant` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS port on
+your tailnet (443, or 8443 when something is already served there), updates from `main` by themselves
+([spec 006](../specs/006-auto-update.md)) and starting the stack itself. It clones this repo, writes `.env`
+with random secrets, starts the stack, runs `tailscale serve`, sets up the updater, waits for the app and
+prints its address plus a one-time setup code. It shows numbered progress for each phase.
 
-In a terminal it then walks you through the rest step by step: it waits for the app, shows the setup
-address and code, reminds you of the Synology schedule, and offers to log in to Claude and Garmin.
+The rest happens in the browser, in the wizard at `/setup`:
 
-It shows numbered progress for each phase. The last question is how to start: by the installer
-(default), or by yourself, e.g. in Synology Container Manager or Portainer: then it prepares
-`stack/docker-compose.yml` (extensions merged in) and `stack/.env` and tells you where to point the tool.
+1. **You**: the setup code, the app password, your name and profile, the app's language.
+2. **Apps**: ready-made apps from the extensions repo's `catalog.json`, installed with `ext install` in the
+   terminal at the bottom of the page.
+3. **Updates and Claude**: automatic or manual updates, and whether the Claude connector is on.
+4. **Done**: what is next (signing in to Claude Code or Codex, connecting Claude, adding the others at home).
 
-Unattended: `... | sudo ASSISTANT_YES=1 sh` takes the suggestions; `ASSISTANT_DIR`, `WEB_PORT`,
-`ASSISTANT_HTTPS_PORT`, `ASSISTANT_EXTENSIONS`, `ASSISTANT_AUTO_UPDATE=0|1`, `ASSISTANT_START=now|manual`
-and `ASSISTANT_PROJECT` (the compose project name) answer up front.
+Everything there can be changed later in **Settings** (`/settings`).
+
+Defaults can be changed up front: `ASSISTANT_DIR`, `WEB_PORT`, `ASSISTANT_HTTPS_PORT`,
+`ASSISTANT_EXTENSIONS` (or `sh -s -- health gym`), `ASSISTANT_AUTO_UPDATE=0|1`,
+`ASSISTANT_START=manual` (you start it yourself, e.g. in Synology Container Manager or Portainer: it then
+prepares `stack/docker-compose.yml` and `stack/.env` and says where to point the tool) and
+`ASSISTANT_PROJECT` (the compose project name).
 
 Containers and volumes are named after the compose project: the folder name, pinned in `.env` as
 `COMPOSE_PROJECT_NAME` so the folder can move later. When another folder's stack already uses that name
@@ -44,16 +48,15 @@ extension that brings a background service.
 1. **Packages** (DSM, Package Center): *Container Manager*; *Git* (or *Git Server*), for `git`; and
    *Tailscale*, signed in to your tailnet, to reach the app over HTTPS.
 2. **SSH**: Control Panel → Terminal & SNMP → enable SSH. From your computer: `ssh <you>@<nas>`.
-3. **Install**: the command above, answering with Enter. Next to another app it suggests a free port
+3. **Install**: the command above. Next to another app it takes a free port
    and another tailnet port, and its own compose project name keeps its containers and volumes separate. The checkout
    belongs to you (the user who ran `sudo`); the first build takes 10-20 minutes on a small NAS.
 4. **Updates**: the installer prints a Task Scheduler entry. Control Panel → Task Scheduler → Create
    → Scheduled Task → User-defined script, user `root`, daily, every minute from 00:00 to **23:59** (the *Last run time*; the default 00:59 stops it after the first hour), with the printed command
    (`sh /volume1/docker/assistant-updater/update.sh`). It updates by itself, or only when you click
    Update in System settings if you chose manual updates.
-5. **First run**: open the printed address + `/setup`, type the setup code, choose the app password and
-   your profile.
-6. **Claude Code and Codex**: unlock with the lock at the top of the app, then System settings → Terminal
+5. **First run**: open the printed address + `/setup`, type the setup code and follow the four steps.
+6. **Claude Code and Codex**: unlock with the lock at the top of the app, then Settings → Terminal and AI
    → Sign in (or `docker compose exec -it terminal claude`, then `/login` and `/exit`). They run in the
    terminal at the bottom of the app.
 7. **Claude connector** (claude.ai and the Claude apps): see below.

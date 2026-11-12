@@ -1,6 +1,7 @@
 /**
- * First-run wizard: only while no app password exists. Needs the one-time setup code that install.sh
- * printed (SETUP_TOKEN), so whoever reaches the page first cannot claim the instance.
+ * First-run wizard, step 1 (lib/setup/steps.ts): only while no app password exists. Needs the one-time
+ * setup code that install.sh printed (SETUP_TOKEN), so whoever reaches the page first cannot claim the
+ * instance. Makes the password, the app's language and the first profile, logs in and goes on to the apps.
  */
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -25,9 +26,11 @@ function browserLanguage(header: string | null): string {
 
 export const load: PageServerLoad = async ({ request }) => {
   if (await isConfigured()) throw redirect(303, '/');
+  const lang = browserLanguage(request.headers.get('accept-language'));
   return {
     tokenSet: setupTokenSet(),
-    lang: browserLanguage(request.headers.get('accept-language')),
+    lang,
+    setupLang: lang,
     languages: LANGUAGES.map((l) => ({ code: l.code, name: l.name }))
   };
 };
@@ -58,6 +61,6 @@ export const actions: Actions = {
     const opts = { path: '/', httpOnly: true, sameSite: 'lax' as const, secure: url.protocol === 'https:' };
     cookies.set(SESSION_COOKIE, sid, { ...opts, maxAge: SESSION_DAYS * 24 * 3600 });
     cookies.set(PROFILE_COOKIE, profileId, { ...opts, maxAge: 365 * 24 * 3600 });
-    throw redirect(303, '/settings?welcome=1');
+    throw redirect(303, '/setup/apps');
   }
 };

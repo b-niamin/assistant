@@ -41,9 +41,10 @@ sudo sh install.sh
 
 (`curl -fsSL .../install.sh | sudo sh` does the same in one line, without the reading.)
 
-1. Accept the defaults with Enter: folder, port, extensions, auto-update.
-2. Open the printed address + `/setup`, enter the setup code, set the app password and the first profile.
-3. Check the install with `sudo ./beni.sh doctor`.
+It asks nothing: it picks a folder and free ports, starts the stack and prints an address and a setup code.
+
+1. Open the printed address + `/setup`, enter the setup code and follow the wizard: password, profile, apps, updates and Claude.
+2. Check the install with `sudo ./beni.sh doctor`.
 
 Synology steps, installer options and `beni.sh` commands: [docs/install.md](docs/install.md).
 

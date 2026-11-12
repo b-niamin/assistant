@@ -127,9 +127,26 @@ fits. The source's own palette, fonts and logo are dropped.
 ## Dock and terminal
 
 The header reads `[Beni] [extensions nav] <spacer> [update state] [lock] [avatar]`. The avatar
-(`lib/user-menu/UserMenu.svelte`) is a round badge with the profile's initial; its menu shows the
-profile's full name, switches profiles, picks the theme (Light, Dark, System: the `theme` cookie, written
-by the server as `data-theme` on `<html>` so nothing flashes) and leads to System settings and Log out.
+(`lib/user-menu/UserMenu.svelte`) is a pill with the profile's initials in its own hue (`hueFor`) and, on wide
+screens, its name. Its menu leads to Profile settings, Claude and MCP and System settings, switches profiles,
+picks the theme (Light, Dark, System as icons: the `theme` cookie, written by the server as `data-theme` on
+`<html>` so nothing flashes) and the language for this browser, and logs out. The cookies are set in
+`lib/user-menu/prefs.ts`, shared with Profile settings -> Appearance (which also has reduced motion).
+
+## Settings
+
+One shell for the profile's and the system's settings (`routes/settings/+layout.svelte`): a sidebar of
+sections grouped You / Apps and people / AI / This server (`lib/settings/nav.ts`), each a page of its own,
+with a dot where something needs attention (`lib/server/settings-status.ts`: updater, backups, worker,
+Claude connector, a failed build). The overview (`/settings`) shows the same states as tiles, the common tasks
+and the people at home. On a phone the overview is the list, and every other page starts with a way back.
+A page starts with `PageHead` (title, one line, an action); cards, rows and choice cards come from the shell.
+
+## First run
+
+`install.sh` asks nothing and prints an address and a setup code. The wizard at `/setup` (`lib/setup/steps.ts`)
+has four steps with a progress row and Beni: you (code, password, name, language), apps (catalog, installed in
+the dock's terminal), updates and Claude (update mode, Claude connector) and done (what is next).
 
 The lock (`lib/dock/LockMenu.svelte`) shows whether this session is unlocked (the app password typed again,
 10 minutes, the same unlock as System settings). Locked, a closed padlock, and there is no terminal on any

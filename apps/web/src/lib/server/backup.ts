@@ -1,6 +1,6 @@
 /**
- * Backups (db/backup.sh): the status the backup service writes to /logs/backup-status.json, and the
- * "Back up now" request it picks up within a minute (/logs/backup-request).
+ * Status files in /logs the app shows: the backup service's (db/backup.sh: backup-status.json, and the
+ * "Back up now" request it picks up within a minute, backup-request) and the last build's.
  */
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -51,4 +51,15 @@ export async function requestBackup(dir = LOGS()): Promise<void> {
   const target = path.join(dir, 'backup-request');
   await writeFile(`${target}.tmp`, `${new Date().toISOString()}\n`, { mode: 0o644 });
   await rename(`${target}.tmp`, target);
+}
+
+/** The last build of the app by live-reload (scripts/live-reload.mjs): a failed one keeps the old build serving. */
+export async function buildStatus(dir = LOGS()): Promise<{ status: 'ok' | 'failed'; message: string; at: string } | null> {
+  try {
+    const j = JSON.parse(await readFile(path.join(dir, 'web-build-status.json'), 'utf8'));
+    if (j?.status !== 'ok' && j?.status !== 'failed') return null;
+    return { status: j.status, message: String(j.message ?? '').slice(0, 200), at: String(j.at ?? '').slice(0, 40) };
+  } catch {
+    return null;
+  }
 }

@@ -12,7 +12,7 @@ import { languageSettings, saveLanguageSettings } from '#lib/server/languages.ts
 import { defaultAgent, isAgent, passwordFromEnv, passwordHash, passwordProblem, setDefaultAgent, setPassword } from '#lib/server/app-config.ts';
 import { verifyPassword } from '#lib/server/password.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
-import { backupStatus, requestBackup } from '#lib/server/backup.ts';
+import { backupStatus, buildStatus, requestBackup } from '#lib/server/backup.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 import { buildTail, latestOnGithub, setUpdaterControl, updateView, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 import { deleteOtherSessions, dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
@@ -24,7 +24,7 @@ const NEXT_RE = /^[a-z0-9-]+(\/[a-z0-9-]+)?$/;
 export const load: PageServerLoad = async ({ cookies, locals, depends }) => {
   depends('app:updates');
   if (!(await isElevated(cookies.get(SESSION_COOKIE)))) return { locked: true as const };
-  const [all, profiles, updates, terminal, updateControl, agent, languages, backup] = await Promise.all([
+  const [all, profiles, updates, terminal, updateControl, agent, languages, backup, build] = await Promise.all([
     allExtensions(),
     listProfiles(),
     updaterStatus(),
@@ -32,7 +32,8 @@ export const load: PageServerLoad = async ({ cookies, locals, depends }) => {
     updaterControl(),
     defaultAgent(),
     languageSettings(),
-    backupStatus()
+    backupStatus(),
+    buildStatus()
   ]);
   const extensions = all.map((e) => localizeExtension(e, locals.lang));
   return {
@@ -57,6 +58,7 @@ export const load: PageServerLoad = async ({ cookies, locals, depends }) => {
     terminal: { ...terminal, configured: sidecarsConfigured() },
     defaultAgent: agent,
     backup,
+    build,
     passwordFromEnv: passwordFromEnv()
   };
 };

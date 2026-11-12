@@ -50,6 +50,18 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-7: 48px;
+
+  /* Type scale (spec 001): use these, not raw sizes and weights. Body text is --text-base. */
+  --text-xs: 0.75rem; /* 12px: chart axes, badges */
+  --text-sm: 0.8125rem; /* 13px: meta, labels, a tile's source */
+  --text-base: 0.9375rem; /* 15px: body, lists, fields (16px on touch screens) */
+  --text-lg: 1.125rem; /* 18px: card and section titles */
+  --text-xl: 1.5rem; /* 24px: page title on a phone, figures in tiles */
+  --text-2xl: 2rem; /* 32px: page title */
+  --text-display: clamp(3rem, 10vw, 7rem); /* one hero figure per page */
+  --weight-regular: 400;
+  --weight-medium: 500; /* labels, navigation */
+  --weight-bold: 600; /* headings, figures */
 }
 
 @media (prefers-color-scheme: dark) {

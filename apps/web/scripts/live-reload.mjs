@@ -37,6 +37,22 @@ const STAMP = '.lock-sha256';
 
 const log = (msg) => console.log(`[live-reload] ${new Date().toISOString()} ${msg}`);
 
+/**
+ * The last build's outcome for the app (System settings shows a failed one): /logs/web-build-status.json.
+ * Written through a temp file and a rename, so a link planted there is replaced, never followed.
+ */
+const STATUS = process.env.BUILD_STATUS_FILE ?? '/logs/web-build-status.json';
+function buildStatus(status, message) {
+  try {
+    if (!existsSync(path.dirname(STATUS))) return;
+    const tmp = `${STATUS}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify({ status, message, at: new Date().toISOString() }) + '\n');
+    renameSync(tmp, STATUS);
+  } catch {
+    /* no logs volume (dev): nothing to tell */
+  }
+}
+
 function scan() {
   let newest = 0;
   let count = 0;
@@ -141,18 +157,21 @@ function build() {
 function buildOnce() {
   if (!depsCurrent() && !installDeps()) {
     log('install FAILED, keeping the current dependencies and build');
+    buildStatus('failed', 'npm install failed');
     return false;
   }
   rmSync(NEXT, { recursive: true, force: true });
   log('building into build-next/ ...');
   if (!run('npm', ['run', 'build'], { BUILD_OUT: 'build-next' })) {
     log('build FAILED, keeping the current build serving');
+    buildStatus('failed', 'the build failed');
     return false;
   }
   rmSync(PREV, { recursive: true, force: true });
   if (existsSync(BUILD)) renameSync(BUILD, PREV);
   renameSync(NEXT, BUILD);
   log('build ok, swapped in');
+  buildStatus('ok', 'build ok');
   return true;
 }
 

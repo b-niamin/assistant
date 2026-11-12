@@ -658,5 +658,7 @@
   "The terminal is not set up on this server yet.": "Terminal nie jest jeszcze skonfigurowany na tym serwerze.",
   "The browser is not set up on this server yet.": "Przeglądarka nie jest jeszcze skonfigurowana na tym serwerze.",
   "This server has no key to encrypt secrets with yet.": "Ten serwer nie ma jeszcze klucza do szyfrowania sekretów.",
-  "Everything needed to bring the assistant back on a new machine: your data, its keys and the installed apps. Copy the backup folder off this machine too (Hyper Backup, Time Machine).": "Wszystko, czego trzeba, żeby postawić asystenta na nowym urządzeniu: twoje dane, ich klucze i zainstalowane aplikacje. Kopiuj folder kopii także poza to urządzenie (Hyper Backup, Time Machine)."
+  "Everything needed to bring the assistant back on a new machine: your data, its keys and the installed apps. Copy the backup folder off this machine too (Hyper Backup, Time Machine).": "Wszystko, czego trzeba, żeby postawić asystenta na nowym urządzeniu: twoje dane, ich klucze i zainstalowane aplikacje. Kopiuj folder kopii także poza to urządzenie (Hyper Backup, Time Machine).",
+  "The latest change to the app did not build": "Ostatnia zmiana w aplikacji się nie zbudowała",
+  "The previous version keeps running. The reason is in the log of web.": "Działa poprzednia wersja. Przyczyna jest w logu web."
 }

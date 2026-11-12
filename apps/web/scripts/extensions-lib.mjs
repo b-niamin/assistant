@@ -666,8 +666,14 @@ export function lookWarnings(root, manifest, id) {
     const src = files.map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
     if (!/import\s*\{[^}]*\bMascot\b[^}]*\}\s*from\s*['"]\$shell\/ui['"]/.test(src))
       warnings.push(`${id}: Beni is missing (import { Mascot } from '$shell/ui' for its header or empty states)`);
-    if (/#[0-9a-fA-F]{6}\b/.test(files.filter((f) => f.endsWith('.svelte')).map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n')))
+    const pages = files.filter((f) => f.endsWith('.svelte')).map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
+    if (/#[0-9a-fA-F]{6}\b/.test(pages))
       warnings.push(`${id}: raw hex colours in its pages (use the shell tokens: --ink, --accent, --hue-*, ...)`);
+    // The type scale (app.css): sizes and weights from tokens, so pages do not drift apart.
+    const sizes = (pages.match(/font-size:\s*\d+(\.\d+)?(px|rem|em)/g) ?? []).length;
+    const weights = (pages.match(/font-weight:\s*(?!400|500|600|var)\d{3}/g) ?? []).length;
+    if (sizes) warnings.push(`${id}: ${sizes} raw font size(s) in its pages (use var(--text-xs) ... var(--text-2xl))`);
+    if (weights) warnings.push(`${id}: ${weights} font weight(s) other than 400, 500, 600 (var(--weight-*))`);
   }
   return warnings;
 }

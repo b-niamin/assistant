@@ -308,6 +308,13 @@
     </ul>
   </section>
 
+  {#if data.build?.status === 'failed'}
+    <p class="card buildfail" role="alert">
+      <span class="status critical">{t('The latest change to the app did not build')}</span>
+      <span class="meta">{t('The previous version keeps running. The reason is in the log of web.')} <a href="/settings/logs">{t('Logs')}</a></span>
+    </p>
+  {/if}
+
   <section aria-labelledby="bk-h">
     <h2 id="bk-h">{t('Backups')}</h2>
     <div class="card backup">
@@ -942,5 +949,11 @@
     gap: 4px;
     flex: 1;
     min-width: 0;
+  }
+  .buildfail {
+    display: grid;
+    gap: 4px;
+    padding: var(--space-3) var(--space-4);
+    margin-top: var(--space-5);
   }
 </style>

@@ -10,7 +10,7 @@ Runs on Linux or a Synology NAS with Docker Compose. You reach it over your Tail
 
 [Install](#quick-start) · [Screenshots](#screenshots) · [Extensions](https://github.com/b-niamin/assistant-extensions) · [Docs](#docs)
 
-<img src="docs/screenshots/tour.gif" alt="A tour of the app: dashboard, Training &amp; Health, an activity, the gym tracker, Home, System settings and the terminal" width="900" />
+<img src="docs/screenshots/tour.gif" alt="A tour of the app: dashboard, Training &amp; Health, an activity, the gym tracker, Home, the system monitor, System settings, profile settings and the terminal" width="900" />
 
 </div>
 
@@ -56,7 +56,7 @@ Synology steps, installer options and `beni.sh` commands: [docs/install.md](docs
     <td width="50%"><img src="docs/screenshots/home.png" alt="The Home extension: weather, lights, doors and today's calendar" /><p align="center"><b>Home</b>: an extension, Home Assistant data and weather</p></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/settings.png" alt="System settings: apps, profiles and the terminal" /><p align="center"><b>System settings</b>: extensions, profiles, updates</p></td>
+    <td><img src="docs/screenshots/settings.png" alt="System settings: a sidebar of sections and an overview of updates, backups, the Claude connector, the terminal, the worker and the apps" /><p align="center"><b>System settings</b>: apps, updates, backups, the worker</p></td>
     <td><img src="docs/screenshots/terminal.png" alt="The terminal docked at the bottom of a page" /><p align="center"><b>Terminal</b>: a shell with Claude Code and Codex</p></td>
   </tr>
 </table>
@@ -72,7 +72,7 @@ flowchart LR
   subgraph box ["NAS or Linux host, Docker Compose"]
     term["terminal<br/>Claude Code, Codex"] -- "MCP" --> web["web<br/>app, extensions, MCP server"]
     web --> db[("Postgres<br/>one schema per extension")]
-    svc["extension services<br/>background jobs"] --> db
+    svc["worker<br/>extension services and jobs"] --> db
   end
 ```
 
@@ -82,7 +82,7 @@ written by Claude in your instance. Details: [architecture spec](specs/000-archi
 
 ## Docs
 
-- [Extensions repo](https://github.com/b-niamin/assistant-extensions): ready-made extensions and inspirations
+- [Extensions repo](https://github.com/b-niamin/assistant-extensions): ready-made extensions
 - [Install and run](docs/install.md): installer, Synology steps, `beni.sh`, development
 - [Architecture](specs/000-architecture.md), [extensions](specs/002-extensions.md), [MCP and the Claude connector](specs/005-claude-tools.md), [security](specs/004-security.md), [all specs](specs)
 - [AGENTS.md](AGENTS.md): rules for people and AI agents working in this repo

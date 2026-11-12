@@ -11,7 +11,7 @@ the public MCP connector instead (System settings -> Claude connector, spec 005)
 
 ## Sign-ins
 
-System settings -> Terminal has a Sign in button per tool; it types the command into the dock:
+System settings -> Terminal and AI has a Sign in button per tool; it types the command into the dock:
 
 | Tool | Command |
 |---|---|

@@ -77,7 +77,7 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
 - Image (`docker/terminal`): Node + Claude Code + Codex + gh + git + psql + python3, non-root user (`HOST_UID`).
 - Volumes: the repo checkout (the same files `web` runs), `agent-home` (login state), `/logs`
   read-only. `.env` is shadowed by an empty file.
-- Sign in once from System settings -> Terminal (`claude` + `/login`, `codex login`, `gh auth login`).
+- Sign in once from System settings -> Terminal and AI (`claude` + `/login`, `codex login`, `gh auth login`).
   The CLIs run only in the dock's shell, started by hand or by the app (Update, Build it, Install); nothing
   keeps them running in the background. From outside, Claude uses the Claude connector instead.
 - Data chat: `beni-db` (= `psql "$CLAUDE_RO_DATABASE_URL"`). `claude_ro` has `SELECT` on core and extension schemas,

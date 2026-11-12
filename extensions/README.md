@@ -16,7 +16,9 @@ node scripts/ext.mjs install health gym         # copy them here and turn them o
 node scripts/ext.mjs update health              # take the repo's newer version
 node scripts/ext.mjs list
 node scripts/ext.mjs languages                  # the app's languages and what each app still lacks (spec 007)
-node scripts/ext.mjs new <id> --kind native|onefile --scope profile|shared [--from inspiration:<name>] [--inspired-by <link>]
+node scripts/ext.mjs profiles gym alex,sam      # who sees it (System settings can override)
+node scripts/ext.mjs remove gym                 # the folder moves to extensions/.trash/; data stays
+node scripts/ext.mjs new <id> --kind native|onefile --scope profile|shared [--from onefile:<app>/<variant>] [--inspired-by <link>]
 ```
 
 An extension's background work (manifest `services` / `jobs`, e.g. health's garmin-sync) runs in the

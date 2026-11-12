@@ -161,11 +161,11 @@ it opens the app's only terminal (created on first open, kept connected while co
 remembered per browser). A page that wants the terminal while locked (a Sign in button, Build it) opens
 the lock's password prompt first, then runs its command.
 Pages hand it work: `runInDock` runs a command in a new tmux window ("Extend the system", the sign-ins
-in System settings → Terminal), `askAgent` starts the default AI CLI there with a prompt as its first
+in System settings → Terminal and AI), `askAgent` starts the default AI CLI there with a prompt as its first
 message (`claude '<prompt>'` or `codex '<prompt>'`) for "Build it" and "Install". An extension panel's
 "Update" uses `draftForAgent`: `scripts/agent-draft.sh` starts the CLI, waits until it has put the terminal
 in raw mode (plus 1.5 s for its input box), then types `Update extension <name> (extensions/<id>): ` into
-it with `tmux send-keys`, without Enter, for the owner to finish. The default AI is picked in System settings → Terminal
+it with `tmux send-keys`, without Enter, for the owner to finish. The default AI is picked in System settings → Terminal and AI
 (`secrets.app_config` key `default_agent`, served by `GET /dock`); when only the other CLI is signed in,
 that one starts.
 
@@ -178,7 +178,7 @@ The terminal is a dark window in both themes, like a code block in an editor.
   then text size A−/A+ (remembered per device), reconnect and full screen. When the socket is not open
   a veil over the screen says why and offers Reconnect; the page reconnects by itself when a phone
   wakes the tab.
-- Sign-ins live in System settings → Terminal: Claude Code, Codex and GitHub CLI with their state and
+- Sign-ins live in System settings → Terminal and AI: Claude Code, Codex and GitHub CLI with their state and
   a "Sign in" button that runs the command in the dock.
 - Touch key bar (`lib/terminal/keys.ts`) on coarse pointers and narrow windows: Esc, Tab, Shift+Tab,
   sticky Ctrl, ^C, arrows (application cursor mode aware) and a few symbols phone keyboards hide.

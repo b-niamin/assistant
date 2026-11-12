@@ -1,6 +1,6 @@
 # Install and run
 
-The details behind the quick install in the [README](../README.md): what the installer asks and does, a
+The details behind the quick install in the [README](../README.md): what the installer does, a
 Synology walkthrough, the everyday `beni.sh` commands, extensions and development.
 
 ## What the installer does
@@ -40,8 +40,8 @@ docker compose exec -it terminal claude                 # /login once (or from t
 docker compose exec -it worker ext-run health garmin-sync python -m sync login   # only with health (password never stored)
 ```
 
-Re-running `./install.sh` is safe: it keeps `.env` and your extensions. Run it again after adding an
-extension that brings a background service.
+Re-running `./install.sh` is safe: it keeps `.env` and your extensions. Extension services and jobs start
+in the `worker` on their own after `ext install`; only an extension with its own `compose.yml` needs a re-run.
 
 ## Step by step on a Synology NAS
 

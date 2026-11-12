@@ -304,7 +304,7 @@
     color: var(--critical);
   }
   .meta {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .none {
@@ -366,7 +366,7 @@
     border-top: 1px solid var(--ring);
   }
   .th {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-3);
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -397,8 +397,8 @@
     margin-top: var(--space-3);
   }
   .kind {
-    font-weight: 400;
-    font-size: 0.75rem;
+    font-weight: var(--weight-regular);
+    font-size: var(--text-xs);
     color: var(--ink-3);
     margin-left: 4px;
   }
@@ -407,7 +407,7 @@
     grid-template-columns: max-content 1fr;
     gap: 4px var(--space-3);
     margin: var(--space-2) 0;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
   }
   .facts dt {
     color: var(--ink-3);
@@ -419,7 +419,7 @@
   }
   summary {
     cursor: pointer;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .log {

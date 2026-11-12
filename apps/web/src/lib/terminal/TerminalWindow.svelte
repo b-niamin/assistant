@@ -392,7 +392,7 @@
     background: var(--t-chrome);
     border-bottom: 1px solid var(--t-line);
     color: var(--t-ink-2);
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
   }
   .conn {
     color: var(--t-ink);
@@ -427,9 +427,11 @@
     background: none;
     color: var(--t-ink-2);
   }
-  .tool:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.07);
-    color: var(--t-ink);
+  @media (hover: hover) {
+    .tool:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--t-ink);
+    }
   }
   .tool:disabled {
     opacity: 0.4;
@@ -445,11 +447,11 @@
     stroke-linejoin: round;
   }
   .a {
-    font-weight: 600;
+    font-weight: var(--weight-bold);
     line-height: 1;
   }
   .a.sm {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
   }
   .a.lg {
     font-size: 1rem;
@@ -489,7 +491,7 @@
   }
   .veil .big {
     font-size: 1.0625rem;
-    font-weight: 600;
+    font-weight: var(--weight-bold);
   }
   .veil .sub {
     color: var(--t-ink-2);

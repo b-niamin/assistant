@@ -247,7 +247,7 @@
   }
   .endlabel {
     fill: var(--ink);
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: var(--weight-bold);
   }
   .end {
@@ -295,7 +295,7 @@
     text-align: center;
   }
   .tip strong {
-    font-size: 0.9375rem;
+    font-size: var(--text-base);
   }
   .tip span {
     font-size: var(--text-xs);

@@ -289,3 +289,13 @@ describe('background work for the worker', () => {
     expect(['30s', '5m', '2h', '1d', '5', 5].map(lib.durationSeconds)).toEqual([30, 300, 7200, 86400, null, null]);
   });
 });
+
+describe('bareHovers', () => {
+  it('counts hover rules outside a hover media query', () => {
+    const page = (css: string) => `<p>x</p><style>${css}</style>`;
+    expect(lib.bareHovers(page('a:hover { color: red; } b { color: blue; }'))).toBe(1);
+    expect(lib.bareHovers(page('@media (hover: hover) { a:hover { color: red; } }'))).toBe(0);
+    expect(lib.bareHovers(page('@media (prefers-reduced-motion: no-preference) { @media (hover: hover) { a:hover, b:hover { x: y; } } c:hover { x: y; } }'))).toBe(1);
+  });
+});
+

@@ -191,12 +191,12 @@
     border-radius: 50%;
     background: color-mix(in srgb, var(--hue) 18%, transparent);
     color: var(--hue);
-    font-weight: 700;
+    font-weight: var(--weight-bold);
   }
   .avatar.sm {
     width: 28px;
     height: 28px;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
   }
   .who {
     flex: 1 1 200px;
@@ -211,15 +211,15 @@
     gap: var(--space-2);
   }
   .pill {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     padding: 1px 8px;
     border-radius: 999px;
     background: var(--accent-wash);
     color: var(--accent-ink);
-    font-weight: 600;
+    font-weight: var(--weight-bold);
   }
   .meta {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .acts {
@@ -271,12 +271,12 @@
   }
   .label {
     margin: 4px 0 0;
-    font-weight: 600;
+    font-weight: var(--weight-bold);
   }
   .field {
     display: grid;
     gap: 4px;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .field input {
@@ -285,7 +285,7 @@
   }
   .adv summary {
     cursor: pointer;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .adv .field {

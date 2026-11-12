@@ -149,7 +149,7 @@
     left: 50%;
     transform: translateX(-50%);
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-3);
     pointer-events: none;
   }

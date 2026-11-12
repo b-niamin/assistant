@@ -367,8 +367,10 @@
       animation: boing 0.7s cubic-bezier(0.3, 0, 0.3, 1);
       transform-origin: 50% 100%;
     }
-    .pip:hover .body {
-      animation-duration: 1.4s;
+    @media (hover: hover) {
+      .pip:hover .body {
+        animation-duration: 1.4s;
+      }
     }
   }
 

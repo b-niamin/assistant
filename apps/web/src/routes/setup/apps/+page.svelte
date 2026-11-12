@@ -124,8 +124,10 @@
     text-align: left;
     cursor: pointer;
   }
-  .app:hover:not(:disabled) {
-    border-color: var(--axis);
+  @media (hover: hover) {
+    .app:hover:not(:disabled) {
+      border-color: var(--axis);
+    }
   }
   .app.sel {
     border-color: var(--accent);

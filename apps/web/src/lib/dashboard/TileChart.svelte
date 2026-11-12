@@ -75,7 +75,7 @@
     overflow: visible;
   }
   figcaption {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-3);
   }
   .base {

@@ -187,7 +187,7 @@
   }
   .meta {
     margin-top: var(--space-2);
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .none {

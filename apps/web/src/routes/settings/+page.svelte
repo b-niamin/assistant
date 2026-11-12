@@ -234,8 +234,10 @@
     text-decoration: none;
     transition: border-color 120ms;
   }
-  .tile:hover {
-    border-color: var(--axis);
+  @media (hover: hover) {
+    .tile:hover {
+      border-color: var(--axis);
+    }
   }
   .tile strong {
     display: flex;
@@ -284,8 +286,10 @@
     text-decoration: none;
     cursor: pointer;
   }
-  .do:hover {
-    border-color: var(--hue);
+  @media (hover: hover) {
+    .do:hover {
+      border-color: var(--hue);
+    }
   }
   .faces {
     display: flex;
@@ -308,7 +312,7 @@
     border-radius: 50%;
     background: color-mix(in srgb, var(--hue) 18%, transparent);
     color: var(--hue);
-    font-weight: 700;
+    font-weight: var(--weight-bold);
     box-sizing: border-box;
   }
   .avatar.plus {

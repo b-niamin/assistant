@@ -179,8 +179,10 @@
     background: var(--surface-2);
     border-bottom: 1px solid var(--ring);
   }
-  .open .strip:hover {
-    background: color-mix(in srgb, var(--surface-2) 70%, var(--axis));
+  @media (hover: hover) {
+    .open .strip:hover {
+      background: color-mix(in srgb, var(--surface-2) 70%, var(--axis));
+    }
   }
   .handle {
     position: absolute;
@@ -200,13 +202,15 @@
     border-radius: 2px;
     background: var(--axis);
   }
-  .strip:hover .handle::before {
-    background: var(--ink-3);
+  @media (hover: hover) {
+    .strip:hover .handle::before {
+      background: var(--ink-3);
+    }
   }
   .hint {
     color: var(--ink-2);
-    font-weight: 500;
-    font-size: 0.8125rem;
+    font-weight: var(--weight-medium);
+    font-size: var(--text-sm);
   }
   .toggle {
     display: inline-flex;
@@ -220,14 +224,18 @@
     color: var(--ink);
     font: inherit;
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: var(--weight-bold);
     cursor: pointer;
   }
-  .toggle:hover {
-    background: var(--surface-2);
+  @media (hover: hover) {
+    .toggle:hover {
+      background: var(--surface-2);
+    }
   }
-  .open .toggle:hover {
-    background: var(--surface);
+  @media (hover: hover) {
+    .open .toggle:hover {
+      background: var(--surface);
+    }
   }
   .mark {
     display: grid;

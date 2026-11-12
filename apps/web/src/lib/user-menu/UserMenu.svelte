@@ -162,9 +162,13 @@
     font-weight: var(--weight-medium);
     cursor: pointer;
   }
-  .trigger:hover,
   .trigger[aria-expanded='true'] {
     background: var(--surface-2);
+  }
+  @media (hover: hover) {
+    .trigger:hover {
+      background: var(--surface-2);
+    }
   }
   .tname {
     max-width: 12ch;
@@ -191,7 +195,7 @@
     background: color-mix(in srgb, var(--hue) 20%, var(--surface));
     color: var(--hue);
     font-size: var(--text-sm);
-    font-weight: 700;
+    font-weight: var(--weight-bold);
     line-height: 1;
   }
   .avatar.big {
@@ -228,8 +232,10 @@
     color: inherit;
     text-decoration: none;
   }
-  .who:hover {
-    background: var(--surface-2);
+  @media (hover: hover) {
+    .who:hover {
+      background: var(--surface-2);
+    }
   }
   .whotext {
     display: grid;
@@ -283,8 +289,10 @@
     text-decoration: none;
     cursor: pointer;
   }
-  .item:hover {
-    background: var(--surface-2);
+  @media (hover: hover) {
+    .item:hover {
+      background: var(--surface-2);
+    }
   }
   .item[aria-current='page'] {
     font-weight: var(--weight-bold);

@@ -139,16 +139,18 @@
     border-radius: var(--radius-sm);
     color: var(--ink-2);
     text-decoration: none;
-    font-size: 0.9375rem;
+    font-size: var(--text-base);
     white-space: nowrap;
   }
-  nav a:hover {
-    background: var(--surface-2);
-    color: var(--ink);
+  @media (hover: hover) {
+    nav a:hover {
+      background: var(--surface-2);
+      color: var(--ink);
+    }
   }
   nav a[aria-current='page'] {
     color: var(--ink);
-    font-weight: 600;
+    font-weight: var(--weight-bold);
   }
   nav a[aria-current='page']::after {
     content: '';

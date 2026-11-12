@@ -137,8 +137,10 @@
   .tile.lg {
     grid-column: span 2;
   }
-  .tile:hover {
-    border-color: var(--accent);
+  @media (hover: hover) {
+    .tile:hover {
+      border-color: var(--accent);
+    }
   }
   .tile:focus-within {
     outline: 2px solid var(--accent);
@@ -153,7 +155,7 @@
   h2 {
     margin: 0;
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: var(--weight-bold);
     color: var(--ink-2);
     letter-spacing: 0;
   }
@@ -170,7 +172,7 @@
     border-radius: inherit;
   }
   .src {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-3);
     white-space: nowrap;
   }
@@ -188,7 +190,7 @@
     gap: 2px;
   }
   .kpi .label {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-3);
   }
   .value {
@@ -203,7 +205,7 @@
     line-height: 1.1;
   }
   .main .fig {
-    font-size: 2rem;
+    font-size: var(--text-2xl);
   }
   .unit {
     font-size: 0.875rem;
@@ -213,11 +215,11 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1) var(--space-3);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
   }
   .delta {
     color: var(--ink-2);
-    font-weight: 600;
+    font-weight: var(--weight-bold);
   }
   .delta.good {
     color: var(--good-ink);
@@ -273,12 +275,12 @@
     align-items: center;
     position: relative;
     z-index: 1;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     text-decoration: none;
   }
   .note {
     margin: auto 0 0;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-3);
   }
   .skel {
@@ -302,8 +304,10 @@
       animation: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
       animation-delay: calc(var(--i) * 45ms);
     }
-    .tile:hover {
-      transform: translateY(-1px);
+    @media (hover: hover) {
+      .tile:hover {
+        transform: translateY(-1px);
+      }
     }
     .skel span {
       animation: pulse 1.2s ease-in-out infinite alternate;

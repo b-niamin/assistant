@@ -103,9 +103,11 @@
     font-weight: var(--weight-medium);
     text-decoration: none;
   }
-  .side a:hover {
-    background: var(--surface-2);
-    color: var(--ink);
+  @media (hover: hover) {
+    .side a:hover {
+      background: var(--surface-2);
+      color: var(--ink);
+    }
   }
   .side a[aria-current='page'] {
     background: var(--surface);
@@ -226,8 +228,10 @@
     color: inherit;
     text-decoration: none;
   }
-  .content :global(.rows > li > a:hover strong) {
-    color: var(--accent-ink);
+  @media (hover: hover) {
+    .content :global(.rows > li > a:hover strong) {
+      color: var(--accent-ink);
+    }
   }
   .content :global(.what) {
     display: grid;

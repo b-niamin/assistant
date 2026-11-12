@@ -266,7 +266,7 @@
     background: color-mix(in srgb, var(--hue) 18%, transparent);
     color: var(--hue);
     font-size: var(--text-xl);
-    font-weight: 700;
+    font-weight: var(--weight-bold);
   }
   .who {
     flex: 1;
@@ -407,7 +407,7 @@
     margin: 0;
   }
   .meta {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .bad {

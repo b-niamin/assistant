@@ -289,11 +289,11 @@
     min-width: 0;
   }
   h3 {
-    font-size: 0.9375rem;
-    font-weight: 600;
+    font-size: var(--text-base);
+    font-weight: var(--weight-bold);
   }
   .small {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   p {
@@ -337,7 +337,7 @@
     min-width: 0;
   }
   .pct {
-    font-weight: 600;
+    font-weight: var(--weight-bold);
     color: var(--ink);
   }
   .err {
@@ -387,12 +387,12 @@
     gap: 2px;
   }
   dt {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-3);
   }
   dd {
     margin: 0;
-    font-weight: 600;
+    font-weight: var(--weight-bold);
   }
   .actions {
     display: flex;
@@ -413,7 +413,7 @@
   .field {
     display: grid;
     gap: 2px;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .fields {
@@ -456,14 +456,19 @@
     border-radius: var(--radius-sm);
     background: none;
     color: var(--ink-3);
-    font-size: 1.125rem;
+    font-size: var(--text-lg);
     line-height: 1;
     cursor: pointer;
   }
-  .x:hover,
   .x:focus-visible {
     background: var(--surface-2);
     color: var(--critical-ink);
+  }
+  @media (hover: hover) {
+    .x:hover {
+      background: var(--surface-2);
+      color: var(--critical-ink);
+    }
   }
   .add {
     display: flex;
@@ -476,11 +481,11 @@
   .plus {
     flex: none;
     min-width: 40px;
-    font-size: 1.125rem;
+    font-size: var(--text-lg);
     line-height: 1;
   }
   .field .help {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-3);
   }
   .note {

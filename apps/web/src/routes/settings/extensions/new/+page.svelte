@@ -181,8 +181,10 @@
     font-size: 0.875rem;
     text-decoration: none;
   }
-  .chip:hover {
-    border-color: var(--accent);
+  @media (hover: hover) {
+    .chip:hover {
+      border-color: var(--accent);
+    }
   }
   .dot {
     width: 8px;
@@ -198,7 +200,7 @@
   }
   .own h2 {
     margin: 0 0 var(--space-1);
-    font-size: 1.125rem;
+    font-size: var(--text-lg);
   }
   .agent {
     padding: 1px 8px;
@@ -207,11 +209,13 @@
     background: var(--surface);
     color: var(--ink);
     font: inherit;
-    font-weight: 600;
+    font-weight: var(--weight-bold);
     cursor: pointer;
   }
-  .agent:hover {
-    border-color: var(--accent);
+  @media (hover: hover) {
+    .agent:hover {
+      border-color: var(--accent);
+    }
   }
   .block {
     margin-bottom: var(--space-5);
@@ -224,7 +228,7 @@
   }
   .sh h2 {
     margin: 0;
-    font-size: 1.125rem;
+    font-size: var(--text-lg);
   }
   .arrows {
     display: flex;
@@ -273,15 +277,15 @@
     border-radius: 12px;
     background: color-mix(in srgb, var(--hue) 18%, var(--surface));
     color: var(--ink);
-    font-weight: 700;
+    font-weight: var(--weight-bold);
   }
   .meta {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .small {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
   }
   .grow {
     flex: 1;

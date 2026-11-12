@@ -147,9 +147,11 @@
     color: var(--ink-2);
     cursor: pointer;
   }
-  .lock-btn:hover {
-    background: var(--surface-2);
-    color: var(--ink);
+  @media (hover: hover) {
+    .lock-btn:hover {
+      background: var(--surface-2);
+      color: var(--ink);
+    }
   }
   .lock-btn.open {
     padding: 0 12px 0 10px;
@@ -171,13 +173,15 @@
     stroke: none;
   }
   .chip {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
     text-decoration: none;
     white-space: nowrap;
   }
-  .chip:hover {
-    color: var(--ink);
+  @media (hover: hover) {
+    .chip:hover {
+      color: var(--ink);
+    }
   }
   .chip .available::before {
     background: var(--accent);
@@ -205,7 +209,7 @@
   .menu .meta {
     display: block;
     margin: 0 0 var(--space-2);
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .row {
@@ -219,7 +223,7 @@
   .bad {
     margin: var(--space-2) 0 0;
     color: var(--critical-ink);
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
   }
   @media (max-width: 720px) {
     .ltext {

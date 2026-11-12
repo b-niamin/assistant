@@ -215,10 +215,12 @@
     align-items: center;
     color: var(--ink);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: var(--weight-medium);
   }
-  .open:hover {
-    background: var(--surface-2);
+  @media (hover: hover) {
+    .open:hover {
+      background: var(--surface-2);
+    }
   }
   .meta {
     display: flex;
@@ -232,11 +234,11 @@
     padding: 2px 10px;
     border-radius: 999px;
     background: var(--surface-2);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--ink-2);
   }
   .small {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   @media (max-width: 560px) {
@@ -270,7 +272,7 @@
     gap: var(--space-2) var(--space-3);
   }
   legend {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
     margin-bottom: var(--space-1);
   }
@@ -282,13 +284,13 @@
   .field {
     display: grid;
     gap: 2px;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
     max-width: 420px;
   }
   .help {
     margin: -4px 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
   }
   .actions {
     display: flex;

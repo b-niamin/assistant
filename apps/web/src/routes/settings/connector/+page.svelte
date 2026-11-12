@@ -175,7 +175,7 @@
     min-width: 0;
   }
   .meta {
-    font-size: 0.8125rem;
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
   .bad {

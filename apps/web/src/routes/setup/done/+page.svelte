@@ -67,8 +67,10 @@
     color: inherit;
     text-decoration: none;
   }
-  a:not(.btn):hover strong {
-    color: var(--accent-ink);
+  @media (hover: hover) {
+    a:not(.btn):hover strong {
+      color: var(--accent-ink);
+    }
   }
   .txt {
     display: grid;

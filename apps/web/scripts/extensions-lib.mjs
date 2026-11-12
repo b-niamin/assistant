@@ -674,6 +674,9 @@ export function lookWarnings(root, manifest, id) {
     const weights = (pages.match(/font-weight:\s*(?!400|500|600|var)\d{3}/g) ?? []).length;
     if (sizes) warnings.push(`${id}: ${sizes} raw font size(s) in its pages (use var(--text-xs) ... var(--text-2xl))`);
     if (weights) warnings.push(`${id}: ${weights} font weight(s) other than 400, 500, 600 (var(--weight-*))`);
+    // A hover style sticks after a tap on a phone: only for pointers that hover (specs/001).
+    const hovers = bareHovers(pages);
+    if (hovers) warnings.push(`${id}: ${hovers} :hover rule(s) outside @media (hover: hover) (they stick after a tap on touch screens)`);
   }
   return warnings;
 }
@@ -731,4 +734,28 @@ export function lintExtension(root, id) {
     }
   }
   return problems;
+}
+
+/**
+ * `:hover` selectors in <style> blocks that are not inside an `@media (hover: hover)` block.
+ * @param {string} pages
+ */
+export function bareHovers(pages) {
+  let n = 0;
+  for (const [, css] of pages.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
+    const stack = [];
+    let sel = '';
+    for (const ch of css) {
+      if (ch === '{') {
+        stack.push(/@media[^;]*hover:\s*hover/.test(sel));
+        if (sel.includes(':hover') && !stack.slice(0, -1).some(Boolean)) n++;
+        sel = '';
+      } else if (ch === '}') {
+        stack.pop();
+        sel = '';
+      } else if (ch === ';') sel = '';
+      else sel += ch;
+    }
+  }
+  return n;
 }

@@ -85,8 +85,10 @@
     color: inherit;
     text-decoration: none;
   }
-  .more:hover strong {
-    color: var(--accent-ink);
+  @media (hover: hover) {
+    .more:hover strong {
+      color: var(--accent-ink);
+    }
   }
   @media (max-width: 560px) {
     .state .meta {

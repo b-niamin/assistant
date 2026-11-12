@@ -3,6 +3,7 @@ Run: cd docker/worker && python3 -m unittest -q"""
 from __future__ import annotations
 
 import json
+import re
 import os
 import subprocess
 import tempfile
@@ -88,6 +89,24 @@ class SameRulesAsTheWebApp(unittest.TestCase):
         for name, rx in (("EXTENSION_ID_RE", worker.ID_RE), ("UNIT_NAME_RE", worker.NAME_RE)):
             src = js.split(f"export const {name} = /", 1)[1].split("/;", 1)[0]
             self.assertEqual(src, rx.pattern, name)
+
+
+    def test_unit_rules_match_ext_check(self) -> None:
+        """unit-cases.json: the same verdicts as ext check (extensions-lib.test.ts reads the file too; audit R9)."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "unit-cases.json")) as f:
+            cases = json.load(f)["cases"]
+        root = tempfile.mkdtemp(prefix="worker-cases-")
+        for case in cases:
+            u = case["unit"]
+            os.makedirs(os.path.join(root, u.get("dir") if isinstance(u.get("dir"), str) and not u["dir"].startswith(("/", "..")) else f"services/{u['name']}"), exist_ok=True)
+            unit, errs = worker.parse_unit("demo", root, u, case["kind"])
+            self.assertEqual(not errs, case["ok"], f"{case}: {errs}")
+        with open(os.path.join(here, "../../apps/web/scripts/extensions-lib.mjs")) as f:
+            js = f.read()
+        names = set(re.findall(r"'([A-Z_]+)'", js.split("const WORKER_ENV = new Set([", 1)[1].split("]);", 1)[0]))
+        names |= set(worker.ACCESS["keys"])
+        self.assertEqual(names, worker.RESERVED_ENV)
 
 
 class Schedules(unittest.TestCase):

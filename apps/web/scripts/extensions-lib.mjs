@@ -21,9 +21,10 @@ import { EXTENSION_ID_RE, FIELD_NAME_RE, UNIT_NAME_RE } from '../src/lib/ids.js'
 export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /**
  * The SDK contract version (spec 002). It grows by additions only: an extension declares the version it
- * was written for and builds on that core or any newer one. 2 = shared charts, EmptyState, EN, ticks.
+ * was written for and builds on that core or any newer one. 2 = shared charts, EmptyState, EN, ticks;
+ * 3 = `import beni` for Python services (docker/worker/lib).
  */
-export const SHELL_API = 2;
+export const SHELL_API = 3;
 /** First path segments the shell owns; an extension id can never take one. */
 export const RESERVED_IDS = new Set([
   'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',
@@ -141,7 +142,7 @@ export const WORKER_HOST = ['proc', 'sys'];
 export const WORKER_KEYS = ['TOKEN_ENCRYPTION_KEY', 'DEFAULT_PROFILE'];
 const ENV_RE = /^[A-Z][A-Z0-9_]{0,63}$/;
 const WORKER_ENV = new Set(['PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'TZ', 'DATABASE_URL', 'WORKER_DATA', 'EXT_ID', 'EXT_UNIT',
-  'PYTHONUNBUFFERED', 'PYTHONDONTWRITEBYTECODE', 'HOST_PROC', 'HOST_SYS', ...WORKER_KEYS]);
+  'PYTHONUNBUFFERED', 'PYTHONDONTWRITEBYTECODE', 'PYTHONPATH', 'HOST_PROC', 'HOST_SYS', ...WORKER_KEYS]);
 const UNIT_FIELDS = new Set(['name', 'run', 'dir', 'host', 'keys', 'env', 'description', 'every', 'cron', 'timeout']);
 const CRON_RANGES = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
 

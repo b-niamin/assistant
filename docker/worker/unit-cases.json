@@ -1,0 +1,25 @@
+{
+  "about": "Services and jobs of a manifest, and whether they are allowed. docker/worker/worker.py (parse_unit) and apps/web/scripts/extensions-lib.mjs (workerProblems, ext check) must both agree with every case: test_worker.py and extensions-lib.test.ts read this file. The folder services/<name> (or dir) exists.",
+  "cases": [
+    { "kind": "service", "ok": true, "unit": { "name": "collector", "run": ["python", "-m", "collector", "loop"], "host": ["proc", "sys"] } },
+    { "kind": "service", "ok": true, "unit": { "name": "sync", "run": ["python", "-m", "sync"], "keys": ["TOKEN_ENCRYPTION_KEY"], "env": { "SYNC_INTERVAL_MINUTES": "30" }, "description": "Garmin sync" } },
+    { "kind": "job", "ok": true, "unit": { "name": "prune", "run": ["python", "-m", "x", "prune"], "dir": "services/collector", "cron": "15 3 * * *", "timeout": "30m" } },
+    { "kind": "job", "ok": true, "unit": { "name": "tick", "run": ["sh", "-c", "true"], "dir": "services/collector", "every": "10s" } },
+    { "kind": "service", "ok": false, "unit": { "name": "Bad", "run": ["x"] } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": [] } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "dir": "../elsewhere" } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "dir": "/etc" } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "host": ["docker"] } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "keys": ["SERVICES_DB_PASSWORD"] } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "env": { "DATABASE_URL": "postgres://elsewhere" } } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "env": { "PYTHONPATH": "/tmp" } } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "env": { "lower": "x" } } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "every": "5m" } },
+    { "kind": "service", "ok": false, "unit": { "name": "x", "run": ["x"], "privileged": true } },
+    { "kind": "job", "ok": false, "unit": { "name": "x", "run": ["x"], "dir": "services/collector" } },
+    { "kind": "job", "ok": false, "unit": { "name": "x", "run": ["x"], "dir": "services/collector", "every": "5s" } },
+    { "kind": "job", "ok": false, "unit": { "name": "x", "run": ["x"], "dir": "services/collector", "every": "5m", "cron": "* * * * *" } },
+    { "kind": "job", "ok": false, "unit": { "name": "x", "run": ["x"], "dir": "services/collector", "cron": "61 * * * *" } },
+    { "kind": "job", "ok": false, "unit": { "name": "x", "run": ["x"], "dir": "services/collector", "every": "1h", "timeout": "7h" } }
+  ]
+}

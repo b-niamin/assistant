@@ -299,3 +299,16 @@ describe('bareHovers', () => {
   });
 });
 
+describe('worker units', () => {
+  it('give the same verdicts as docker/worker/worker.py (unit-cases.json)', () => {
+    const cases = JSON.parse(readFileSync(new URL('../../../docker/worker/unit-cases.json', import.meta.url), 'utf8')).cases;
+    for (const c of cases) {
+      const root = mkdtempSync(path.join(os.tmpdir(), 'units-'));
+      const dir = typeof c.unit.dir === 'string' && !/^(\/|\.\.)/.test(c.unit.dir) ? c.unit.dir : `services/${c.unit.name}`;
+      mkdirSync(path.join(root, dir), { recursive: true });
+      const problems = lib.workerProblems({ [c.kind === 'job' ? 'jobs' : 'services']: [c.unit] }, 'demo', root);
+      expect(problems.length === 0, `${JSON.stringify(c)}: ${problems.join('; ')}`).toBe(c.ok);
+    }
+  });
+});
+

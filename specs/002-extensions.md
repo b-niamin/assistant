@@ -153,7 +153,7 @@ export const load = (async ({ url }, ctx) => {
 **The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Beni the mascot,
 motion helpers, the shared charts and empty state). The CSS tokens from `app.css` and `specs/001-design.md` are global. `ext check` rejects an
 import of anything else from the shell (`$lib` or `#lib`, another extension's files). The contract version is
-`SHELL_API` (now 2). It grows by additions only: a manifest declares the version it needs (1 or 2), and one that
+`SHELL_API` (now 3). It grows by additions only: a manifest declares the version it needs (1 to 3), and one that
 needs more than the core has does not build ("update the assistant first").
 
 **Look (required).** Every extension wears the shell's layout and has Beni, the mascot, woven in: native
@@ -253,6 +253,12 @@ The manifest declares the work; the worker decides how it runs:
   `WORKER_DATA` (as the extension's uid, again when the file or Python changes); Node runs scripts with
   their own vendored `node_modules`, if any. Logs: `/worker/logs/<id>.<unit>.log` (also in System settings
   -> Logs), each line of the unit's output plus the worker's own notes (started, exited, run took 2 s).
+- **`import beni`** (shell 3; `docker/worker/lib/beni`, on every unit's `PYTHONPATH`): what each service
+  would otherwise write again: `log()` and `logger()` (one line, the app's time zone), `env()` /
+  `env_int()` (settings with bounds), `connect()` (psycopg as the extension's role), `every(seconds, fn)`
+  (a loop that survives a failed pass and stops on SIGTERM). Tests outside the worker put
+  `<core>/docker/worker/lib` on `PYTHONPATH`. Pin exact versions in `requirements.txt`; test tools go in
+  `requirements-dev.txt`, which the worker does not install.
 - **What it reaches is fixed in the core** (`docker/worker/access.json`, the compose file mounts exactly
   that; spec 004): the host's `/proc` and `/sys`, read-only, and its host name. A unit names what it uses
   (`host`, `keys`) and `ext check` refuses anything else; new host access is a change to the core,

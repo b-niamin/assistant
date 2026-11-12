@@ -37,6 +37,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# `import beni` for every unit (lib/beni: logging, settings, database, the loop).
+LIB = os.path.join(HERE, "lib")
 EXT = os.environ.get("WORKER_EXTENSIONS", "/extensions")
 DATA = os.environ.get("WORKER_DATA_DIR", "/data")
 STATE = os.environ.get("WORKER_STATE", "/worker")
@@ -56,7 +58,7 @@ NAME_RE = re.compile(r"^[a-z][a-z0-9-]{0,39}$")
 ENV_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 # Names a unit cannot set through "env": the worker sets them.
 RESERVED_ENV = {"PATH", "HOME", "USER", "LOGNAME", "LANG", "TZ", "DATABASE_URL", "WORKER_DATA", "EXT_ID", "EXT_UNIT",
-                "PYTHONUNBUFFERED", "PYTHONDONTWRITEBYTECODE"} | {a["env"] for a in ACCESS["host"].values()} | set(ACCESS["keys"])
+                "PYTHONUNBUFFERED", "PYTHONDONTWRITEBYTECODE", "PYTHONPATH"} | {a["env"] for a in ACCESS["host"].values()} | set(ACCESS["keys"])
 
 
 def iso(t: float | None) -> str | None:
@@ -320,6 +322,7 @@ def unit_env(unit: Unit, ext_root: str, source: dict[str, str] | None = None) ->
         "EXT_UNIT": unit.name,
         "PYTHONUNBUFFERED": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPATH": LIB,
     }
     master = src.get("SERVICES_DB_PASSWORD", "")
     if master and os.path.isdir(os.path.join(ext_root, "db")):

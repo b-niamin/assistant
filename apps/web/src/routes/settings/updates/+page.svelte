@@ -3,6 +3,7 @@
   import { invalidate } from '$app/navigation';
   import Mascot from '#lib/Mascot.svelte';
   import PageHead from '#lib/settings/PageHead.svelte';
+  import UpdaterSchedule from '#lib/settings/UpdaterSchedule.svelte';
   import { useT } from '#lib/i18n/index.ts';
 
   let { data, form } = $props();
@@ -112,13 +113,10 @@
       {/if}
 
       {#if state === 'stale'}
-        <p class="full meta">
-          {t('No sign of it since {when}, so new commits on {branch} are not deployed.', { when: when(u.checkedAt || u.at), branch: u.branch })}
-          {t('Its scheduled task must run')} <code>sh &lt;folder&gt;-updater/update.sh</code>
-          {t('as root every minute, all day (DSM Task Scheduler: daily, every minute, first run 00:00, last run time 23:59);')}
-          <code>sudo ./beni.sh doctor</code> {t('checks it, and')}
-          <code>sudo ./beni.sh auto-update install</code> {t('prints the exact command.')} <code>sudo ./beni.sh update</code> {t('updates by hand.')}
-        </p>
+        <div class="full">
+          <p class="meta">{t('No sign of it since {when}: its schedule does not run, so nothing new is deployed. Set it to run every minute:', { when: when(u.checkedAt || u.at) })}</p>
+          <UpdaterSchedule home={u.home} schedule={u.schedule} />
+        </div>
       {:else if state === 'updating' || state === 'interrupted'}
         <div class="full progress" class:halted={state === 'interrupted'} role="progressbar" aria-valuemin="0" aria-valuemax={u.steps || 1} aria-valuenow={u.step} aria-label={t('Update progress')}>
           <span style="width: {u.steps ? Math.max(4, ((u.step - 0.5) / u.steps) * 100) : 4}%" class:indeterminate={!u.steps && state === 'updating'}></span>

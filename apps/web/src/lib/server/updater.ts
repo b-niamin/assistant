@@ -32,6 +32,9 @@ export interface UpdaterStatus {
   restartRequest: string;
   /** The repo the updater follows (no credentials), '' when unknown. */
   repo: string;
+  /** The updater's folder on the host ('' when unknown) and what runs it: DSM's Task Scheduler or cron. */
+  home: string;
+  schedule: 'synology' | 'cron' | '';
 }
 
 const STATUSES = new Set(['ok', 'failed', 'blocked', 'updating', 'available']);
@@ -60,7 +63,9 @@ export function parseUpdaterStatus(raw: string): UpdaterStatus | null {
     request: text(j.request, 64),
     pendingRestart: text(j.pendingRestart, 200),
     restartRequest: text(j.restartRequest, 64),
-    repo: text(j.repo, 300)
+    repo: text(j.repo, 300),
+    home: /^\/[A-Za-z0-9._/@+-]{1,250}$/.test(String(j.home ?? '')) ? String(j.home) : '',
+    schedule: j.schedule === 'synology' || j.schedule === 'cron' ? j.schedule : ''
   };
 }
 

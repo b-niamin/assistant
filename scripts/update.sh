@@ -241,6 +241,9 @@ write_status() {
     printf '"at":%s,"step":%s,"steps":%s,"startedAt":%s,' "$(json_str "$(iso)")" "$STEP_NO" "$STEP_TOTAL" "$(json_str "$STARTED_AT")"
     printf '"attempt":%s,"request":%s,"pid":%s,"branch":%s,' "$ATTEMPT" "$(json_str "${HANDLED:-}")" "$$" "$(json_str "$BRANCH")"
     printf '"pendingRestart":%s,"restartRequest":%s,' "$(json_str "$(pending_services)")" "$(json_str "${S_restarted:-}")"
+    # Where this updater lives and what schedules it: the app shows the exact command for the schedule.
+    sched=cron; [ -f /etc/synoinfo.conf ] && sched=synology
+    printf '"home":%s,"schedule":%s,' "$(json_str "$HOME_DIR")" "$(json_str "$sched")"
     # The repo (without credentials): the app asks GitHub for main's commit when the page opens.
     printf '"repo":%s}\n' "$(json_str "$(sed -n 's/^[[:space:]]*url = //p' "$MIRROR/config" 2>/dev/null | head -n 1 | sed 's#//[^@/]*@#//#')")"
   } > "$HOME_DIR/status.json.tmp" && mv "$HOME_DIR/status.json.tmp" "$HOME_DIR/status.json"

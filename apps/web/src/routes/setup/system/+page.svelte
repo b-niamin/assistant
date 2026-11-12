@@ -1,6 +1,7 @@
 <script lang="ts">
   import Mascot from '#lib/Mascot.svelte';
   import SetupUnlock from '#lib/setup/SetupUnlock.svelte';
+  import UpdaterSchedule from '#lib/settings/UpdaterSchedule.svelte';
   import { useT } from '#lib/i18n/index.ts';
 
   let { data, form } = $props();
@@ -12,7 +13,6 @@
 <div class="intro">
   <Mascot mood="steady" size={64} decorative />
   <h1>{t('Updates and Claude')}</h1>
-  <p>{t('Two choices about what reaches the assistant from outside.')}</p>
 </div>
 
 {#if !data.unlocked}<SetupUnlock />{/if}
@@ -31,19 +31,25 @@
         <span class="txt"><strong>{t('Manual')}</strong><span class="meta">{t('Show new versions, update when I click.')}</span></span>
       </label>
     </div>
-    {#if !data.updater}<p class="meta">{t('The updater has not reported yet; it takes this choice on its first run.')}</p>{/if}
+    {#if !data.ticking}
+      <div class="card sched">
+        <strong>{t('The updater does not run yet')}</strong>
+        <span class="meta">{t('Both choices need it to run every minute. Once, on the server:')}</span>
+        <UpdaterSchedule home={data.home} schedule={data.schedule} />
+      </div>
+    {/if}
   </fieldset>
 
   <fieldset>
-    <legend>{t('Claude connector')}</legend>
+    <legend>{t('MCP on the internet')}</legend>
     <div class="choice">
       <label>
         <input type="radio" name="funnel" value="on" checked={data.funnel === 'on'} />
-        <span class="txt"><strong>{t('On')}</strong><span class="meta">{t('Use your apps from claude.ai and the Claude apps on your phone. It opens one address to the internet (Tailscale Funnel); each new connection waits for your approval.')}</span></span>
+        <span class="txt"><strong>{t('On')}</strong><span class="meta">{t('Claude (claude.ai, phone) can use your apps over MCP. One address goes on the internet (Tailscale Funnel); each person connects and approves their own.')}</span></span>
       </label>
       <label>
         <input type="radio" name="funnel" value="off" checked={data.funnel !== 'on'} />
-        <span class="txt"><strong>{t('Off for now')}</strong><span class="meta">{t('Nothing is reachable from outside your tailnet. Turn it on later in System settings.')}</span></span>
+        <span class="txt"><strong>{t('Off for now')}</strong><span class="meta">{t('Nothing is reachable from outside your tailnet.')}</span></span>
       </label>
     </div>
   </fieldset>
@@ -55,6 +61,13 @@
 </form>
 
 <style>
+  .sched {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-color: var(--warning);
+  }
   .grid {
     display: grid;
     gap: var(--space-5);
@@ -70,9 +83,6 @@
     padding: 0;
     margin-bottom: var(--space-2);
     font-weight: var(--weight-bold);
-  }
-  fieldset p {
-    margin: 0;
   }
   .rec {
     margin-left: 6px;

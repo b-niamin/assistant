@@ -31,7 +31,8 @@ Runs on Linux or a Synology NAS with Docker Compose. You reach it over your Tail
 
 ## Quick start
 
-On a Synology NAS or any Linux host with Docker and Compose:
+On a Synology NAS or any Linux host with Docker and Compose, in the folder that should hold it
+(it installs into `./assistant`; on a Synology e.g. `cd /volume1/docker`):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh -o install.sh
@@ -41,7 +42,7 @@ sudo sh install.sh
 
 (`curl -fsSL .../install.sh | sudo sh` does the same in one line, without the reading.)
 
-It asks nothing: it picks a folder and free ports, starts the stack and prints an address and a setup code.
+It asks nothing: it picks free ports, starts the stack and prints an address and a setup code.
 
 1. Open the printed address + `/setup`, enter the setup code and follow the wizard: password, profile, apps, updates and Claude.
 2. Check the install with `sudo ./beni.sh doctor`.

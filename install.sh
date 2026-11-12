@@ -6,7 +6,8 @@
 #
 # It asks nothing: every choice has a default that avoids what is already running, and the rest (the app
 # password, your profile, the language, the apps, updates, the Claude connector) is the web wizard at
-# /setup. Defaults can be changed up front: ASSISTANT_DIR, WEB_PORT, ASSISTANT_HTTPS_PORT,
+# /setup. It installs into ./assistant (the folder it runs from + assistant). Defaults can be changed
+# up front: ASSISTANT_DIR, WEB_PORT, ASSISTANT_HTTPS_PORT,
 # ASSISTANT_EXTENSIONS (or arguments: sh -s -- health gym), ASSISTANT_AUTO_UPDATE=0|1 and
 # ASSISTANT_START=manual (you start the stack yourself). ASSISTANT_PROJECT names the compose project of a
 # new install (default: the folder name; pinned in .env). ASSISTANT_TAILSCALE=0 leaves Tailscale alone (no
@@ -72,7 +73,8 @@ port_used() { # a host port something already listens on, or a container publish
 }
 free_port() { p=$1; while port_used "$p"; do p=$((p + 1)); done; echo "$p"; }
 tailnet_https_used() { command -v tailscale >/dev/null 2>&1 && tailscale serve status --json 2>/dev/null | grep -q "\"$1\""; }
-if [ -d /volume1 ]; then default_dir=/volume1/docker/assistant; else default_dir=$HOME/assistant; fi
+# ./assistant in the folder this runs from (cd /volume1/docker first on a Synology).
+here=$(pwd); default_dir=${here%/}/assistant
 in_checkout=no
 [ -f docker-compose.yml ] && [ -f scripts/ext.mjs ] && [ -f install.sh ] && in_checkout=yes
 # ASSISTANT_DIR, when given, wins over the folder this runs in (curl ... | sudo sh from inside another checkout).

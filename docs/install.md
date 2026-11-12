@@ -6,7 +6,7 @@ Synology walkthrough, the everyday `beni.sh` commands, extensions and developmen
 ## What the installer does
 
 It asks nothing. Every choice has a default that stays clear of what already runs: the folder
-(`/volume1/docker/assistant` on a Synology, `~/assistant` elsewhere), a free local port, the HTTPS port on
+(`assistant` in the folder you run it from, e.g. `/volume1/docker/assistant` after `cd /volume1/docker`), a free local port, the HTTPS port on
 your tailnet (443, or 8443 when something is already served there), updates from `main` by themselves
 ([spec 006](../specs/006-auto-update.md)) and starting the stack itself. It clones this repo, writes `.env`
 with random secrets, starts the stack, runs `tailscale serve`, sets up the updater, waits for the app and
@@ -52,7 +52,7 @@ in the `worker` on their own after `ext install`; only an extension with its own
 1. **Packages** (DSM, Package Center): *Container Manager*; *Git* (or *Git Server*), for `git`; and
    *Tailscale*, signed in to your tailnet, to reach the app over HTTPS.
 2. **SSH**: Control Panel → Terminal & SNMP → enable SSH. From your computer: `ssh <you>@<nas>`.
-3. **Install**: the command above. Next to another app it takes a free port
+3. **Install**: `cd /volume1/docker`, then the command above; it installs into `/volume1/docker/assistant`. Next to another app it takes a free port
    and another tailnet port, and its own compose project name keeps its containers and volumes separate. The checkout
    belongs to you (the user who ran `sudo`); the first build takes 10-20 minutes on a small NAS.
 4. **Updates**: the installer prints a Task Scheduler entry. Control Panel → Task Scheduler → Create

@@ -1,7 +1,8 @@
 /**
  * The shell SDK: the ONLY shell module an extension imports (as `$shell`, UI as `$shell/ui`).
  * Everything else under src/lib is private to the shell and may change without notice.
- * Contract version: SHELL_API in scripts/extensions-lib.mjs (extensions declare "shell": 1).
+ * Contract version: SHELL_API in scripts/extensions-lib.mjs. It only grows: an extension declares the
+ * version it needs ("shell": 2 for the charts and helpers below), and runs on that core or a newer one.
  */
 import type { RequestEvent, ServerLoadEvent } from '@sveltejs/kit';
 import type { TransactionSql } from 'postgres';
@@ -13,6 +14,10 @@ export type { ExtensionInfo, Translate };
 export { error, fail, json, redirect } from '@sveltejs/kit';
 /** Calendar days in the owner's time zone (never toISOString().slice(0, 10), which is UTC's day). */
 export { dayIn, todayIn } from '#lib/dates.ts';
+/** Translation without a page (tests, pure helpers' default): English, placeholders filled in. Since shell 2. */
+export { EN } from '#lib/i18n/translate.ts';
+/** Round axis ticks, in bytes or another unit, and the gap-aware runs of a series. Since shell 2. */
+export { byteTicks, niceTicks, runsOf, scaledTicks } from '#lib/charts/ticks.ts';
 
 /** A Postgres client inside a transaction running as the extension's own role (ext_<id>). */
 export type Sql = TransactionSql;

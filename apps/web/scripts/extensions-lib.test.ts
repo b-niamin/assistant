@@ -34,7 +34,9 @@ describe('manifest validation', () => {
     expect(lib.validateManifest(manifest(), 'other').join()).toMatch(/"id"/);
     expect(lib.validateManifest(manifest({ kind: 'plugin' }), 'notes').join()).toMatch(/"kind"/);
     expect(lib.validateManifest(manifest({ scope: 'user' }), 'notes').join()).toMatch(/"scope"/);
-    expect(lib.validateManifest(manifest({ shell: 2 }), 'notes').join()).toMatch(/"shell"/);
+    expect(lib.validateManifest(manifest({ shell: lib.SHELL_API + 1 }), 'notes').join()).toMatch(/update the assistant first/);
+    expect(lib.validateManifest(manifest({ shell: 0 }), 'notes').join()).toMatch(/"shell"/);
+    expect(lib.validateManifest(manifest({ shell: 1 }), 'notes')).toEqual([]);
   });
   it('needs an html entry for onefile', () =>
     expect(lib.validateManifest(manifest({ kind: 'onefile' }), 'notes').join()).toMatch(/"entry"/));

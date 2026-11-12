@@ -21,7 +21,7 @@ in the manifest, what the shell gives an extension, and how to try it. Inside a 
 | `version` | yes | semver `x.y.z`; `ext update` compares it |
 | `kind` | yes | `native` (Svelte routes compiled into the shell) or `onefile` (one HTML file in a sandbox) |
 | `scope` | yes | `profile` (each person their own data) or `shared` (one data set for the home) |
-| `shell` | yes | the SDK contract the extension is written for: `1` |
+| `shell` | yes | the SDK version the extension needs: `1` or `2` (charts, `EmptyState`, `EN`, ticks). It only grows, so an extension runs on that core and newer ones |
 | `entry` | onefile | the HTML file, e.g. `app.html` |
 | `settings` | no | up to 30 fields of its panel in System settings: `name`, `type` (`text`, `number`, `boolean`, `select`, `secret`), `label` (1-60 characters), `default`; `secret` only for native |
 | `secrets` | no | native only, up to 10 names; values are set by the owner and read with `ctx.secrets.get` |
@@ -35,8 +35,8 @@ Server code imports from `$shell`, components from `$shell/ui`. Nothing else of 
 
 | From | What |
 | --- | --- |
-| `$shell` | types `ExtensionContext`, `ExtLoad`, `ExtActions`, `ExtHandler`, `ExtTool`, `ExtTile`, `ExtSources`, `DataOf`; `error`, `fail`, `json`, `redirect`; `todayIn(tz?)`, `dayIn(date, tz?)` |
-| `$shell/ui` | `Mascot` (Beni), `countUp`, `useT`, `todayIn`, `dayIn`, chart helpers (see `apps/web/src/lib/sdk/ui.ts`) |
+| `$shell` | types `ExtensionContext`, `ExtLoad`, `ExtActions`, `ExtHandler`, `ExtTool`, `ExtTile`, `ExtSources`, `DataOf`; `error`, `fail`, `json`, `redirect`; `todayIn(tz?)`, `dayIn(date, tz?)`; since 2: `EN` (English `t` for pure helpers and tests), `niceTicks`, `byteTicks`, `scaledTicks`, `runsOf` |
+| `$shell/ui` | `Mascot` (Beni), `countUp`, `useT`, `todayIn`, `dayIn`, `enhance`, `saveOnChoose`; since 2: `LineChart` (series over time with tooltip, arrow keys and a table twin), `Sparkline` (trend glyph), `EmptyState` (Beni + heading + body). Use these before drawing your own (`apps/web/src/lib/sdk/ui.ts`) |
 
 `ExtensionContext` (the `ctx` every load, action, tool and source gets):
 

@@ -794,5 +794,9 @@
   "Use your apps from claude.ai and the Claude apps on your phone. It opens one address to the internet (Tailscale Funnel); each new connection waits for your approval.": "Korzystaj ze swoich aplikacji z claude.ai i aplikacji Claude w telefonie. Otwiera jeden adres na internet (Tailscale Funnel); każde nowe połączenie czeka na Twoją zgodę.",
   "Off for now": "Na razie wyłączone",
   "Nothing is reachable from outside your tailnet. Turn it on later in System settings.": "Nic nie jest dostępne spoza Twojego tailnetu. Włączysz go później w Ustawieniach systemu.",
-  "Back": "Wstecz"
+  "Back": "Wstecz",
+  "No readings in this range yet.": "W tym zakresie nie ma jeszcze odczytów.",
+  "Show as table": "Pokaż jako tabelę",
+  "Time": "Czas",
+  "{label}, {from} to {to}. Use arrow keys to read values.": "{label}, od {from} do {to}. Strzałkami odczytasz wartości."
 }

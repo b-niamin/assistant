@@ -77,3 +77,9 @@ export function makeT(lang: string, ...dicts: (Messages | undefined)[]): Transla
   t.locale = locale;
   return t;
 }
+
+/**
+ * English without a dictionary: pure helpers take a `t` argument and default to this, so tests and
+ * scripts get the English text with its {placeholders} filled in (`$shell` exports it as EN).
+ */
+export const EN: Translate = makeT(BASE_LANG);

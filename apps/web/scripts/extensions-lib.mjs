@@ -18,8 +18,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-/** Bumped when the contract between the shell and extensions changes incompatibly. */
-export const SHELL_API = 1;
+/**
+ * The SDK contract version (spec 002). It grows by additions only: an extension declares the version it
+ * was written for and builds on that core or any newer one. 2 = shared charts, EmptyState, EN, ticks.
+ */
+export const SHELL_API = 2;
 /** First path segments the shell owns; an extension id can never take one. */
 export const RESERVED_IDS = new Set([
   'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',
@@ -107,7 +110,11 @@ export function validateManifest(m, dirName, root) {
   req('version', /^\d+\.\d+\.\d+$/.test(m.version ?? ''));
   req('kind', KINDS.includes(m.kind));
   req('scope', SCOPES.includes(m.scope));
-  req('shell', m.shell === SHELL_API);
+  req('shell', Number.isInteger(m.shell) && m.shell >= 1 && m.shell <= SHELL_API);
+  if (Number.isInteger(m.shell) && m.shell > SHELL_API)
+    errors.push(`${dirName}/extension.json: needs shell ${m.shell}, this core has ${SHELL_API}: update the assistant first`);
+  // What the catalog says it needs to work (an account, a device); optional, shown before installing.
+  if (m.needs !== undefined) req('needs', typeof m.needs === 'string' && m.needs.length > 0 && m.needs.length <= 80);
   // Secrets (spec 004) are settings fields of type "secret", not a list of their own.
   if (m.secrets !== undefined) errors.push(`${dirName}/extension.json: declare secrets as "settings" fields with "type": "secret"`);
   // Its settings panel in System settings (spec 002, "Settings"): fields the shell renders.

@@ -66,23 +66,23 @@
 <svelte:window onclick={onWindowClick} onkeydown={(e) => e.key === 'Escape' && menuOpen && close()} />
 
 {#if status?.update?.state === 'updating'}
-  <a class="chip" href="/settings#up-h" title={t('Rebuilding: {actions}', { actions: status.update.actions })}>
+  <a class="chip" href="/settings/updates" title={t('Rebuilding: {actions}', { actions: status.update.actions })}>
     <span class="status small warning pulse">{t('Updating')}{status.update.steps ? ` ${status.update.step}/${status.update.steps}` : ''}</span>
   </a>
 {:else if status?.update?.state === 'available'}
-  <a class="chip" href="/settings#up-h" title={t('A new version ({sha}) is on GitHub: update it from System settings', { sha: status.update.sha })}>
+  <a class="chip" href="/settings/updates" title={t('A new version ({sha}) is on GitHub: update it from System settings', { sha: status.update.sha })}>
     <span class="status small available">{t('Update')}</span>
   </a>
 {:else if status?.update?.pendingRestart}
-  <a class="chip" href="/settings#up-h" title={t('{services} runs the previous version: restart it from System settings', { services: status.update.pendingRestart })}>
+  <a class="chip" href="/settings/updates" title={t('{services} runs the previous version: restart it from System settings', { services: status.update.pendingRestart })}>
     <span class="status small warning">{t('Restart needed')}</span>
   </a>
 {:else if status?.update?.state === 'interrupted'}
-  <a class="chip" href="/settings#up-h" title={t("The update's process stopped; the updater resumes it, or resume it from System settings")}>
+  <a class="chip" href="/settings/updates" title={t("The update's process stopped; the updater resumes it, or resume it from System settings")}>
     <span class="status small warning">{t('Update interrupted')}</span>
   </a>
 {:else if status?.update?.state === 'stale'}
-  <a class="chip" href="/settings#up-h" title={t('The updater has not run for a while: new commits are not deployed')}>
+  <a class="chip" href="/settings/updates" title={t('The updater has not run for a while: new commits are not deployed')}>
     <span class="status small critical">{t('Updates stopped')}</span>
   </a>
 {/if}
@@ -103,6 +103,7 @@
       {#if unlocked}<path d="M7 9V6.5a3 3 0 0 1 5.8-1.1" />{:else}<path d="M7 9V6.5a3 3 0 0 1 6 0V9" />{/if}
       <circle cx="10" cy="13.2" r="1.1" class="dot" />
     </svg>
+    {#if unlocked}<span class="ltext" aria-hidden="true">{t('Unlocked')}</span>{/if}
     <span class="sr">{unlocked ? t('Lock (hides the terminal)') : t('Unlock (shows the terminal)')}</span>
   </button>
   {#if menuOpen && !unlocked}
@@ -129,10 +130,17 @@
     position: relative;
   }
   .lock-btn {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
     border: 1px solid var(--ring);
     border-radius: 999px;
     background: var(--surface);
@@ -144,6 +152,7 @@
     color: var(--ink);
   }
   .lock-btn.open {
+    padding: 0 12px 0 10px;
     border-color: color-mix(in srgb, var(--hue-violet) 45%, var(--ring));
     background: color-mix(in srgb, var(--hue-violet) 12%, var(--surface));
     color: var(--hue-violet);
@@ -211,6 +220,14 @@
     margin: var(--space-2) 0 0;
     color: var(--critical-ink);
     font-size: 0.8125rem;
+  }
+  @media (max-width: 720px) {
+    .ltext {
+      display: none;
+    }
+    .lock-btn.open {
+      padding: 0 8px;
+    }
   }
   @media (max-width: 560px) {
     .chip {

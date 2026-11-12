@@ -11,7 +11,8 @@ MIGRATE=${MIGRATE_SH:-/migrate.sh}
 state() {
   {
     cat "$EXT/installed.json" 2>/dev/null
-    find "$MIG" "$EXT" -name '*.sql' -not -path '*/.trash/*' 2>/dev/null | sort | xargs -r md5sum
+    # extension.json too: a service moving to the worker gets its own login password.
+    find "$MIG" "$EXT" \( -name '*.sql' -o -name extension.json \) -not -path '*/.trash/*' 2>/dev/null | sort | xargs -r md5sum
   } | md5sum
 }
 

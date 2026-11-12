@@ -43,3 +43,8 @@ fi
 if git diff --cached --name-only | grep -qE '^apps/web/'; then
   (cd "$root/apps/web" && { [ -d node_modules ] || npm ci --no-audit --no-fund; } && npm test --silent && npm run check --silent)
 fi
+
+# worker: manifests, schedules, what a unit gets, and that compose opens only what access.json lists.
+if git diff --cached --name-only | grep -qE '^(docker/worker/|docker-compose\.yml$)'; then
+  (cd "$root/docker/worker" && python3 -B -m unittest -q)
+fi

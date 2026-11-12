@@ -122,14 +122,26 @@ psql -v ON_ERROR_STOP=1 -q \
 for id in $ext_ids; do
   [ -d "$EXTENSIONS_DIR/$id/db" ] || continue
   schema=$(echo "$id" | tr - _)
-  # An extension with background services (manifest "services": [...]) also gets a login role for them.
-  svc=""
-  if grep -qE '"services"[[:space:]]*:[[:space:]]*\[[[:space:]]*"' "$EXTENSIONS_DIR/$id/extension.json" 2>/dev/null; then
-    if [ -n "${SERVICES_DB_PASSWORD:-}" ]; then svc="ext_${schema}_svc"
-    else echo "[migrate] $id has services but SERVICES_DB_PASSWORD is not set: no login role for them" >&2; fi
-  fi
+  # An extension with background work (manifest "services" or "jobs") also gets a login role for it. Run
+  # by the worker (objects: {"name": ..., "run": [...]}), each extension's role has its own password,
+  # derived from SERVICES_DB_PASSWORD as docker/worker/worker.py derives it; services still run from the
+  # extension's own compose.yml (plain names) log in with SERVICES_DB_PASSWORD itself.
+  svc="" svc_pw=""
+  manifest=$(tr -d ' \t\r\n' < "$EXTENSIONS_DIR/$id/extension.json" 2>/dev/null)
+  case $manifest in
+    *'"services":[{'* | *'"jobs":[{'* | *'"services":["'*)
+      if [ -z "${SERVICES_DB_PASSWORD:-}" ]; then
+        echo "[migrate] $id has services but SERVICES_DB_PASSWORD is not set: no login role for them" >&2
+      else
+        svc="ext_${schema}_svc"
+        case $manifest in
+          *'"services":["'*) svc_pw=$SERVICES_DB_PASSWORD ;;
+          *) svc_pw=$(printf '%s:%s' "$SERVICES_DB_PASSWORD" "$svc" | sha256sum | cut -d' ' -f1) ;;
+        esac
+      fi ;;
+  esac
   echo "[migrate] role ext_$schema${svc:+ (+ $svc)}"
   psql -v ON_ERROR_STOP=1 -q -v ext_schema="$schema" -v ext_role="ext_$schema" \
-    -v svc_role="$svc" -v svc_pw="${SERVICES_DB_PASSWORD:-}" -f "$EXT_ROLE_SQL"
+    -v svc_role="$svc" -v svc_pw="$svc_pw" -f "$EXT_ROLE_SQL"
 done
 echo "[migrate] done"

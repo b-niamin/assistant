@@ -35,3 +35,13 @@ it('reads only *.log files of the directory', async () => {
   expect(r.files).toEqual(['web.log']);
   expect(r.lines['web.log'][0].text).toBe('hello');
 });
+
+it('adds the worker logs (one per extension service or job)', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'logs-'));
+  const worker = mkdtempSync(path.join(tmpdir(), 'worker-logs-'));
+  writeFileSync(path.join(dir, 'web.log'), '2026-11-09T10:00:00Z web\n');
+  writeFileSync(path.join(worker, 'monitor.collector.log'), '2026-11-09T10:01:00Z sampled\n');
+  const r = await readLogs(dir, worker);
+  expect(r.files).toEqual(['monitor.collector.log', 'web.log']);
+  expect(r.lines['monitor.collector.log'][0].text).toMatch(/sampled/);
+});

@@ -39,7 +39,7 @@ dc() {
   [ -f .env ] || die "not installed yet: ./beni.sh install"
   [ -r .env ] || die "cannot read .env (it belongs to root): put sudo in front"
   set -- -p "$(project)" --project-directory "$DIR" --env-file "$DIR/.env" \
-    $(sed -n 's/^COMPOSE_FILE=//p' .env | tr ':' '\n' | sed 's/^/-f /') "$@"
+    $(sed -n 's/^COMPOSE_FILE=//p' .env | tr ':' '\n' | while IFS= read -r f; do [ ! -f "$f" ] || echo "-f $f"; done) "$@"
   $DC "$@"
 }
 envv() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n 1; }
@@ -204,7 +204,8 @@ doctor() {
   cf_ok=yes
   for p in $(envv COMPOSE_FILE | tr ':' ' '); do
     case $p in /*) ;; *) w "COMPOSE_FILE has a relative path ($p); re-run ./beni.sh install" ;; esac
-    [ -f "$p" ] || { f "COMPOSE_FILE lists $p, which is missing: re-run ./beni.sh install"; cf_ok=no; }
+    # An extension whose service moved to the worker (or that was removed) leaves its old entry: harmless.
+    [ -f "$p" ] || w "COMPOSE_FILE lists $p, which is gone (skipped): sudo ./beni.sh install tidies it"
   done
   if [ -f extensions/installed.json ]; then
     for id in $(grep -oE '"id"[[:space:]]*:[[:space:]]*"[a-z][a-z0-9-]*"' extensions/installed.json | sed -E 's/.*"([a-z0-9-]+)"$/\1/'); do

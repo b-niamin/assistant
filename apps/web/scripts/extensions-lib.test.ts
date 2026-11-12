@@ -246,3 +246,50 @@ describe('translations (spec 007)', () => {
     expect(lib.validateManifest(manifest({ languages: ['polish'] }), 'notes').join()).toMatch(/"languages"/);
   });
 });
+
+describe('background work for the worker', () => {
+  const root = () => fixture([], { 'notes/services/sync/main.py': '' }) + '/notes';
+  const service = (over = {}) => ({ name: 'sync', run: ['python', 'main.py'], ...over });
+
+  it('accepts services and jobs, and names of compose services', () => {
+    const m = manifest({
+      services: [service({ host: ['proc', 'sys'], keys: ['TOKEN_ENCRYPTION_KEY'], env: { INTERVAL: '30' } }), 'old-sync'],
+      jobs: [
+        { name: 'prune', dir: 'services/sync', run: ['python', 'main.py', 'prune'], cron: '15 3 * * 1-5' },
+        { name: 'ping', dir: 'services/sync', run: ['true'], every: '5m', timeout: '30s' }
+      ]
+    });
+    expect(lib.validateManifest(m, 'notes', root())).toEqual([]);
+    // Without the folder (the shell's own build) only the manifest's own fields are checked.
+    expect(lib.validateManifest(manifest({ services: [service({ host: ['docker'] })] }), 'notes')).toEqual([]);
+  });
+
+  it('refuses what the worker does not open or set', () => {
+    const problems = (u: object, key = 'services') => lib.workerProblems({ [key]: [u] }, 'notes', root()).join('\n');
+    expect(problems(service({ host: ['proc', 'docker.sock'] }))).toMatch(/host may only list/);
+    expect(problems(service({ keys: ['POSTGRES_PASSWORD'] }))).toMatch(/keys may only list/);
+    expect(problems(service({ env: { DATABASE_URL: 'x' } }))).toMatch(/env maps/);
+    expect(problems(service({ dir: '../../etc' }))).toMatch(/inside the extension/);
+    expect(problems(service({ dir: 'services/none' }))).toMatch(/no folder/);
+    expect(problems(service({ privileged: true }))).toMatch(/unknown field "privileged"/);
+    expect(problems(service({ every: '5m' }))).toMatch(/runs all the time/);
+    expect(problems(service({ run: 'python main.py' }))).toMatch(/run must be a list/);
+    expect(problems({ name: 'j', dir: 'services/sync', run: ['true'] }, 'jobs')).toMatch(/either "every"/);
+    expect(problems({ name: 'j', dir: 'services/sync', run: ['true'], every: '5s' }, 'jobs')).toMatch(/at least 10s/);
+    expect(problems({ name: 'j', dir: 'services/sync', run: ['true'], cron: '61 * * * *' }, 'jobs')).toMatch(/outside 0-59/);
+    expect(problems({ name: 'j', dir: 'services/sync', run: ['true'], every: '1h', timeout: '7h' }, 'jobs')).toMatch(/at most 6h/);
+  });
+
+  it('opens what docker/worker/access.json opens', () => {
+    const access = JSON.parse(readFileSync(path.join(lib.WEB_ROOT, '../../docker/worker/access.json'), 'utf8'));
+    expect(Object.keys(access.host)).toEqual(lib.WORKER_HOST);
+    expect(Object.keys(access.keys)).toEqual(lib.WORKER_KEYS);
+  });
+
+  it('reads cron lines and durations like the worker', () => {
+    expect(['* * * * *', '*/15 2-4 1,15 * 0-6', '0 9 * * 7'].map(lib.cronProblem)).toEqual([null, null, null]);
+    expect(lib.cronProblem('* * * *')).toMatch(/five fields/);
+    expect(lib.cronProblem('*/0 * * * *')).toMatch(/outside/);
+    expect(['30s', '5m', '2h', '1d', '5', 5].map(lib.durationSeconds)).toEqual([30, 300, 7200, 86400, null, null]);
+  });
+});

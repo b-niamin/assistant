@@ -19,6 +19,7 @@ node scripts/ext.mjs languages                  # the app's languages and what e
 node scripts/ext.mjs new <id> --kind native|onefile --scope profile|shared [--from inspiration:<name>] [--inspired-by <link>]
 ```
 
-An extension with a background service (`compose.yml`, e.g. health's garmin-sync) also needs
-`./install.sh` on the host once, which adds it to `COMPOSE_FILE` and starts it. This folder is mounted
+An extension's background work (manifest `services` / `jobs`, e.g. health's garmin-sync) runs in the
+`worker` container, which starts it within seconds (System settings -> Worker). Only an extension that
+ships its own `compose.yml` needs `./install.sh` on the host once, which adds it to `COMPOSE_FILE`. This folder is mounted
 read-only at `/extensions` in the `web` and `migrate` containers. Set `EXTENSIONS_REPO` to use a fork.

@@ -1,8 +1,8 @@
 # assistant: production stack. Run from the repo root on the 24/7 machine:
 #   ./install.sh           # writes .env with random secrets, starts, prints the /setup code
 #   (or by hand: cp .env.example .env, fill in secrets, docker compose up -d)
-# Extensions that bring a background service add their own extensions/<id>/compose.yml; install.sh lists
-# them in COMPOSE_FILE in .env, so `docker compose` picks them up from this folder.
+# Extensions' background work runs in `worker` (no host step). An extension that still brings its own
+# extensions/<id>/compose.yml is listed by install.sh in COMPOSE_FILE in .env.
 #
 # Only `web` publishes ports, on 127.0.0.1: the app for Tailscale Serve (tailnet only), and the MCP listener
 # for Tailscale Funnel (internet, only when the Claude connector is on). Everything else is internal.
@@ -68,6 +68,41 @@ services:
       - logs:/logs
     entrypoint: ['sh', '-c', 'sh /watch-extensions.sh 2>&1 | tee -a /logs/ext-migrate.log']
 
+  # Background work of the extensions (spec 002, "Background work"): their services and scheduled jobs,
+  # under one supervisor that picks up a newly installed extension within seconds (no host step). Each
+  # extension runs as its own uid with its own database login (ext_<id>_svc). The only container that
+  # sees the host: /proc and /sys, read-only (docker/worker/access.json lists them; spec 004). No port, no
+  # docker socket, no .env, not the `logs` volume (the updater's control file is there).
+  worker:
+    build:
+      context: ./docker/worker
+    restart: unless-stopped
+    init: true
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    # The machine's host name instead of the container's id (e.g. for the monitor extension).
+    uts: host
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-assistant}
+      # Each extension's login password is derived from it (docker/worker/worker.py, db/migrate.sh).
+      SERVICES_DB_PASSWORD: ${SERVICES_DB_PASSWORD:-}
+      # Handed only to the units whose manifest asks for them ("keys").
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-}
+      DEFAULT_PROFILE: ${DEFAULT_PROFILE:-}
+      TZ: ${APP_TIMEZONE:-UTC}
+      # Owner of /worker/control, where the web app leaves its requests (restart, run now).
+      HOST_UID: ${HOST_UID:-1000}
+    volumes:
+      - ./extensions:/extensions:ro
+      - worker:/worker
+      - worker-data:/data
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID, SETUID]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 1g
+
   # Web UI + API. Live-reload builds into build-next/ and swaps it in only after a successful build.
   # Bound to 127.0.0.1: reach it through Tailscale (`tailscale serve --bg 3000` on the host), not the LAN.
   web:
@@ -116,6 +151,8 @@ services:
       # Installed extensions, compiled into the shell (spec 002). Read-only: only Claude edits them.
       - ./extensions:/extensions:ro
       - logs:/logs
+      # The worker's status and logs (System settings -> Worker); requests go to /worker/control.
+      - worker:/worker
     # sidecars: the internal network of the terminal and browser containers (spec 004).
     networks: [default, sidecars]
     mem_limit: 1536m
@@ -158,6 +195,8 @@ services:
       - /dev/null:/workspace/.env:ro
       - claude-home:/home/claude
       - logs:/logs:ro
+      # The worker's status and its units' logs, to read (spec 002, "Background work").
+      - worker:/worker:ro
     # sidecars: the web app reaches it there, and it drives the in-app browser over CDP (browser:9223).
     networks: [default, sidecars]
     mem_limit: 2g
@@ -222,3 +261,6 @@ volumes:
   logs:
   # Dumps of the old backup layout (before BACKUP_DIR); kept so nothing is lost, no longer written.
   backups:
+  # The worker's status, logs and the app's requests to it; its units' data and venvs.
+  worker:
+  worker-data:

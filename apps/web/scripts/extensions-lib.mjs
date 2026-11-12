@@ -94,7 +94,7 @@ export const ACCESSORIES = [
 /** A secret name: lowercase, digits, underscores, e.g. "api_token". */
 export const SECRET_RE = /^[a-z][a-z0-9_]{0,39}$/;
 
-export function validateManifest(m, dirName) {
+export function validateManifest(m, dirName, root) {
   const errors = [];
   const req = (k, ok) => {
     if (!ok) errors.push(`${dirName}/extension.json: bad or missing "${k}"`);
@@ -122,6 +122,101 @@ export function validateManifest(m, dirName) {
   if (m.languages !== undefined)
     req('languages', Array.isArray(m.languages) && m.languages.length <= 20 && m.languages.every((l) => LANG_RE.test(l)));
   if (m.kind === 'onefile') req('entry', typeof m.entry === 'string' && /^[A-Za-z0-9._-]+\.html$/.test(m.entry));
+  // Background work for the worker: checked by `ext check` and `ext install` (they pass the folder); a slip
+  // here never hides the extension's pages, the worker just refuses that unit and says why.
+  if (root) errors.push(...workerProblems(m, dirName, root));
+  return errors;
+}
+
+/**
+ * What the worker container opens (docker/worker/access.json, the source of truth; a test keeps the two
+ * equal): the host paths a unit may ask for ("host") and the worker-held values it may get ("keys").
+ */
+export const WORKER_HOST = ['proc', 'sys'];
+export const WORKER_KEYS = ['TOKEN_ENCRYPTION_KEY', 'DEFAULT_PROFILE'];
+const UNIT_NAME_RE = /^[a-z][a-z0-9-]{0,39}$/;
+const ENV_RE = /^[A-Z][A-Z0-9_]{0,63}$/;
+const WORKER_ENV = new Set(['PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'TZ', 'DATABASE_URL', 'WORKER_DATA', 'EXT_ID', 'EXT_UNIT',
+  'PYTHONUNBUFFERED', 'PYTHONDONTWRITEBYTECODE', 'HOST_PROC', 'HOST_SYS', ...WORKER_KEYS]);
+const UNIT_FIELDS = new Set(['name', 'run', 'dir', 'host', 'keys', 'env', 'description', 'every', 'cron', 'timeout']);
+const CRON_RANGES = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
+
+/** "30s", "5m", "2h", "1d" -> seconds (null when it is not one). */
+export function durationSeconds(text) {
+  const m = typeof text === 'string' ? /^(\d{1,5})([smhd])$/.exec(text) : null;
+  return m ? Number(m[1]) * { s: 1, m: 60, h: 3600, d: 86400 }[m[2]] : null;
+}
+
+/** Problems with a five-field cron line (the worker's dialect: *, n, a-b, *\/n, a-b/n, lists). */
+export function cronProblem(text) {
+  const parts = typeof text === 'string' ? text.trim().split(/\s+/) : [];
+  if (parts.length !== 5) return 'a cron schedule has five fields: minute hour day month weekday';
+  for (let i = 0; i < 5; i++) {
+    const [lo, hi] = CRON_RANGES[i];
+    for (const p of parts[i].split(',')) {
+      const m = /^(\*|\d+(?:-\d+)?)(?:\/(\d+))?$/.exec(p);
+      if (!m) return `cannot read '${p}'`;
+      const [a, b] = m[1] === '*' ? [lo, hi] : m[1].includes('-') ? m[1].split('-').map(Number) : [Number(m[1]), m[2] ? hi : Number(m[1])];
+      if (!(lo <= a && a <= b && b <= hi) || (m[2] !== undefined && Number(m[2]) < 1)) return `'${p}' is outside ${lo}-${hi}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Problems with a manifest's "services" and "jobs" for the worker (spec 002, "Background work"): the same
+ * rules docker/worker/worker.py applies. Plain names in "services" are the older way (a compose.yml).
+ */
+export function workerProblems(m, dirName, root) {
+  const errors = [];
+  const names = new Set();
+  for (const [key, kind] of [['services', 'service'], ['jobs', 'job']]) {
+    const list = m[key];
+    if (list === undefined) continue;
+    if (!Array.isArray(list)) {
+      errors.push(`${dirName}/extension.json: "${key}" must be a list`);
+      continue;
+    }
+    for (const u of list) {
+      if (kind === 'service' && typeof u === 'string') continue;
+      const where = `${dirName}/extension.json: ${kind} "${u?.name}"`;
+      if (!u || typeof u !== 'object' || Array.isArray(u)) {
+        errors.push(`${dirName}/extension.json: every ${kind} is an object {"name", "run", ...}`);
+        continue;
+      }
+      if (!UNIT_NAME_RE.test(u.name ?? '')) errors.push(`${where}: name must match ${UNIT_NAME_RE}`);
+      else if (names.has(u.name)) errors.push(`${where}: two services or jobs have this name`);
+      names.add(u.name);
+      if (!(Array.isArray(u.run) && u.run.length && u.run.length <= 40 && u.run.every((a) => typeof a === 'string' && a && a.length <= 500)))
+        errors.push(`${where}: run must be a list of strings, the command and its arguments`);
+      const dir = u.dir ?? `services/${u.name}`;
+      const abs = typeof dir === 'string' ? path.resolve(root, dir) : '';
+      if (typeof dir !== 'string' || path.isAbsolute(dir) || !abs.startsWith(path.resolve(root) + path.sep))
+        errors.push(`${where}: dir must be a folder inside the extension`);
+      else if (!existsSync(abs) || !statSync(abs).isDirectory()) errors.push(`${where}: no folder ${dir}`);
+      if (u.host !== undefined && !(Array.isArray(u.host) && u.host.every((h) => WORKER_HOST.includes(h))))
+        errors.push(`${where}: host may only list what the worker opens (${WORKER_HOST.join(', ')}); anything else needs a change to the worker in the core`);
+      if (u.keys !== undefined && !(Array.isArray(u.keys) && u.keys.every((k) => WORKER_KEYS.includes(k))))
+        errors.push(`${where}: keys may only list ${WORKER_KEYS.join(', ')}`);
+      if (u.env !== undefined) {
+        const ok = u.env && typeof u.env === 'object' && !Array.isArray(u.env) && Object.keys(u.env).length <= 30 &&
+          Object.entries(u.env).every(([k, v]) => ENV_RE.test(k) && !WORKER_ENV.has(k) && typeof v === 'string' && v.length <= 500);
+        if (!ok) errors.push(`${where}: env maps NAMES to strings, without the names the worker sets (${[...WORKER_ENV].join(', ')})`);
+      }
+      if (u.description !== undefined && (typeof u.description !== 'string' || u.description.length > 160))
+        errors.push(`${where}: description is at most 160 characters`);
+      for (const k of Object.keys(u)) if (!UNIT_FIELDS.has(k)) errors.push(`${where}: unknown field "${k}" (the worker decides how a unit runs)`);
+      if (kind === 'job') {
+        if ((u.every === undefined) === (u.cron === undefined)) errors.push(`${where}: a job has either "every" (30s, 5m, 2h, 1d) or "cron" (five fields)`);
+        else if (u.every !== undefined && !(durationSeconds(u.every) >= 10)) errors.push(`${where}: every must be like 30s, 5m, 2h or 1d, at least 10s`);
+        else if (u.cron !== undefined && cronProblem(u.cron)) errors.push(`${where}: cron: ${cronProblem(u.cron)}`);
+        const t = durationSeconds(u.timeout ?? '10m');
+        if (!t || t > 6 * 3600) errors.push(`${where}: timeout must be like 30s, 10m or 2h, at most 6h`);
+      } else {
+        for (const k of ['every', 'cron', 'timeout']) if (u[k] !== undefined) errors.push(`${where}: a service runs all the time; "${k}" is for jobs`);
+      }
+    }
+  }
   return errors;
 }
 

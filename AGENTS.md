@@ -54,7 +54,8 @@ Prefer an extension's MCP tools for writes it offers; use SQL for what they do n
 
 Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AGENTS.md` in
 `extensions/<id>/` describes them. Look at raw JSON columns before assuming a field name. Logs: `/logs/`
-(`web.log`, `ext-migrate.log`, one per extension service).
+(`web.log`, `ext-migrate.log`); extension services and jobs log to `/worker/logs/<id>.<unit>.log`
+(state in `/worker/status.json`, System settings -> Worker).
 
 ## Changing code
 

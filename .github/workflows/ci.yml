@@ -44,6 +44,8 @@ jobs:
         run: node --test services/terminal/*.test.mjs
       - name: Terminal agents' approval guard
         run: node --test docker/terminal/*.test.mjs
+      - name: Worker (manifests, schedules, environments, compose mounts)
+        run: cd docker/worker && python3 -B -m unittest -q
 
   migrations:
     name: Migrations on Postgres

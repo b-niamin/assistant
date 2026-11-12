@@ -78,5 +78,7 @@ Then wait for `build ok` in `/logs/web.log` and open `/<id>`. A failed build kee
 
 - `extensions/` is git-ignored (this instance's state): commit only what you changed in the shell.
   An extension worth reusing elsewhere goes into the extensions repo, on request.
-- Tell the owner what is pending on them: values to fill in its settings panel, or a new background service
-  (`./install.sh` on the host, which adds its `compose.yml` to `COMPOSE_FILE`).
+- Tell the owner what is pending on them: values to fill in its settings panel. Background work needs
+  nothing from them: declare it in the manifest (`services` / `jobs`, spec 002 "Background work") and the
+  worker starts it within seconds; check `/worker/status.json` and `/worker/logs/<id>.<unit>.log`. Only
+  something the worker cannot run (another image, a device) still needs a `compose.yml` and `./install.sh`.

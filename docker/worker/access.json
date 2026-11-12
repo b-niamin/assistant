@@ -1,0 +1,10 @@
+{
+  "host": {
+    "proc": { "path": "/host/proc", "source": "/proc", "env": "HOST_PROC", "what": "processes, CPU, memory, network and disk counters" },
+    "sys": { "path": "/host/sys", "source": "/sys", "env": "HOST_SYS", "what": "temperatures, disks, cgroups (container memory)" }
+  },
+  "keys": {
+    "TOKEN_ENCRYPTION_KEY": "encrypts the logins a service keeps in its secret_* tables",
+    "DEFAULT_PROFILE": "the profile used when none is named"
+  }
+}

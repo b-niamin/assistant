@@ -83,6 +83,7 @@ and nothing is built. Every step runs under a time limit (90 minutes for a build
 | `docker-compose.yml` | build every image, `up -d` the whole project |
 | `docker/terminal/**` | rebuild and recreate `terminal` (ends what runs in it) |
 | `docker/browser/**` | rebuild and recreate `browser` |
+| `docker/worker/**` (not tests) | rebuild and recreate `worker` (its services restart, jobs keep their history) |
 | `apps/web/scripts/live-reload.mjs` | restart `web` |
 | `services/terminal/**` (not tests) | restart `terminal` |
 | `db/watch-extensions.sh` | rebuild and recreate `ext-migrate` |
@@ -95,7 +96,8 @@ checkout the agents edit: `docker/migrate/Dockerfile` copies `db/` into the imag
 mirror. Extension migrations still come from `extensions/` and run as each extension's owner role.
 
 Extensions are not part of this repo (`extensions/` is git-ignored), so auto-update never touches them;
-`ext update <id>` does, and a changed extension `compose.yml` needs `./install.sh`.
+`ext update <id>` does. Their background work follows by itself (the worker, spec 002); only a changed
+extension `compose.yml` needs `./install.sh`.
 
 `apps/web/package*.json` needs nothing either: live-reload compares their content hash with the one
 stored in `node_modules/.lock-sha256` and runs `npm ci` in `.deps-next/` first, swapping the new
@@ -192,6 +194,12 @@ Services that main's compose file no longer has (renamed, merged, dropped), and 
 file (COMPOSE_FILE) has either, lose their containers at the next update: by label, never with
 `--remove-orphans`, which would take the extensions' services too. With restarts asked first, that removal
 waits for "Restart now" together with the held services (the old `llm` goes when the new `terminal` comes up).
+Between updates, every run does the same for services that are not held (main's compose file read from
+the mirror at the deployed commit): an extension whose service moved to the worker (its `compose.yml` gone
+after `ext update`, e.g. health's `garmin-sync`, monitor's `monitor-collector`) or that was removed loses
+its old container within a minute, with a line in `updater.log`. Its entry in `COMPOSE_FILE` (`.env`) goes
+first, so `docker compose` in the folder keeps working; an entry whose file is missing only while
+`ext update` copies the extension stays, and that run prunes nothing.
 
 System settings → Updates: Automatic or Manual (`/logs/updater-control`: `mode=auto|manual`, plus
 `request=<id>` for "Update now" / "Try again" / "Resume" and `cancel=<id>` for "Cancel"; the updater reads

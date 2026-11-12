@@ -49,8 +49,10 @@ Takeaways for a single-owner self-hosted app that Claude edits live:
 3. **Manifests + a small versioned SDK** (VS Code): extensions import only `$shell`, never shell
    internals, so the shell can change underneath them.
 4. **Each extension owns its schema and migrations** (Nextcloud, Backstage), applied by the shell.
-5. **Background services are compose fragments** (Umbrel), applied by a human, like every compose change
-   today.
+5. **Background work runs in one shared worker** (since 2026-11-12; before that, compose fragments
+   applied by a human, like Umbrel). The core's `worker` container runs every extension's services and
+   scheduled jobs, so installing an extension never needs a host step; what the worker may reach is fixed
+   in the core and shown in System settings -> Worker.
 6. **Install from git, pin the commit** (HACS), so an instance can be rebuilt reproducibly.
 
 ## Design
@@ -94,7 +96,10 @@ instances is copied into the extensions repo by hand.
     { "name": "units", "label": "Units", "type": "select", "options": ["km", "mi"], "default": "km" }
   ],
   "schema": "health",             // informational; the schema is always the id with - -> _
-  "services": ["garmin-sync"]     // background services in its compose.yml; see "Services"
+  "services": [                   // background work for the worker; see "Background work"
+    { "name": "garmin-sync", "run": ["python", "-m", "sync", "loop"], "keys": ["TOKEN_ENCRYPTION_KEY"] }
+  ],
+  "jobs": [{ "name": "prune", "dir": "services/garmin-sync", "run": ["python", "-m", "sync", "prune"], "cron": "15 3 * * *" }]
 }
 ```
 
@@ -211,16 +216,60 @@ Visibility is separate from scope: `profiles` in `installed.json` decides who se
 - Tables an extension names `secret_*` (e.g. health's encrypted Garmin logins) are revoked from
   `ext_<id>`, `app_rw` and `claude_ro`: only the extension's service role reads them.
 
-### Services (background work)
+### Background work: the worker
 
-Some extensions need a process: health has `garmin-sync`, a Home Assistant extension may want a poller.
-An extension ships `compose.yml` at its root, a compose fragment using only the stack's network, the
-`logs` volume and its own DB login, with paths relative to the checkout
-(`./extensions/<id>/services/...`). Its manifest lists the services (`"services": [...]`), which makes
-`db/migrate.sh` create a login role `ext_<id>_svc` (password `SERVICES_DB_PASSWORD`, member of `ext_<id>`,
-plus its `secret_*` tables). `install.sh` writes `COMPOSE_FILE=docker-compose.yml:extensions/<id>/compose.yml:...`
-into `.env` from the installed extensions and starts them; so after `ext install` of an extension with a
-service, the owner runs `./install.sh` once on the host (no container has the Docker socket).
+Some extensions need a process: health has `garmin-sync`, the monitor samples the machine, a Home
+Assistant extension may want a poller or a nightly job. They run in the core's **`worker`** container
+(`docker/worker/`), one for all of them, so `ext install` is all it takes: its supervisor reads
+`installed.json` and the manifests every 3 seconds, starts what is new, restarts a service whose folder or
+manifest entry changed, stops what was removed, and runs jobs on their schedule.
+
+The manifest declares the work; the worker decides how it runs:
+
+```jsonc
+"services": [                       // run all the time; restarted when they exit (1 s, doubling to 60 s)
+  {
+    "name": "collector",            // [a-z][a-z0-9-]*, unique among the extension's services and jobs
+    "dir": "services/collector",    // its folder in the extension (default services/<name>); the working directory
+    "run": ["python", "-m", "collector", "loop"],   // the command, no shell
+    "description": "Samples the machine every 30 s",  // optional, shown in System settings -> Worker
+    "host": ["proc", "sys"],        // optional: host paths it reads (HOST_PROC=/host/proc, HOST_SYS=/host/sys)
+    "keys": ["TOKEN_ENCRYPTION_KEY"], // optional: values the worker holds (TOKEN_ENCRYPTION_KEY, DEFAULT_PROFILE)
+    "env": { "INTERVAL": "30" }     // optional: plain settings
+  }
+],
+"jobs": [                           // run on a schedule: "every": "30s|5m|2h|1d" or "cron": "m h dom mon dow"
+  { "name": "prune", "dir": "services/collector", "run": ["python", "-m", "collector", "prune"], "cron": "15 3 * * *", "timeout": "10m" }
+]
+```
+
+- **Each extension is its own user** (uid 61000 and up, kept in the `worker-data` volume): its services
+  and jobs run as that uid, with an environment built from scratch, in their folder (read-only), with a
+  private writable folder `WORKER_DATA` (= `HOME`, mode 700). Every unit gets `DATABASE_URL` when the
+  extension has a `db/` folder: role `ext_<id>_svc`, with its **own password**, derived from
+  `SERVICES_DB_PASSWORD` by `db/migrate.sh` and the worker alike, so a unit cannot log in as another
+  extension. The role reaches the extension's tables (its `secret_*` ones too) and `core.profiles`.
+- **Python and Node**: a `requirements.txt` in the unit's folder is installed into a venv in
+  `WORKER_DATA` (as the extension's uid, again when the file or Python changes); Node runs scripts with
+  their own vendored `node_modules`, if any. Logs: `/worker/logs/<id>.<unit>.log` (also in System settings
+  -> Logs), each line of the unit's output plus the worker's own notes (started, exited, run took 2 s).
+- **What it reaches is fixed in the core** (`docker/worker/access.json`, the compose file mounts exactly
+  that; spec 004): the host's `/proc` and `/sys`, read-only, and its host name. A unit names what it uses
+  (`host`, `keys`) and `ext check` refuses anything else; new host access is a change to the core,
+  reviewed like any other. No Docker socket, no ports, no `.env`, no `logs` volume.
+- **System settings -> Worker** shows what the worker can reach and who uses it, every service (state,
+  uptime, restarts, memory, last log lines, Restart) and every scheduled run (schedule, last run and its
+  result, next run, Run now). Requests from the app go through `/worker/control`, which only the web app
+  (HOST_UID) can write.
+- A one-off command as a unit runs it (e.g. a login that asks for a password), on the host:
+  `docker compose exec -it worker ext-run <id> <unit> [command...]`.
+
+**The older way, for what the worker cannot do** (another image, a device, a GPU): an extension may still
+ship `compose.yml`, a compose fragment using only the stack's network, the `logs` volume and its own DB
+login, listing its services by name in the manifest (`"services": ["name"]`, password
+`SERVICES_DB_PASSWORD` itself). `install.sh` adds it to `COMPOSE_FILE` in `.env` and starts it, so it
+needs `./install.sh` on the host once. When such an extension moves to the worker, the host's updater
+removes the old containers on its next tick (spec 006).
 
 ### Claude building extensions
 
@@ -237,8 +286,8 @@ inspiration, build, settings panel, tools, check, commit) and `new-extension` (h
 3. Translate it into every language of the app (spec 007): `ext check <id>` lists the gaps as `i18n:`
    warnings, also right after `ext install`.
 4. Build, check (`ext check <id>`, `npm test && npm run check`, `build ok` in `/logs/web.log`), and tell
-   the owner what to fill in its panel. Migrations apply by themselves (`ext-migrate`); only a new
-   background service needs `./install.sh` on the host.
+   the owner what to fill in its panel. Migrations apply by themselves (`ext-migrate`), background work
+   by itself (the worker); only an extension with its own `compose.yml` needs `./install.sh` on the host.
 
 ### CLI
 

@@ -60,9 +60,15 @@ async function tail(file: string): Promise<string> {
   }
 }
 
-export async function readLogs(dir = process.env.LOGS_DIR ?? '/logs'): Promise<{ files: string[]; lines: Record<string, LogLine[]> }> {
-  const names = (await readdir(dir).catch(() => [] as string[])).filter((n) => n.endsWith('.log')).sort();
+/** Every *.log of the shared `logs` volume, and the worker's (one per extension service or job, `<ext>.<unit>.log`). */
+export async function readLogs(
+  dir = process.env.LOGS_DIR ?? '/logs',
+  workerDir = path.join(process.env.WORKER_DIR ?? '/worker', 'logs')
+): Promise<{ files: string[]; lines: Record<string, LogLine[]> }> {
+  const list = async (d: string) => (await readdir(d).catch(() => [] as string[])).filter((n) => n.endsWith('.log')).map((n): [string, string] => [n, path.join(d, n)]);
+  const found = new Map([...(await list(workerDir)), ...(await list(dir))]);
+  const names = [...found.keys()].sort();
   const lines: Record<string, LogLine[]> = {};
-  for (const n of names) lines[n] = parseLog(n, await tail(path.join(dir, n)).catch(() => ''));
+  for (const n of names) lines[n] = parseLog(n, await tail(found.get(n)!).catch(() => ''));
   return { files: names, lines };
 }

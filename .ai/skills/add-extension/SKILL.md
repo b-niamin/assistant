@@ -11,8 +11,8 @@ to each of them, and all their settings are in one place (System settings, one p
 **Ready-made first.** `node scripts/ext.mjs available` lists the extensions repo. If what the owner
 wants is there (health, gym, ...), `node scripts/ext.mjs install <id>` does the install. If it prints
 `i18n:` warnings, the extension lacks one of the app's languages: translate it (step 5, "Speak every
-language") before anything else. Then go to step 6 (and if it has a `compose.yml`, tell the owner to run
-`./install.sh` on the host once).
+language") before anything else. Then go to step 6 (its background work, if any, starts in the worker by
+itself; only a `compose.yml` means telling the owner to run `./install.sh` on the host once).
 
 **Any other source is inspiration, never an install.** Whatever the owner points at (their repo, someone else's repo,
 an app from onefile-apps, a web page, a screenshot, a sentence), you read it, then build the extension

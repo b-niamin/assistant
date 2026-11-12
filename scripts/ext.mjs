@@ -17,7 +17,8 @@
  *   node scripts/ext.mjs profiles <id> [a,b | all]       who sees it (System settings can override)
  *   node scripts/ext.mjs remove <id>                     the folder moves to extensions/.trash/; data stays
  *
- * An extension with a background service (compose.yml) needs ./install.sh on the host once to start it.
+ * Background work (manifest "services" / "jobs") runs in the worker container, which picks a new or
+ * updated extension up within seconds. Only an extension with its own compose.yml needs ./install.sh.
  * Plain Node, no dependencies. git is the only external tool (install, update, --from).
  */
 import { execFileSync } from 'node:child_process';
@@ -197,7 +198,7 @@ function copyFromRepo(repoDir, id) {
   if (!existsSync(path.join(src, 'extension.json')))
     die(`no extension "${id}" in ${EXTENSIONS_REPO}; available: ${readyMade(repoDir).join(', ') || 'none'}`);
   const manifest = JSON.parse(readFileSync(path.join(src, 'extension.json'), 'utf8'));
-  const problems = validateManifest(manifest, id);
+  const problems = validateManifest(manifest, id, src);
   if (problems.length) die(`problems:\n  - ${problems.join('\n  - ')}`);
   cpSync(src, path.join(DIR, id), { recursive: true, filter: (f) => path.basename(f) !== '.git' });
   return manifest;
@@ -205,7 +206,17 @@ function copyFromRepo(repoDir, id) {
 const servicesNote = (ids) => {
   const withServices = ids.filter((id) => existsSync(path.join(DIR, id, 'compose.yml')));
   if (withServices.length)
-    console.log(`     ${withServices.join(', ')} bring(s) a background service: run ./install.sh on the host to start it`);
+    console.log(`     ${withServices.join(', ')} bring(s) its own container (compose.yml): run ./install.sh on the host to start it`);
+  const worker = ids.filter((id) => {
+    try {
+      const m = JSON.parse(readFileSync(path.join(DIR, id, 'extension.json'), 'utf8'));
+      return [...(m.services ?? []), ...(m.jobs ?? [])].some((u) => u && typeof u === 'object');
+    } catch {
+      return false;
+    }
+  });
+  if (worker.length)
+    console.log(`     ${worker.join(', ')}: background work starts in the worker within seconds (System settings -> Worker)`);
 };
 
 /** Turn one onefile-apps variant into a onefile extension folder. */
@@ -323,7 +334,7 @@ const commands = {
       const root = path.join(DIR, id);
       try {
         const manifest = JSON.parse(readFileSync(path.join(root, 'extension.json'), 'utf8'));
-        problems.push(...validateManifest(manifest, id));
+        problems.push(...validateManifest(manifest, id, root));
         look.push(...lookWarnings(root, manifest, id));
         tools.push(...toolWarnings(root, id));
       } catch (e) {

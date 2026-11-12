@@ -20,6 +20,7 @@ browser inside the app) are isolated.
 | Admin (re-entered the password in the last 10 min) | System settings, terminal, browser, extension secrets | read a stored API key back in the UI (write-only) |
 | A onefile extension | its own KV data | the shell's cookies, API, other extensions (opaque-origin iframe) |
 | A native extension | everything the web process can | is **trusted code**: see "Extensions" |
+| An extension's background work (in the `worker`) | its own tables (`ext_<id>_svc`, its own password), its folder (read), its `WORKER_DATA`, the internet, the host's `/proc` and `/sys` (read-only) | other extensions' files, logins or data; the supervisor's environment (`SERVICES_DB_PASSWORD`); other processes' environment; the Docker socket, `.env`, the `logs` volume, any port |
 | A web page open in the in-app browser | whatever page JS can | reach the sidecars network services other than through the browser itself |
 | Prompt injection reaching Claude | what Claude's tools can do, which includes editing code that `web` and extension services run (see "Audit", A1) | read `.env` directly, the Docker socket |
 
@@ -31,7 +32,8 @@ browser inside the app) are isolated.
 | Extension secrets | `secrets.extension_secrets`, AES-256-GCM, key `SECRETS_KEY` from `.env` | web only; an extension reads only the names it declares; never sent back to the browser, only a hint |
 | Claude tools token | `CLAUDE_TOOLS_TOKEN` in `.env` (spec 005); refused on the public listener | web, terminal |
 | Claude connector tokens | `core.oauth_tokens`, SHA-256 hashes only (spec 005) | web (`app_rw`); not `claude_ro` |
-| Extension service logins (e.g. Garmin) | `<id>.secret_*` tables, Fernet (`TOKEN_ENCRYPTION_KEY`) | that extension's service (`ext_<id>_svc`) |
+| Extension service logins (e.g. Garmin) | `<id>.secret_*` tables, Fernet (`TOKEN_ENCRYPTION_KEY`) | that extension's service (`ext_<id>_svc`); the key only to units that list it in `keys` |
+| Extension service database passwords | derived per role from `SERVICES_DB_PASSWORD` (`.env`) | the worker's supervisor; each unit gets only its own extension's |
 | Claude Code / Codex / gh logins | files in the `claude-home` volume | `terminal` container |
 | Browser sessions (cookies) | `browser-profile` volume | `browser` container; usable over CDP from `terminal` |
 | Sidecar ticket key | `SIDECAR_TICKET_SECRET` in `.env` | web, terminal |
@@ -140,7 +142,20 @@ defence against the owner's own Claude.
 | A7 | `ctx.db` of native extensions has the same `SET LOCAL ROLE` escape as A2 | Low | By design (finding 2): native extension code is trusted, it runs in the web process anyway |
 | A8 | Chromium runs with `--no-sandbox`: a renderer exploit runs in the browser container, which can reach `web:3000`, `terminal:7681` (needs a ticket) and its own CDP | Low | Accepted (spec above) |
 | A9 | Extension secrets are AES-GCM without associated data: a database writer could swap two ciphertexts between extensions | Low | Open: bind `extension_id/name` as AAD on the next change to `secret-box.ts` |
-| A10 | Extension services such as health's `garmin-sync` run as root and `pip install`s `requirements.txt` from the checkout on every start | Low | Open: `user: ${HOST_UID}` once the venv volume is chowned |
+| A10 | Extension services such as health's `garmin-sync` run as root and `pip install`s `requirements.txt` from the checkout on every start | Low | Fixed for the worker (2026-11-12): each extension runs, and installs its requirements, as its own uid; still true for an extension's own `compose.yml` |
+| A11 | Every unit in the worker can read the host's `/proc` and `/sys` (process list and command lines of the machine, hardware), whether its manifest lists `host` or not: one container, one set of mounts | Low | Accepted: read-only, no environment (other uids), no secrets in `/sys`; `host` in the manifest is for review and System settings -> Worker, and `ext check` refuses access the worker does not open. Per-unit mount namespaces would need privileges the worker should not have |
+| A12 | Units of one extension share a uid, its folder and its database role, and all units share the worker's memory limit (1 GB) and network | Low | Accepted: one extension is one trust unit (its services already share `ext_<id>_svc`). A runaway unit is visible (memory per unit in System settings -> Worker) and restartable there |
+
+The worker (`docker/worker`, spec 002 "Background work") is the only container that sees the host:
+`/proc` and `/sys` read-only (listed in `docker/worker/access.json`, which a test keeps equal to the
+compose file) and the host name (`uts: host`). Its supervisor is the one process there that runs as root,
+with only the capabilities it needs to hand out users (CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID,
+SETUID) and `no-new-privileges`; it comes from the image the updater builds from main, not from the
+checkout, and never runs extension code itself: it reads manifests and file metadata, then starts each
+unit as the extension's uid with an environment built from scratch. Units cannot read
+`/proc/<pid>/environ` of the supervisor or of host processes (other uids). The worker does not mount the
+`logs` volume, so no unit can write the updater's control file; the app's requests to the worker go
+through `/worker/control`, writable by the web app (HOST_UID) only.
 
 Checked and fine: no Docker socket in any container (auto-update runs on the host and trusts only its
 own mirror of GitHub main, spec 006), only `web` publishes a port (127.0.0.1), CSRF (SvelteKit

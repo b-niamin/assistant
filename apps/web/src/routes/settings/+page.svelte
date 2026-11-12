@@ -275,6 +275,13 @@
         </a>
       </li>
       <li>
+        <a href="/settings/worker">
+          <span class="mark" style="--hue: var(--hue-green)" aria-hidden="true">⚙</span>
+          <span class="what"><strong>{t('Worker')}</strong><span class="meta">{t("Your apps' background work: services, scheduled runs, and what they can reach")}</span></span>
+          <span class="chev" aria-hidden="true">›</span>
+        </a>
+      </li>
+      <li>
         <a href="/settings/connector">
           <span class="mark" style="--hue: var(--brand)" aria-hidden="true">✳</span>
           <span class="what"><strong>{t('Claude connector')}</strong><span class="meta">{t('Use your apps from claude.ai and the Claude apps (MCP)')}</span></span>

@@ -24,7 +24,7 @@ Tailscale Funnel ─► web :3001 (only /mcp and its OAuth; internet, when the C
                      ├── browser (spec 004: Chromium for sign-ins, internal network)
                      ├── migrate (one-shot: migrations + roles), ext-migrate (re-applies on change)
                      ├── backup (daily: dump + .env + extensions into BACKUP_DIR)
-                     └── extension services (each extension's compose.yml, e.g. health's garmin-sync)
+                     └── worker: the extensions' services and scheduled jobs (e.g. health's garmin-sync)
 ```
 
 | Container | Does | Access |
@@ -32,7 +32,7 @@ Tailscale Funnel ─► web :3001 (only /mcp and its OAuth; internet, when the C
 | `web` | UI for every extension, the MCP server and its OAuth (spec 005) | db as `app_rw` (+ `SET ROLE ext_<id>`) |
 | `db` | Postgres, one schema per extension | — |
 | `terminal` | the in-app shell: AI CLIs, data chat, code changes | repo (bind mount), db as `claude_ro`, internet; **no** Docker socket, no `.env` |
-| extension service | whatever the extension needs in the background | db as `ext_<id>_svc` (its own schema + `core.profiles`) |
+| `worker` | the extensions' services and scheduled jobs, each extension as its own uid (spec 002) | db as `ext_<id>_svc` per extension (its own schema + `core.profiles`), host `/proc` and `/sys` read-only, internet; **no** Docker socket, no `.env`, no port |
 
 ## Repo layout
 

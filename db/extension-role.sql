@@ -38,7 +38,7 @@ SELECT format('REVOKE ALL ON %I.%I FROM %I, app_rw, claude_ro, agent_rw', schema
   FROM pg_tables WHERE schemaname = :'ext_schema' AND tablename LIKE 'secret\_%' \gexec
 
 -- Background services (manifest "services", run from the extension's compose.yml) log in as
--- ext_<schema>_svc with SERVICES_DB_PASSWORD: the extension's own tables, secret_* included, and
+-- ext_<schema>_svc (password from db/migrate.sh: derived per role for the worker): the extension's own tables, secret_* included, and
 -- core.profiles. :svc_role is empty for an extension without services.
 SELECT format('CREATE ROLE %I LOGIN', :'svc_role')
   WHERE :'svc_role' <> '' AND NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'svc_role') \gexec

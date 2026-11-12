@@ -73,6 +73,8 @@ plan() {
       services/terminal/*.test.mjs | docker/terminal/*.test.mjs) ;;
       docker/terminal/*) echo build:terminal ;;
       docker/browser/*) echo build:browser ;;
+      docker/worker/test_*) ;;
+      docker/worker/*) echo build:worker ;;
       apps/web/scripts/live-reload.mjs) echo restart:web ;;
       services/terminal/*) echo restart:terminal ;;
       db/watch-extensions.sh) echo build:ext-migrate ;;
@@ -491,7 +493,7 @@ compose_services() { awk '/^services:/ { s = 1; next } /^[^ #]/ { s = 0 } s && /
 # Services with containers in this project that no compose file of it defines: main's (from the mirror)
 # and the extensions' (COMPOSE_FILE in .env, read as data).
 orphan_services() {
-  has=" $(compose_services < "$SRC/docker-compose.yml" | tr '\n' ' ') "
+  has=" $(compose_services < "${MAIN_COMPOSE:-$SRC/docker-compose.yml}" | tr '\n' ' ') "
   for f in $(sed -n 's/^COMPOSE_FILE=//p' "$DIR/.env" 2>/dev/null | tail -n 1 | tr ':' ' '); do
     case $f in /*) ;; *) f=$DIR/$f ;; esac
     [ "$f" != "$DIR/docker-compose.yml" ] || continue # main's, above (the checkout's may be older)
@@ -499,6 +501,50 @@ orphan_services() {
   done
   docker ps -a --filter "label=com.docker.compose.project=$PROJECT" --format '{{.Label "com.docker.compose.service"}}' 2>/dev/null |
     awk 'NF && !seen[$0]++' | while IFS= read -r v; do case $has in *" $v "*) ;; *) echo "$v" ;; esac; done
+}
+# COMPOSE_FILE in .env lists the extensions' own compose files (install.sh), and `docker compose` in the
+# folder fails on one that is gone. One gone for good (its extension moved to the worker, its manifest
+# naming no compose service any more, or was uninstalled) is dropped from the line, in place (owner and
+# mode of .env stay). One that is missing while its extension still names compose services is being
+# copied (`ext update`): kept, and the run returns 1 so nothing is pruned on a half-copied extension.
+tidy_compose_file() {
+  line=$(sed -n 's/^COMPOSE_FILE=//p' "$DIR/.env" 2>/dev/null | tail -n 1)
+  [ -n "$line" ] || return 0
+  keep="" dropped="" busy=0
+  for f in $(printf '%s' "$line" | tr ':' ' '); do
+    case $f in /*) p=$f ;; *) p=$DIR/$f ;; esac
+    if [ -f "$p" ]; then keep="$keep:$f"; continue; fi
+    id=$(printf '%s' "$p" | sed -n 's|.*/extensions/\([a-z][a-z0-9-]*\)/compose\.yml$|\1|p')
+    m=$DIR/extensions/$id/extension.json
+    if [ -n "$id" ] && { ! grep -q "\"id\"[[:space:]]*:[[:space:]]*\"$id\"" "$DIR/extensions/installed.json" 2>/dev/null ||
+      { [ -f "$m" ] && ! tr -d ' \t\r\n' < "$m" | grep -q '"services":\["'; }; }; then
+      dropped="$dropped $id"
+    else keep="$keep:$f" busy=1; fi
+  done
+  if [ -n "$dropped" ]; then
+    tmp=$(mktemp "$HOME_DIR/env.XXXXXX") || return 1
+    awk -v v="${keep#:}" '/^COMPOSE_FILE=/ { if (v != "") print "COMPOSE_FILE=" v; next } { print }' "$DIR/.env" > "$tmp" &&
+      cat "$tmp" > "$DIR/.env"
+    rm -f "$tmp"
+    log "COMPOSE_FILE: dropped the compose file of$dropped (moved to the worker, or removed)"
+  fi
+  [ "$busy" = 0 ]
+}
+# Between updates too: containers of a service that no compose file has any more go, e.g. an extension
+# service whose compose.yml went away when the extension moved to the worker (`ext update`), or an
+# uninstalled extension's. Held services wait for an update. Main's file comes from the mirror, not the checkout.
+prune_orphans() {
+  tidy_compose_file || return 0
+  [ -n "$DEPLOYED" ] && MAIN_COMPOSE=$HOME_DIR/deployed-compose.yml || return 0
+  mirror_git show "$DEPLOYED:docker-compose.yml" > "$MAIN_COMPOSE" 2>/dev/null && [ -s "$MAIN_COMPOSE" ] || { MAIN_COMPOSE=""; return 0; }
+  for v in $(orphan_services); do
+    case " $HELD " in *" $v "*) continue ;; esac
+    for c in $(project_containers "$v"); do
+      docker rm -f "$c" >/dev/null 2>&1 && log "removed the $v container: no compose file has $v any more"
+    done
+  done
+  MAIN_COMPOSE=""
+  flush_log
 }
 project_containers() { docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$1"; }
 
@@ -807,6 +853,7 @@ cmd_run() {
 
   if [ "$resumed" = 0 ]; then
     if [ "$SHA" = "$DEPLOYED" ]; then
+      prune_orphans
       # Said once: asked for, or the end of a failed, blocked or available state.
       if [ "$requested" = 1 ] || { [ -n "$S_note" ] && [ "$S_note" != fetch ]; }; then
         S_note="" S_failed="" S_fail_count=0 ACTIONS=""
@@ -1065,6 +1112,10 @@ SYNO
 
 # For the unit test: funnel-has <ours|on|used> <port> <mcp-port>, status JSON on stdin.
 if [ "${1:-}" = funnel-has ]; then shift; if funnel_has "$@"; then echo yes; else echo no; fi; exit 0; fi
+# For the unit test: tidy-compose-file <checkout> (COMPOSE_FILE in its .env).
+if [ "${1:-}" = tidy-compose-file ]; then
+  DIR=$2 HOME_DIR=$(mktemp -d) LOGS_MP="" TTY=0 LOG_BUF=""; tidy_compose_file; r=$?; rm -rf "$HOME_DIR"; exit $r
+fi
 
 # --- arguments: [command] [--now] [--json] [--manual] [checkout] -------------------------------------
 CMD="" NOW=0 JSON=0 MANUAL=0 RESTART_NOW=0 ARG=""

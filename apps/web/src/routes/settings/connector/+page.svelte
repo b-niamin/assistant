@@ -29,11 +29,21 @@
   /** The message's Tailscale link, if any: shown as a link, not as text to copy. */
   const enableLink = $derived(f?.message.match(/https:\/\/login\.tailscale\.com\S*/)?.[0] ?? '');
 
+  // How long this page has watched the switch on its way: past two minutes it says what holds it up.
+  let waited = $state(0);
   $effect(() => {
-    if (!applying) return;
-    const timer = setInterval(() => invalidateAll(), 5000);
+    if (!applying) {
+      waited = 0;
+      return;
+    }
+    const from = Date.now();
+    const timer = setInterval(() => {
+      waited = Date.now() - from;
+      invalidateAll();
+    }, 5000);
     return () => clearInterval(timer);
   });
+  const slow = $derived(applying && (data.updaterStale || waited > 2 * 60_000));
   const when = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : t('never');
 </script>
@@ -67,6 +77,16 @@
   </form>
   {#if !data.updaterInstalled}
     <p class="meta">{t("The host's updater applies this switch (spec 006). On the host, this sets it up:")} <code>sudo ./beni.sh update</code></p>
+  {:else if slow}
+    <p class="bad" role="status">
+      {#if data.updaterStale}
+        {t('The updater has not run since {when}, and it is what applies this switch.', { when: when(data.updaterSeen || null) })}
+        <a href="/settings/updates">{t('See Updates')}</a>
+      {:else}
+        {t('The updater runs, but has not applied the switch yet.')}
+        <a href="/settings/logs">{t('Its log')}</a> {t('(updater.log) says why. On the host, this applies it now and prints the result:')} <code>sudo sh &lt;folder&gt;-updater/update.sh funnel</code>
+      {/if}
+    </p>
   {:else if data.want === 'on' && f?.state === 'error'}
     <p class="bad">
       {#if enableLink}{t('Tailscale does not allow Funnel for this machine yet.')} <a href={enableLink} target="_blank" rel="noreferrer">{t('Enable Funnel')}</a>

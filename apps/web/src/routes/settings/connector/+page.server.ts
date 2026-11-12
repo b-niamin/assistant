@@ -10,7 +10,7 @@ import type { PageServerLoad } from './$types';
 import { listConnections, recentToolCalls, removeAllConnections, removeConnection } from '#lib/mcp/oauth.server.ts';
 import { tFor } from '#lib/i18n/index.ts';
 import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
-import { funnelStatus, setUpdaterControl, updaterControl, updaterStatus } from '#lib/server/updater.ts';
+import { funnelStatus, isStale, setUpdaterControl, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 
 export const load: PageServerLoad = async ({ cookies }) => {
   if (!(await isElevated(cookies.get(SESSION_COOKIE)))) throw redirect(303, '/settings?next=connector');
@@ -22,7 +22,17 @@ export const load: PageServerLoad = async ({ cookies }) => {
     listProfiles(),
     recentToolCalls(30)
   ]);
-  return { want: control.funnel ?? 'off', funnel, updaterInstalled: !!updater, connections, profiles, calls };
+  return {
+    want: control.funnel ?? 'off',
+    funnel,
+    updaterInstalled: !!updater,
+    // The updater applies the switch: when it has stopped ticking, "Turning on…" would wait forever.
+    updaterStale: !!updater && isStale(updater),
+    updaterSeen: updater ? updater.checkedAt || updater.at : '',
+    connections,
+    profiles,
+    calls
+  };
 };
 
 const guard = async (cookies: { get(n: string): string | undefined }) => isElevated(cookies.get(SESSION_COOKIE));

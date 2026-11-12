@@ -206,7 +206,7 @@ logs_put() {
   else
     op='>'; [ "$mode" = append ] && op='>>'
     docker run --rm -i --network none --user 0 -v "${PROJECT}_logs:/logs" --entrypoint sh "$(terminal_image)" \
-      -c "cat $op /logs/$name && chmod 644 /logs/$name" >/dev/null 2>&1 || true
+      -c "cat $op /logs/$name && chmod 644 /logs/$name" >/dev/null 2>&1
   fi
 }
 
@@ -799,9 +799,17 @@ funnel_apply() {
   fi
   body=$(printf '{"want":%s,"state":%s,"port":%s,"url":%s,"message":%s' "$(json_str "$want")" "$(json_str "$state")" "$(json_str "$port")" "$(json_str "$url")" "$(json_str "$msg")")
   # Written when something changed (without root that is a container per write), and at least hourly.
-  if [ "$body" != "$(cat "$HOME_DIR/funnel-status.body" 2>/dev/null)" ] || [ -n "$(find "$HOME_DIR/funnel-status.body" -mmin +60 2>/dev/null)" ]; then
-    printf '%s' "$body" > "$HOME_DIR/funnel-status.body"
-    printf '%s,"at":%s}\n' "$body" "$(json_str "$(iso)")" | logs_put funnel-status.json
+  # The copy kept here counts only for the `logs` volume it was written to (a reinstall makes a new one,
+  # with the updater's folder left over) and only once that write went through.
+  vol=$(docker volume inspect -f '{{.CreatedAt}}' "${PROJECT}_logs" 2>/dev/null || true)
+  if [ "$vol $body" != "$(cat "$HOME_DIR/funnel-status.body" 2>/dev/null)" ] || [ -n "$(find "$HOME_DIR/funnel-status.body" -mmin +60 2>/dev/null)" ] ||
+    { [ "$LOGS_DIRECT" = 1 ] && [ ! -f "$LOGS_MP/funnel-status.json" ]; }; then
+    if printf '%s,"at":%s}\n' "$body" "$(json_str "$(iso)")" | logs_put funnel-status.json; then
+      printf '%s' "$vol $body" > "$HOME_DIR/funnel-status.body"
+    else
+      rm -f "$HOME_DIR/funnel-status.body"
+      log "Claude connector: could not write funnel-status.json to the logs volume"
+    fi
   fi
   return 0
 }
@@ -1161,7 +1169,7 @@ case ${CMD:-run} in
   acl-paths) acl_paths ;;
   fix-permissions) setup_paths "$ARG"; fix_ownership; flush_log ;;
   run) cmd_run "$ARG" ;;
-  funnel) setup_paths "$ARG"; read_control; funnel_apply; flush_log; cat "$HOME_DIR/funnel-status.body" 2>/dev/null; echo ;;
+  funnel) setup_paths "$ARG"; read_control; funnel_apply; flush_log; sed 's/^[^{]*//' "$HOME_DIR/funnel-status.body" 2>/dev/null; echo ;;
   install) cmd_install "$ARG" ;;
   status) cmd_status "$ARG" ;;
   cancel)

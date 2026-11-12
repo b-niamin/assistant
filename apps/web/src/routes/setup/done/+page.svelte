@@ -8,10 +8,16 @@
     {
       href: '/settings/ai',
       title: t('Sign in to Claude Code or Codex'),
-      meta: t('The AI in the terminal builds and changes apps for you.')
+      meta: t('The AI in the terminal at the bottom of the app: it builds and changes apps for you, here on the server.')
     },
     ...(data.funnel === 'on'
-      ? [{ href: '/settings/profile#mcp-h', title: t('Connect Claude'), meta: t('Copy your address into claude.ai, Settings, Connectors.') }]
+      ? [
+          {
+            href: '/settings/profile#mcp-h',
+            title: t('Connect claude.ai and the Claude apps'),
+            meta: t('Over MCP: chat with Claude on the web or your phone about your data. Copy your address into claude.ai, Settings, Connectors.')
+          }
+        ]
       : []),
     { href: '/settings/profiles#add', title: t('Add the others at home'), meta: t('Everyone gets their own data and dashboard.') }
   ]);

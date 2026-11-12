@@ -130,7 +130,7 @@
   }
   .btn {
     justify-self: stretch;
-    padding-block: 10px;
+    height: 44px;
   }
   @media (max-width: 480px) {
     .two {

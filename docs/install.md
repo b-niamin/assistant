@@ -5,7 +5,8 @@ Synology walkthrough, the everyday `beni.sh` commands, extensions and developmen
 
 ## What the installer does
 
-It asks nothing. Every choice has a default that stays clear of what already runs: the folder
+In a terminal it asks a few questions; Enter takes the suggestion in [brackets], and `ASSISTANT_YES=1` (or
+no terminal) takes them all. A choice given as a variable below is not asked. The suggestions stay clear of what already runs: the folder
 (`assistant` in the folder you run it from, e.g. `/volume1/docker/assistant` after `cd /volume1/docker`), a free local port, the HTTPS port on
 your tailnet (443, or 8443 when something is already served there), updates from `main` by themselves
 ([spec 006](../specs/006-auto-update.md)) and starting the stack itself. It clones this repo, writes `.env`

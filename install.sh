@@ -4,8 +4,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh | sudo sh
 #   # or, from a checkout:  ./install.sh [extension ...]
 #
-# It asks nothing: every choice has a default that avoids what is already running, and the rest (the app
-# password, your profile, the language, the apps, updates, the Claude connector) is the web wizard at
+# In a terminal it asks a few questions (folder, port, Tailscale, start, updates); Enter takes the
+# suggestion, which avoids what is already running. ASSISTANT_YES=1 (or no terminal) takes them all. The
+# rest (the app password, your profile, the language, the apps, the Claude connector) is the web wizard at
 # /setup. It installs into ./assistant (the folder it runs from + assistant). Defaults can be changed
 # up front: ASSISTANT_DIR, WEB_PORT, ASSISTANT_HTTPS_PORT,
 # ASSISTANT_EXTENSIONS (or arguments: sh -s -- health gym), ASSISTANT_AUTO_UPDATE=0|1 and
@@ -82,6 +83,23 @@ if [ -n "${ASSISTANT_DIR:-}" ] && [ "$in_checkout" = yes ] && [ "$(cd "$ASSISTAN
   in_checkout=no
 fi
 if [ "$in_checkout" = yes ]; then DIR=$(pwd); else DIR=${ASSISTANT_DIR:-}; fi
+# A few questions on a new install when there is a terminal (Enter takes the suggestion); ASSISTANT_YES=1,
+# or no terminal, takes every default. A choice given as a variable is not asked.
+ask() { # $1 = variable, $2 = question, $3 = suggestion
+  printf '\033[1m?\033[0m %s [%s]: ' "$2" "$3" > /dev/tty
+  IFS= read -r a < /dev/tty || a=""
+  eval "$1=\${a:-\$3}"
+}
+yes_no() { # $1 = question, $2 = y|n suggestion; true for yes
+  ask _yn "$1 (y/n)" "$2"; case $_yn in [nN]*) return 1 ;; *) return 0 ;; esac
+}
+interactive=no
+[ "${ASSISTANT_YES:-0}" != 1 ] && (exec < /dev/tty) 2>/dev/null && interactive=yes
+if [ "$interactive" = yes ] && [ -z "$DIR" ] && [ ! -f "$default_dir/.env" ]; then
+  printf '\n  Beni Assistant installer. Enter takes the suggestion in [brackets].\n\n' > /dev/tty
+  ask DIR "Install folder" "$default_dir"
+  case $DIR in /*) ;; *) DIR=$(pwd)/$DIR ;; esac
+fi
 DIR=${DIR:-$default_dir}
 # A finished install has INSTALLED_AT in .env; an interrupted one runs again (its ports stay).
 complete=no
@@ -93,13 +111,36 @@ if [ -f "$DIR/.env" ]; then
   ASSISTANT_TAILSCALE=${ASSISTANT_TAILSCALE:-${saved_ts:-1}}
 else
   PORT=${WEB_PORT:-$(free_port 3000)}
+  if [ "$interactive" = yes ]; then
+    while [ -z "${WEB_PORT:-}" ]; do
+      ask PORT "Local port for the app" "$PORT"
+      case $PORT in '' | *[!0-9]*) printf '  not a port number\n' > /dev/tty; PORT=$(free_port 3000); continue ;; esac
+      port_used "$PORT" && { printf '  port %s is in use\n' "$PORT" > /dev/tty; PORT=$(free_port "$PORT"); continue; }
+      break
+    done
+    if [ -z "${ASSISTANT_TAILSCALE:-}" ] && command -v tailscale >/dev/null 2>&1; then
+      yes_no "Publish it on your tailnet over HTTPS (tailscale serve)? n = this machine only" y || ASSISTANT_TAILSCALE=0
+    fi
+  fi
   if [ "${ASSISTANT_TAILSCALE:-1}" = 0 ]; then HTTPS_PORT=443
   elif [ -n "${ASSISTANT_HTTPS_PORT:-}" ]; then HTTPS_PORT=$ASSISTANT_HTTPS_PORT
   elif tailnet_https_used 443; then HTTPS_PORT=8443; while tailnet_https_used "$HTTPS_PORT"; do HTTPS_PORT=$((HTTPS_PORT + 1)); done
   else HTTPS_PORT=443; fi
+  if [ "$interactive" = yes ] && [ "${ASSISTANT_TAILSCALE:-1}" != 0 ] && [ -z "${ASSISTANT_HTTPS_PORT:-}" ] && command -v tailscale >/dev/null 2>&1; then
+    ask HTTPS_PORT "HTTPS port on your tailnet (443 = https://<machine>; another keeps what is served on 443)" "$HTTPS_PORT"
+  fi
 fi
 # How it is started (now = by this installer, manual = Container Manager & co.): kept in .env.
 saved_start=$(sed -n 's/^START_MODE=//p' "$DIR/.env" 2>/dev/null | tail -n 1)
+if [ "$interactive" = yes ] && [ ! -f "$DIR/.env" ]; then
+  if [ -z "${ASSISTANT_START:-}" ]; then
+    yes_no "Start it now? n = you start it yourself (Synology Container Manager, Portainer)" y || ASSISTANT_START=manual
+  fi
+  if [ -z "${ASSISTANT_AUTO_UPDATE:-}" ]; then
+    if yes_no "Update by itself from GitHub main? n = only when you click Update in the app" y; then ASSISTANT_AUTO_UPDATE=1
+    else ASSISTANT_AUTO_UPDATE=0; fi
+  fi
+fi
 START=${ASSISTANT_START:-${saved_start:-now}}
 if [ "$complete" = yes ]; then
   # Re-run: keep everything; only extensions named on the command line are added.

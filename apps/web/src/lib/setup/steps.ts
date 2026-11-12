@@ -1,6 +1,6 @@
 /**
- * The first-run wizard (spec 002, "Install"): install.sh asks nothing and prints the address and a setup
- * code; these pages do the rest. Step 1 (/setup) needs the code and makes the password, the language and
+ * The first-run wizard (spec 002, "Install"): install.sh asks only where and how it runs and prints the
+ * address and a setup code; these pages do the rest. Step 1 (/setup) needs the code and makes the password, the language and
  * the first profile; the others run logged in and unlocked, and each can be skipped.
  */
 export const SETUP_STEPS = [

@@ -42,7 +42,8 @@ sudo sh install.sh
 
 (`curl -fsSL .../install.sh | sudo sh` does the same in one line, without the reading.)
 
-It asks nothing: it picks free ports, starts the stack and prints an address and a setup code.
+It asks a few questions (folder, port, Tailscale, start, updates); Enter takes the suggestion, `ASSISTANT_YES=1`
+takes them all. Then it starts the stack and prints an address and a setup code.
 
 1. Open the printed address + `/setup`, enter the setup code and follow the wizard: password, profile, apps, updates and Claude.
 2. Check the install with `sudo ./beni.sh doctor`.

@@ -144,7 +144,7 @@ A page starts with `PageHead` (title, one line, an action); cards, rows and choi
 
 ## First run
 
-`install.sh` asks nothing and prints an address and a setup code. The wizard at `/setup` (`lib/setup/steps.ts`)
+`install.sh` asks only where and how it runs (folder, ports, Tailscale, start, updates) and prints an address and a setup code. The wizard at `/setup` (`lib/setup/steps.ts`)
 has four steps with a progress row and Beni: you (code, password, name, language), apps (catalog, installed in
 the dock's terminal), updates and Claude (update mode, Claude connector) and done (what is next).
 

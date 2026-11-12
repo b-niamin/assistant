@@ -372,7 +372,11 @@ its author is careless or hostile, and what stops it:
 So:
 
 - **onefile** extensions may come from anywhere the owner chooses to run them.
-- **native** extensions are code the owner trusts as much as the shell itself. They are the only user and
+- **native** extensions are code the owner trusts as much as the shell itself. Since the Claude
+  connector, their MCP tools also get arguments from the internet (through claude.ai): validate every
+  argument in `run`, and never pass one into SQL text, a URL or a shell command unchecked. A separate
+  extension host with its own database login (no `process.env`, no `RESET ROLE`) is the long-term fix;
+  until then this table is the contract. They are the only user and
   the app is on their tailnet, so any source may inspire one; Claude writes the code here, and the lint still refuses dangerous migrations and shell-internal imports.
 - **Database migrations** of an extension never run as the superuser. `db/migrate.sh` creates the schema
   owned by `ext_<id>_owner`, gives that role LOGIN with a random password for the run, applies the files

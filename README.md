@@ -34,8 +34,12 @@ Runs on Linux or a Synology NAS with Docker Compose. You reach it over your Tail
 On a Synology NAS or any Linux host with Docker and Compose:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/b-niamin/assistant/main/install.sh -o install.sh
+less install.sh        # it runs as root: read what it does first
+sudo sh install.sh
 ```
+
+(`curl -fsSL .../install.sh | sudo sh` does the same in one line, without the reading.)
 
 1. Accept the defaults with Enter: folder, port, extensions, auto-update.
 2. Open the printed address + `/setup`, enter the setup code, set the app password and the first profile.

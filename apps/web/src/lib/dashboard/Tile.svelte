@@ -55,9 +55,11 @@
     <span class="sr">{t('Loading')}</span>
   {:then r}
     {#if !r.ok}
-      <div class="pipnote">
-        <Mascot mood="tired" size={36} accessory={worn} decorative />
-        <p class="soft">{r.reason === 'timeout' ? t('Still loading. Open to see more.') : t('Unavailable right now.')}</p>
+      <div class="empty">
+        <div class="pipnote">
+          <Mascot mood="tired" size={36} accessory={worn} decorative />
+          <p class="soft">{r.reason === 'timeout' ? t('Still loading. Open to see more.') : t('Unavailable right now.')}</p>
+        </div>
         <button type="button" class="btn retry" onclick={() => invalidateAll()}>{t('Try again')}</button>
       </div>
     {:else}
@@ -321,8 +323,10 @@
     }
   }
   /* Above the card's stretched link. */
+  /* Under the message, never squeezed beside it: a long word ("Spróbuj ponownie") stays on one line. */
   .retry {
     position: relative;
     z-index: 2;
+    white-space: nowrap;
   }
 </style>

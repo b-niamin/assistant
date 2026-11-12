@@ -34,7 +34,7 @@ browser inside the app) are isolated.
 | Claude connector tokens | `core.oauth_tokens`, SHA-256 hashes only (spec 005) | web (`app_rw`); not `claude_ro` |
 | Extension service logins (e.g. Garmin) | `<id>.secret_*` tables, Fernet (`TOKEN_ENCRYPTION_KEY`) | that extension's service (`ext_<id>_svc`); the key only to units that list it in `keys` |
 | Extension service database passwords | derived per role from `SERVICES_DB_PASSWORD` (`.env`) | the worker's supervisor; each unit gets only its own extension's |
-| Claude Code / Codex / gh logins | files in the `claude-home` volume | `terminal` container |
+| Claude Code / Codex / gh logins | files in the `agent-home` volume | `terminal` container |
 | Browser sessions (cookies) | `browser-profile` volume | `browser` container; usable over CDP from `terminal` |
 | Sidecar ticket key | `SIDECAR_TICKET_SECRET` in `.env` | web, terminal |
 
@@ -61,7 +61,7 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
                                      ┌──────────────────────────┴───────────────────────────┐
                               terminal:7681 (re-checks ticket)                     browser:6080 (noVNC)
                               shell in tmux, Claude Code,                          Chromium on Xvfb,
-                              Codex, claude-home + checkout                        browser-profile volume
+                              Codex, agent-home + checkout                        browser-profile volume
                                                                                    CDP :9223 ──► terminal (playwright MCP)
 ```
 
@@ -72,7 +72,7 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
   stopped by the Origin check (browsers do not apply CORS to WebSockets).
 - **Terminal**: own container (`docker/terminal`); no Docker socket, no `.env`, no port. The shell
   gets a clean environment (the ticket key is not in it). Claude Code, Codex and gh are signed in here
-  (`claude` then `/login`, `codex login --device-auth`, `gh auth login`; logins in `claude-home`) and run
+  (`claude` then `/login`, `codex login --device-auth`, `gh auth login`; logins in `agent-home`) and run
   only here: nothing runs them in the background and nothing reaches them from outside (Remote Control was
   removed; the Claude connector replaces it). tmux keeps a session alive across reconnects. Sessions end
   after 8 h. The terminal lives only in the dock at the bottom of every page, and the dock exists only
@@ -134,14 +134,14 @@ defence against the owner's own Claude.
 | # | Finding | Severity | Status |
 |---|---|---|---|
 | A1 | Claude (and anything that injects a prompt into it) is effectively admin: it edits code that runs live in `web` (has `SECRETS_KEY`, `SIDECAR_TICKET_SECRET`, `app_rw`) and in extension services (e.g. `garmin-sync`: root, `TOKEN_ENCRYPTION_KEY`), and `ext-migrate` applied new `db/migrations/*.sql` as the Postgres superuser within 15 s. Hiding `.env` stops accidents, not a determined prompt injection | High (by design) | Partly fixed 2026-11-12: core migrations only from main (migrate image), critical agent actions need the owner's approval (see "Agents in the terminal"). Accepted: it is the "Claude builds the app" feature. Limits: review Claude's commits, keep the browser signed in only where needed, do not let Claude browse untrusted pages and edit code in the same session without reading what it did |
-| A2 | `<id>__query` ran the SQL as `app_rw` after `SET LOCAL ROLE ext_<id>`; `set_config('role','none',true)` + `query_to_xml(...)` in one SELECT climbed back to `app_rw` and read `core.sessions` (session ids, so an elevated session and a terminal ticket), the password hash and extension secret ciphertexts. Reproduced on Postgres 16 | High | Fixed: the SQL runs inside `ext_query.<schema>(text)`, a security-definer function owned by `ext_<id>` (migration 009, `db/extension-role.sql`); Postgres refuses any role change inside it |
+| A2 | `<id>__query` ran the SQL as `app_rw` after `SET LOCAL ROLE ext_<id>`; `set_config('role','none',true)` + `query_to_xml(...)` in one SELECT climbed back to `app_rw` and read `core.sessions` (session ids, so an elevated session and a terminal ticket), the password hash and extension secret ciphertexts. Reproduced on Postgres 16 | High | Fixed: the SQL runs inside `ext_query.<schema>(text)`, a security-definer function owned by `ext_<id>` (`db/extension-role.sql`); Postgres refuses any role change inside it |
 | A3 | noVNC (websockify :6080) had no origin check and VNC has no password: any web page open in the in-app browser (or one Claude visits) could open `ws://localhost:6080` and drive the signed-in browser | High | Fixed: websockify `ExpectOrigin` = `PUBLIC_ORIGIN`, the web proxy sends that Origin (needs a browser image rebuild) |
 | A4 | Changing the app password left every other session logged in for up to 30 days | Medium | Fixed: the password action deletes every other session |
-| A5 | Session ids are stored in plain text in `core.sessions` (a database read = a session) | Medium | Fixed (migration 013): the table keeps `h:` + SHA-256 of the cookie; existing sessions were hashed in place, no re-login. Sessions now last 30 days from their last use |
+| A5 | Session ids are stored in plain text in `core.sessions` (a database read = a session) | Medium | Fixed: the table keeps `h:` + SHA-256 of the cookie; Sessions now last 30 days from their last use |
 | A6 | Login and unlock rate limits are keyed on the proxy address (finding 5 above), so one tailnet device can lock everyone out for 15 min | Low | Open, as above |
 | A7 | `ctx.db` of native extensions has the same `SET LOCAL ROLE` escape as A2 | Low | By design (finding 2): native extension code is trusted, it runs in the web process anyway |
 | A8 | Chromium runs with `--no-sandbox`: a renderer exploit runs in the browser container, which can reach `web:3000`, `terminal:7681` (needs a ticket) and its own CDP | Low | Accepted (spec above) |
-| A9 | Extension secrets are AES-GCM without associated data: a database writer could swap two ciphertexts between extensions | Low | Fixed: new values carry `extension_id:name` as AAD (`v2:` prefix); older ones still read and are re-encrypted when saved again |
+| A9 | Extension secrets are AES-GCM without associated data: a database writer could swap two ciphertexts between extensions | Low | Fixed: every value carries `extension_id:name` as AAD |
 | A10 | Extension services such as health's `garmin-sync` run as root and `pip install`s `requirements.txt` from the checkout on every start | Low | Fixed for the worker (2026-11-12): each extension runs, and installs its requirements, as its own uid; still true for an extension's own `compose.yml` |
 | A11 | Every unit in the worker can read the host's `/proc` and `/sys` (process list and command lines of the machine, hardware), whether its manifest lists `host` or not: one container, one set of mounts | Low | Accepted: read-only, no environment (other uids), no secrets in `/sys`; `host` in the manifest is for review and System settings -> Worker, and `ext check` refuses access the worker does not open. Per-unit mount namespaces would need privileges the worker should not have |
 | A12 | Units of one extension share a uid, its folder and its database role, and all units share the worker's memory limit (1 GB) and network | Low | Accepted: one extension is one trust unit (its services already share `ext_<id>_svc`). A runaway unit is visible (memory per unit in System settings -> Worker) and restartable there |

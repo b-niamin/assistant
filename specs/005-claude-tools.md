@@ -119,14 +119,14 @@ must be reachable over public HTTPS. The rest of the app must not be.
 - **One manual step**: Tailscale has to allow Funnel for the machine once (the `funnel` node attribute in
   the tailnet policy file). Until then `tailscale funnel` prints a link to enable it; the settings page
   shows that link.
-- **OAuth 2.1** (`lib/mcp/oauth*.ts`, migration 010), what MCP clients expect:
+- **OAuth 2.1** (`lib/mcp/oauth*.ts`), what MCP clients expect:
   - discovery: `/mcp` answers 401 with `WWW-Authenticate: Bearer resource_metadata=...`; the metadata
     documents (RFC 9728, RFC 8414) put every endpoint under `/mcp/oauth/`. The issuer is the address the
     client used (only the public host name is believed from `Host`).
   - dynamic client registration (`/mcp/oauth/register`, RFC 7591), rate-limited, at most 200 clients.
     Redirect URIs: https on claude.ai or claude.com (plus the hosts in `MCP_REDIRECT_HOSTS`), or http on
     the loopback. Anything else could collect a code the owner approved for "Claude".
-  - `/mcp/oauth/authorize` (migration 011): a self-contained page (no app scripts or styles, which the
+  - `/mcp/oauth/authorize`: a self-contained page (no app scripts or styles, which the
     public listener does not serve) that asks for nothing. It files a request in `core.oauth_requests`
     (with the address the client names in `resource`, RFC 8707), sets a cookie tying it to this browser,
     and shows the client's name, return host and a code such as `KQPT-WMRA`, refreshing itself. The owner

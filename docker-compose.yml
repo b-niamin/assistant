@@ -17,15 +17,16 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-assistant}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-assistant}
-    # Postgres keeps its data in /var/lib/postgresql/<major>/docker. A volume with data of Postgres 16 or
-    # older at its top does not start: restore the latest daily backup into a new volume instead
-    # (docs/install.md "Backups"), so an older database is never silently replaced by an empty one.
+    # Postgres keeps its data in /var/lib/postgresql/<major>/docker. A volume with another major's data and
+    # none of this one's does not start: a new major would otherwise begin with an empty database next to
+    # the old one. Restore the latest daily backup into a new volume (docs/install.md, Upgrading Postgres).
     entrypoint:
       - sh
       - -c
       - |
-        if [ -f /var/lib/postgresql/PG_VERSION ]; then
-          echo "This volume holds a Postgres $$(cat /var/lib/postgresql/PG_VERSION) database; this image is Postgres $$PG_MAJOR. Restore the latest backup into a new volume: docs/install.md, Upgrading Postgres." >&2
+        other=$$(cd /var/lib/postgresql && ls -d */docker/PG_VERSION 2>/dev/null | cut -d/ -f1 | grep -vx "$$PG_MAJOR" | head -n 1)
+        if [ -n "$$other" ] && [ ! -f "/var/lib/postgresql/$$PG_MAJOR/docker/PG_VERSION" ]; then
+          echo "This volume holds a Postgres $$other database; this image is Postgres $$PG_MAJOR. Restore the latest backup into a new volume: docs/install.md, Upgrading Postgres." >&2
           exit 1
         fi
         exec docker-entrypoint.sh postgres
@@ -175,7 +176,7 @@ services:
     mem_limit: 1536m
 
   # In-app terminal (spec 004): the dock at the bottom of every page, with Claude Code, Codex and gh. Logins
-  # typed there (`claude` + /login, `codex login`, `gh auth login`) live in the claude-home volume. No port, no
+  # typed there (`claude` + /login, `codex login`, `gh auth login`) live in the agent-home volume. No port, no
   # docker socket, no .env; the web app proxies to it only with a single-use ticket, which it re-checks.
   # See docker/terminal/README.md.
   terminal:
@@ -210,7 +211,7 @@ services:
       - .:/workspace
       # Shadow the secrets file: the container sees an empty .env.
       - /dev/null:/workspace/.env:ro
-      - claude-home:/home/claude
+      - agent-home:/home/claude
       - logs:/logs:ro
       # The worker's status and its units' logs, to read (spec 002, "Background work").
       - worker:/worker:ro
@@ -275,11 +276,9 @@ volumes:
   updater-control:
   browser-profile:
   db-data:
-  # The agents' home (logins of Claude, Codex, gh): still named claude-home, so older installs keep their logins.
-  claude-home:
+  # The agents' home (logins of Claude, Codex, gh).
+  agent-home:
   logs:
-  # Dumps of the old backup layout (before BACKUP_DIR); kept so nothing is lost, no longer written.
-  backups:
   # The worker's status, logs and the app's requests to it; its units' data and venvs.
   worker:
   worker-data:

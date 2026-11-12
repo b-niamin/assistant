@@ -53,19 +53,6 @@ ext_owner_prepare() { # $1 = schema name, $2 = owner role
 SELECT format('CREATE ROLE %I NOLOGIN', :'o') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'o') \gexec
 SELECT format('CREATE SCHEMA %I AUTHORIZATION %I', :'s', :'o')
   WHERE NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = :'s') \gexec
--- Schemas created before spec 004 belong to the superuser: hand them and their objects over.
-SELECT format('ALTER SCHEMA %I OWNER TO %I', :'s', :'o') \gexec
-SELECT format('ALTER TABLE %I.%I OWNER TO %I', n.nspname, c.relname, :'o')
-  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = :'s' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-    AND pg_get_userbyid(c.relowner) <> :'o' \gexec
-SELECT format('ALTER SEQUENCE %I.%I OWNER TO %I', n.nspname, c.relname, :'o')
-  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = :'s' AND c.relkind = 'S' AND pg_get_userbyid(c.relowner) <> :'o'
-    AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = c.oid AND d.deptype IN ('a', 'i')) \gexec
-SELECT format('ALTER ROUTINE %s OWNER TO %I', p.oid::regprocedure, :'o')
-  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = :'s' AND pg_get_userbyid(p.proowner) <> :'o' \gexec
 -- What its tables may point at: core.profiles (foreign keys) and nothing else of the shell.
 SELECT format('GRANT USAGE ON SCHEMA core TO %I', :'o') \gexec
 SELECT format('GRANT SELECT, REFERENCES ON core.profiles TO %I', :'o') \gexec

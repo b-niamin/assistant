@@ -75,7 +75,7 @@ The running delta is neutral on purpose: a week in progress is always behind a f
 ## Layout per profile
 
 "Arrange" on the dashboard edits this profile's tile order and hides tiles (`core.dashboard_layout`,
-migration 007, keyed by tile key such as `health:readiness`). Tiles without a row (a newly installed
+`core.dashboard_layout`, keyed by tile key such as `health:readiness`). Tiles without a row (a newly installed
 extension) come after the placed ones in default order. No unlock needed: it changes only the viewer's
 profile.
 

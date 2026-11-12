@@ -3,7 +3,7 @@ import { addItems, itemHint, removeItem, splitItems } from './secret-items';
 
 describe('secret items', () => {
   it('reads old space-separated values and stores one item per line', () => {
-    expect(splitItems('a b,c\nd')).toEqual(['a', 'b', 'c', 'd']);
+    expect(splitItems('a b\nc')).toEqual(['a', 'b', 'c']);
     expect(addItems('a b', 'c a')).toBe('a\nb\nc');
     expect(addItems(null, ' x ')).toBe('x');
   });

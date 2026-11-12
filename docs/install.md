@@ -30,14 +30,14 @@ prepares `stack/docker-compose.yml` and `stack/.env` and says where to point the
 
 Containers and volumes are named after the compose project: the folder name, pinned in `.env` as
 `COMPOSE_PROJECT_NAME` so the folder can move later. When another folder's stack already uses that name
-(the older single-repo install also lived in a folder called `assistant`), a new install takes the next
-free one (`assistant-2`) and says so.
+(another install in a folder with the same name), a new install takes the next free one (`assistant-2`)
+and says so.
 
 Two steps stay in a terminal because they log in to outside accounts:
 
 ```sh
 docker compose exec -it terminal claude                 # /login once (or from the app's terminal)
-docker compose exec -it garmin-sync python -m sync login   # only with the health extension (password never stored)
+docker compose exec -it worker ext-run health garmin-sync python -m sync login   # only with health (password never stored)
 ```
 
 Re-running `./install.sh` is safe: it keeps `.env` and your extensions. Run it again after adding an
@@ -60,23 +60,12 @@ extension that brings a background service.
    → Sign in (or `docker compose exec -it terminal claude`, then `/login` and `/exit`). They run in the
    terminal at the bottom of the app.
 7. **Claude connector** (claude.ai and the Claude apps): see below.
-8. **Garmin** (health extension): `docker compose exec -it garmin-sync python -m sync login`; history:
-   `docker compose exec garmin-sync python -m sync backfill`.
+8. **Garmin** (health extension): `docker compose exec -it worker ext-run health garmin-sync python -m sync login`;
+   the history then downloads in the background.
 
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task
 Scheduler entry). The new install has its own compose project, so fresh volumes, and the old data stays
 until you remove it (`docker compose down -v` in the old folder).
-
-Installs made before the default folder became `/volume1/docker/assistant` live in
-`/volume1/docker/assistant-core`. To move one (the data stays; the containers and volumes keep the
-`assistant-core` names):
-
-```sh
-cd /volume1/docker/assistant-core && sudo ./beni.sh move /volume1/docker/assistant
-```
-
-It stops the stack, moves the folder and the updater next to it, and runs the installer there. Then change
-the update task's command in DSM Task Scheduler to the one it prints.
 
 ## Everyday: `beni.sh`
 
@@ -143,7 +132,7 @@ CPU types (NAS, Mac, Raspberry Pi): the dump is logical.
 ### Upgrading Postgres
 
 A new Postgres major (the `db` image) cannot read an older one's files, so the database moves through its
-daily dump. When `db` stops with "This volume holds a Postgres 16 database", make sure the last backup is
+daily dump. When `db` stops with "This volume holds a Postgres <old> database", make sure the last backup is
 recent (`./beni.sh doctor`), keep the old files aside and restore into a new volume (`<project>` is
 `COMPOSE_PROJECT_NAME` in `.env`):
 

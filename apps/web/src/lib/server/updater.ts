@@ -16,7 +16,7 @@ export interface UpdaterStatus {
   deployedAt: string;
   at: string;
   branch: string;
-  /** Last tick (heartbeat), '' when the updater never wrote one (older updaters, or none running). */
+  /** Last tick (heartbeat), '' when the updater never wrote one (none running yet). */
   checkedAt: string;
   /** While updating: step n of steps (0 when unknown) and when the deploy started. */
   step: number;
@@ -24,13 +24,13 @@ export interface UpdaterStatus {
   startedAt: string;
   /** Which try of this update (2+ = resumed after an interruption). */
   attempt: number;
-  /** The app's last request the updater took ('' when none, or an older updater). */
+  /** The app's last request the updater took ('' when none). */
   request: string;
   /** Services that still run the previous version until a confirmed restart ("terminal"), '' when none. */
   pendingRestart: string;
   /** The app's last "Restart now" the updater took. */
   restartRequest: string;
-  /** The repo the updater follows (no credentials), '' from older updaters. */
+  /** The repo the updater follows (no credentials), '' when unknown. */
   repo: string;
 }
 
@@ -99,8 +99,8 @@ export function updateView(
   if (s.status === 'updating') {
     if (now - lastSeen(s) > STALLED_MS) state = 'interrupted';
   } else if (isStale(s, now)) state = 'stale';
-  // The updater echoes the request it took; older ones did not, so compare times for them.
-  const pending = !!c.request && c.request !== s.request && (!!s.request || Date.parse(c.request) > Date.parse(s.at));
+  // The updater echoes the request it took.
+  const pending = !!c.request && c.request !== s.request;
   const restartPending = !!c.restart && c.restart !== s.restartRequest;
   const unanswered = (pending && now - Date.parse(c.request) > UNANSWERED_MS) || (restartPending && now - Date.parse(c.restart ?? '') > UNANSWERED_MS);
   return { state, pending, unanswered, restartPending };
@@ -134,9 +134,7 @@ export interface UpdaterControl {
   funnel?: 'on' | 'off';
 }
 
-// Older stacks (and tests) keep it next to the status file, in the shared `logs` volume.
-const legacyControlFile = (statusFile: string) => path.join(path.dirname(statusFile), 'updater-control');
-const controlFile = (statusFile: string) => process.env.UPDATER_CONTROL_FILE || legacyControlFile(statusFile);
+const CONTROL_FILE = () => process.env.UPDATER_CONTROL_FILE ?? '/updater/control';
 const STATUS_FILE = () => process.env.UPDATER_STATUS_FILE ?? '/logs/updater-status.json';
 
 export function parseControl(raw: string): UpdaterControl {
@@ -152,14 +150,11 @@ export function parseControl(raw: string): UpdaterControl {
   };
 }
 
-export async function updaterControl(file = STATUS_FILE()): Promise<UpdaterControl> {
-  // Until the app first writes the new file, the choices made before (mode, Funnel) are in the old one.
-  const raw = await readFile(controlFile(file), 'utf8').catch(() => null);
-  return parseControl(raw ?? (await readFile(legacyControlFile(file), 'utf8').catch(() => '')));
+export async function updaterControl(file = CONTROL_FILE()): Promise<UpdaterControl> {
+  return parseControl(await readFile(file, 'utf8').catch(() => ''));
 }
 
-export async function setUpdaterControl(c: UpdaterControl, file = STATUS_FILE()): Promise<void> {
-  const target = controlFile(file);
+export async function setUpdaterControl(c: UpdaterControl, target = CONTROL_FILE()): Promise<void> {
   const lines = [
     `mode=${c.mode}`,
     `restarts=${c.restarts ?? 'ask'}`,

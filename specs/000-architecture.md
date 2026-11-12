@@ -75,7 +75,7 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
 ## Terminal container (where the AI CLIs run)
 
 - Image (`docker/terminal`): Node + Claude Code + Codex + gh + git + psql + python3, non-root user (`HOST_UID`).
-- Volumes: the repo checkout (the same files `web` runs), `claude-home` (login state), `/logs`
+- Volumes: the repo checkout (the same files `web` runs), `agent-home` (login state), `/logs`
   read-only. `.env` is shadowed by an empty file.
 - Sign in once from System settings -> Terminal (`claude` + `/login`, `codex login`, `gh auth login`).
   The CLIs run only in the dock's shell, started by hand or by the app (Update, Build it, Install); nothing

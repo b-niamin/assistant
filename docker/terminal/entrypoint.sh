@@ -3,7 +3,7 @@
 # which the web app proxies the dock's shell to. Claude Code and Codex run inside that shell, started by
 # hand or by the app ("Update", "Build it", "Install"); nothing runs them in the background.
 #
-# Login state lives in /home/claude (the claude-home volume), so it survives restarts and rebuilds.
+# Login state lives in /home/claude (the agent-home volume), so it survives restarts and rebuilds.
 set -u
 cd /workspace
 

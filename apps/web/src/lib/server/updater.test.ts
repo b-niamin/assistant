@@ -51,28 +51,12 @@ it('reads the heartbeat next to the status and tells a stopped updater', async (
 
 it('keeps the manual mode and the update request for the host', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'upd-'));
-  const file = path.join(dir, 'updater-status.json');
+  const file = path.join(dir, 'control');
   expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '', cancel: '', restarts: 'ask', restart: '', funnel: 'off' });
   const c = { mode: 'manual' as const, request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z', restarts: 'auto' as const, restart: '2026-11-09T15:50:00.000Z', funnel: 'on' as const };
   await setUpdaterControl(c, file);
   expect(await updaterControl(file)).toEqual(c);
   expect(parseControl('mode=manual\nrequest=$(reboot)\nrestart=;rm\nfunnel=yes\n')).toEqual({ mode: 'manual', request: '', cancel: '', restarts: 'ask', restart: '', funnel: 'off' });
-});
-
-it('writes the requests to their own volume, and reads the old file until then', async () => {
-  const logs = mkdtempSync(path.join(tmpdir(), 'upd-logs-'));
-  const own = path.join(mkdtempSync(path.join(tmpdir(), 'upd-ctl-')), 'control');
-  const file = path.join(logs, 'updater-status.json');
-  writeFileSync(path.join(logs, 'updater-control'), 'mode=manual\nfunnel=on\n');
-  process.env.UPDATER_CONTROL_FILE = own;
-  try {
-    expect(await updaterControl(file)).toMatchObject({ mode: 'manual', funnel: 'on' });
-    await setUpdaterControl({ ...(await updaterControl(file)), restarts: 'auto' }, file);
-    expect(readFileSync(own, 'utf8')).toContain('funnel=on');
-    expect(readFileSync(path.join(logs, 'updater-control'), 'utf8')).not.toContain('restarts');
-  } finally {
-    delete process.env.UPDATER_CONTROL_FILE;
-  }
 });
 
 it('reads the Claude connector state the updater applied, and nothing else', () => {
@@ -99,8 +83,6 @@ it('tells a running update from one whose process died, and a request not taken 
   expect(updateView(ok, asked, t('2026-11-06T20:10:00Z'))).toMatchObject({ pending: true, unanswered: false });
   expect(updateView(ok, asked, t('2026-11-06T20:13:00Z'))).toMatchObject({ pending: true, unanswered: true });
   expect(updateView({ ...ok, request: asked.request }, asked, t('2026-11-06T20:13:00Z')).pending).toBe(false);
-  // An older updater (no request echo): taken when its status is newer than the click.
-  expect(updateView({ ...ok, at: '2026-11-06T20:09:30Z' }, asked, t('2026-11-06T20:10:00Z')).pending).toBe(false);
 });
 
 it('tells a restart asked for and not taken yet', () => {

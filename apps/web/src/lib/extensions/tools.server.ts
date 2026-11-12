@@ -142,7 +142,7 @@ export async function listTools(profileId: string): Promise<ExtensionTools[]> {
       description: e.description,
       kind: e.kind,
       scope: e.scope,
-      // Languages it has translations for (spec 007); compare with `languages` of GET /api/claude.
+      // Languages it has translations for (spec 007).
       languages: e.languages,
       tools: (await toolsOf(e)).map(infoOf)
     }))

@@ -1,6 +1,6 @@
 /**
  * DB-backed opaque sessions for the single app password (core.sessions). The table keeps only a hash of
- * the cookie (migration 013), so a copy of the database holds no working login. A session lasts
+ * the cookie, so a copy of the database holds no working login. A session lasts
  * SESSION_DAYS from its last use: an active browser stays signed in, an idle one runs out.
  */
 import { createHash, randomBytes } from 'node:crypto';

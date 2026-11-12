@@ -7,7 +7,7 @@
 # idle runs, changes of each kind, a broken build, a hung build, an update killed halfway (resumed), two
 # runs at once, cancelling from the host and from the app, manual mode with "Update now", a terminal run
 # with its progress bar, a tampered compose file, a planted hook, local changes in the way, stale locks,
-# the updater updating itself, and an older updater's scheduled task handing over.
+# and the updater updating itself.
 set -eu
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -43,13 +43,14 @@ services:
   web:
     image: alpine:3.20
     command: ['sleep', 'infinity']
-    volumes: [logs:/logs, ./apps/web:/app]
+    volumes: [logs:/logs, updater-control:/updater, ./apps/web:/app]
 volumes:
   logs:
+  updater-control:
 YML
 asown sh -c "printf 'FROM alpine/git:v2.45.2\nENTRYPOINT []\n' > '$T/work/docker/terminal/Dockerfile'"
 asown sh -c "echo v1 > '$T/work/apps/web/page.txt'; printf '.env\n' > '$T/work/.gitignore'"
-asown cp "$HERE/update.sh" "$HERE/auto-update.sh" "$T/work/scripts/"
+asown cp "$HERE/update.sh" "$T/work/scripts/"
 gito add -A; gito commit -qm A; gito push -q origin main 2>/dev/null
 commit() { gito add -A; gito commit -qm "$1"; gito push -q origin main 2>/dev/null; }
 # The echo makes every test run build afresh (a cached `RUN sleep` would not take its time).
@@ -63,6 +64,7 @@ dc up -d --build --quiet-pull >/dev/null 2>&1
 llm_img() { docker inspect -f '{{.Image}}' "$(dc ps -q terminal)"; }
 img0=$(llm_img)
 LOGS=$(docker volume inspect -f '{{.Mountpoint}}' "${P}_logs")
+CTL=$(docker volume inspect -f '{{.Mountpoint}}' "${P}_updater-control")/control
 
 export ASSISTANT_UPDATER_HOME=$UH ASSISTANT_COMPOSE_PROJECT=$P ASSISTANT_REPO=$T/origin.git
 export ASSISTANT_FETCH_EVERY=0 ASSISTANT_VERIFY_WAIT=2
@@ -167,7 +169,7 @@ ok "cancel from the host: stopped, lock freed, not retried by itself"
 
 # Cancel from the app (System settings writes cancel=<id>): the next run stops it.
 bg --now; wait_for 30 'grep -q "building terminal" "$UH/status.json" 2>/dev/null' || fail "retry never started"
-printf 'mode=auto\ncancel=c1\n' > "$LOGS/updater-control"
+printf 'mode=auto\ncancel=c1\n' > "$CTL"
 run; grep -q 'cancelled from the app' "$T/out" || fail "app cancel not handled"
 [ ! -d "$UH/lock" ] || fail "lock after app cancel"
 run; [ ! -s "$T/out" ] || fail "app cancel handled twice"
@@ -175,24 +177,24 @@ ok "cancel from the app: handled once by the next run"
 
 # Manual mode: a run only reports what is waiting; "Update now" (request=<id>) updates, once.
 dockerfile 'LABEL v=4'; commit I
-printf 'mode=manual\n' > "$LOGS/updater-control"
+printf 'mode=manual\n' > "$CTL"
 run; [ "$(st status)" = available ] && grep -q 'update available' "$UH/status.json" || fail "manual: not available"
 run; [ ! -s "$T/out" ] || fail "manual: said twice"
-printf 'mode=manual\nrequest=r1\n' > "$LOGS/updater-control"
+printf 'mode=manual\nrequest=r1\n' > "$CTL"
 run; [ "$RC" = 0 ] && [ "$(st status)" = ok ] && [ "$(st request)" = r1 ] || fail "manual: request not deployed"
 run; [ ! -s "$T/out" ] || fail "request handled twice"
 ok "manual mode: available, then Update now deploys and is echoed back"
 
 # Restarts asked first: terminal (where the Claude sessions run) keeps the previous version until
 # "Restart now" in the app or `--restart` on the host; everything else is updated.
-printf 'mode=auto\nrestarts=ask\n' > "$LOGS/updater-control"
+printf 'mode=auto\nrestarts=ask\n' > "$CTL"
 imgA=$(llm_img)
 asown sh -c "echo v4b > '$T/work/apps/web/page.txt'"; dockerfile 'LABEL v=4b'; commit I2
 run; [ "$RC" = 0 ] && grep -q 'terminal wait for a restart' "$T/out" || fail "held restart not reported"
 [ "$(llm_img)" = "$imgA" ] && [ "$(cat "$CO/apps/web/page.txt")" = v4b ] || fail "terminal recreated, or the code not updated"
 [ "$(st pendingRestart)" = terminal ] && [ "$(st status)" = ok ] || fail "status has no pending restart"
 run; [ ! -s "$T/out" ] || fail "held restart said twice"
-printf 'mode=auto\nrestarts=ask\nrestart=x1\n' > "$LOGS/updater-control"
+printf 'mode=auto\nrestarts=ask\nrestart=x1\n' > "$CTL"
 run; [ "$RC" = 0 ] && grep -q 'restarted terminal' "$T/out" || fail "Restart now not done"
 imgB=$(llm_img); [ "$imgB" != "$imgA" ] && [ -z "$(st pendingRestart)" ] && [ "$(st restartRequest)" = x1 ] || fail "terminal not recreated by the restart"
 run; [ ! -s "$T/out" ] || fail "restart request handled twice"
@@ -208,12 +210,12 @@ imgC=$(llm_img)
 (while sleep 2; do echo y; done) | ASSISTANT_PROMPT_TIMEOUT=60 script -qec "sh $UH/update.sh $CO" /dev/null > "$T/out" 2>&1 || fail "terminal run"
 grep -q '\[#*\.*\] [0-9]/2 ' "$T/out" && grep -q 'done: ' "$T/out" || fail "no progress bar in a terminal"
 grep -q 'Restart now?' "$T/out" && [ "$(llm_img)" != "$imgC" ] || fail "terminal did not ask, or did not restart on yes"
-printf 'mode=auto\n' > "$LOGS/updater-control"
+printf 'mode=auto\n' > "$CTL"
 ok "terminal: the plain command updates now with a progress bar and asks before restarting terminal"
 
 # Claude edits docker-compose.yml in the checkout to mount the host root: refused, nothing started.
 asown sed -i 's#\[logs:/logs\]#[logs:/logs, /:/host]#' "$CO/docker-compose.yml"
-printf 'mode=auto\n' > "$LOGS/updater-control"
+printf 'mode=auto\n' > "$CTL"
 dockerfile 'LABEL v=6'; commit K
 run; grep -q 'differs from main' "$T/out" || fail "tampered compose applied"
 docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' "$(dc ps -q terminal)" | grep -q /host && fail "host mounted"
@@ -245,11 +247,12 @@ asown git -C "$CO" reset -q --hard HEAD~1
 run; [ "$RC" = 0 ] || fail "after reset"
 ok "local changes or commits pause it before any build, until fixed"
 
-# Locks: an older updater's (pid only) is respected while its pid lives; another boot's is taken over.
+# Locks: a live one is respected; another boot's is taken over.
 sleep 300 & sp=$!
-mkdir "$UH/lock"; echo "$sp" > "$UH/lock/pid"
+mkdir "$UH/lock"; echo "$sp" > "$UH/lock/pid"; cat /proc/sys/kernel/random/boot_id > "$UH/lock/boot"
+sed 's/^.*) //' "/proc/$sp/stat" | cut -d' ' -f20 > "$UH/lock/start"
 asown sh -c "echo v9 > '$T/work/apps/web/page.txt'"; commit O
-run; [ ! -s "$T/out" ] && [ -d "$UH/lock" ] || fail "live legacy lock not respected"
+run; [ ! -s "$T/out" ] && [ -d "$UH/lock" ] || fail "live lock not respected"
 kill "$sp"; wait "$sp" 2>/dev/null || true
 echo other-boot > "$UH/lock/boot"; echo "$$" > "$UH/lock/pid"; echo 1 > "$UH/lock/start"
 run; [ "$RC" = 0 ] && grep -q 'taking over the lock' "$T/out" || fail "lock of another boot not taken over"
@@ -267,16 +270,16 @@ run; [ "$RC" = 0 ] && grep -q 'removing worker' "$T/out" || fail "removed servic
 [ "$(docker inspect -f '{{.State.Running}}' "$P-ext-1")" = true ] || fail "the extension's container was removed"
 ! docker inspect "$P-stray-1" >/dev/null 2>&1 || fail "a container of a service no compose file has was left"
 # terminal renamed (as claude was to terminal) with restarts=ask: the new name waits for Restart now, and terminal goes with it.
-printf 'mode=auto\nrestarts=ask\n' > "$LOGS/updater-control"
+printf 'mode=auto\nrestarts=ask\n' > "$CTL"
 asown sed -i 's/^  terminal:/  agent:/' "$T/work/docker-compose.yml"; commit R2
 run; [ "$RC" = 0 ] && [ "$(st pendingRestart)" = 'agent terminal' ] || fail "rename: agent and terminal not waiting for the restart"
 running() { docker ps -q --filter "label=com.docker.compose.project=$P" --filter "label=com.docker.compose.service=$1"; }
 [ -n "$(running terminal)" ] && [ -z "$(running agent)" ] || fail "rename: switched without asking"
-printf 'mode=auto\nrestarts=ask\nrestart=x2\n' > "$LOGS/updater-control"
+printf 'mode=auto\nrestarts=ask\nrestart=x2\n' > "$CTL"
 run; [ "$RC" = 0 ] && grep -q 'restarted' "$T/out" || fail "rename: restart failed"
 [ -z "$(docker ps -aq --filter "label=com.docker.compose.project=$P" --filter label=com.docker.compose.service=terminal)" ] || fail "terminal still there"
 [ -n "$(running agent)" ] || fail "agent not running"
-printf 'mode=auto\n' > "$LOGS/updater-control"
+printf 'mode=auto\n' > "$CTL"
 asown sh -c "echo v9b > '$T/work/apps/web/page.txt'"; commit R3
 run; [ "$RC" = 0 ] && [ "$(cat "$CO/apps/web/page.txt")" = v9b ] || fail "no update after the rename (git container image?)"
 docker rm -f "$P-ext-1" >/dev/null
@@ -289,14 +292,7 @@ run; grep -q 'updated itself' "$T/out" && grep -q 'updated to' "$T/out" || fail 
 grep -q '# v2' "$UH/update.sh" || fail "installed copy not replaced"
 ok "the updater updates itself from main and finishes the update with the new copy"
 
-# An older install: its scheduled task runs <home>/auto-update.sh run <checkout>; it hands over.
-rm "$UH/update.sh"; cp "$HERE/auto-update.sh" "$UH/auto-update.sh"
-asown sh -c "echo v11 > '$T/work/apps/web/page.txt'"; commit Q
-sh "$UH/auto-update.sh" run "$CO" < /dev/null > "$T/out" 2>&1 || fail "legacy task"
-[ -f "$UH/update.sh" ] && [ "$(cat "$CO/apps/web/page.txt")" = v11 ] || fail "legacy task did not hand over"
-ok "an older scheduled task (auto-update.sh run) hands over to update.sh"
-
-# A home the older updater handed over has no checkout file; the schedule runs update.sh bare: it finds
+# A home without its checkout file (lost, or a moved install); the schedule runs update.sh bare: it finds
 # the checkout by the home's name (<checkout>-updater) and writes the file back.
 rm -f "$UH/checkout"
 ASSISTANT_UPDATER_HOME= sh "$UH/update.sh" status > "$T/out" 2>&1 && grep -q 'running commit' "$T/out" || fail "bare run did not find the checkout"

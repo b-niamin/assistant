@@ -1,5 +1,5 @@
 /**
- * OAuth 2.1 for the Claude connector (spec 005), the database side (migrations 010, 011). A client
+ * OAuth 2.1 for the Claude connector (spec 005), the database side. A client
  * registers itself (POST /mcp/oauth/register); the public authorize page files a request, which the
  * owner approves on the tailnet, in a profile's settings, by picking one of its MCP addresses
  * (endpoints.server.ts). That makes a grant (one connection, which follows its address) and a single-use code; the code becomes an access token (1 hour)

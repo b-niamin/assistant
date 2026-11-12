@@ -8,8 +8,6 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 export const READ = 'mcp:read';
 export const WRITE = 'mcp:write';
 export const SCOPES = [READ, WRITE];
-/** The scope clients asked for before read/write existed; still accepted as a request. */
-const LEGACY_SCOPE = 'mcp';
 export const CODE_TTL_S = 5 * 60;
 export const ACCESS_TTL_S = 60 * 60;
 export const REFRESH_TTL_S = 90 * 24 * 3600;
@@ -18,7 +16,7 @@ export const REQUEST_TTL_S = 10 * 60;
 
 /** A requested scope string is fine when every part is one we know (the owner picks the real one). */
 export const knownScope = (scope: string | null): boolean =>
-  !scope || scope.split(' ').every((s) => s === '' || s === LEGACY_SCOPE || SCOPES.includes(s));
+  !scope || scope.split(' ').every((s) => s === '' || SCOPES.includes(s));
 
 /** The scope a grant gets from the owner's choice: read only, or read and write. */
 export const scopeFor = (write: boolean): string => (write ? `${READ} ${WRITE}` : READ);

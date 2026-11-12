@@ -5,8 +5,8 @@
  */
 export const MAX_ITEMS = 20;
 
-/** The items of a stored value. Older values separated by spaces or commas read the same. */
-export const splitItems = (v: string | null | undefined): string[] => (v ?? '').split(/[\s,;]+/).filter(Boolean);
+/** The items of a stored value, or of what was typed (separated by spaces or new lines). */
+export const splitItems = (v: string | null | undefined): string[] => (v ?? '').split(/\s+/).filter(Boolean);
 
 /** The stored value after adding what was typed (one item or several, separated by spaces). */
 export function addItems(stored: string | null, typed: string): string {

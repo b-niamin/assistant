@@ -19,11 +19,8 @@ describe('secret encryption', () => {
   });
   it('binds a value to its extension and name', () => {
     const v = encrypt('token', 'home:token', k);
-    expect(v.startsWith('v2:')).toBe(true);
     expect(decrypt(v, 'home:token', k)).toBe('token');
     expect(() => decrypt(v, 'health:token', k)).toThrow();
-    // Values saved before AAD still read.
-    expect(decrypt(encrypt('old', '', k), 'home:token', k)).toBe('old');
   });
   it('is off without SECRETS_KEY', () => expect(secretsAvailable()).toBe(false));
 });

@@ -22,7 +22,7 @@ describe('claude connector oauth', () => {
   });
   it('knows the scopes: read, or read and write', () => {
     expect(knownScope(null)).toBe(true);
-    expect(knownScope('mcp')).toBe(true);
+    expect(knownScope('mcp')).toBe(false);
     expect(knownScope('mcp:read mcp:write')).toBe(true);
     expect(knownScope('admin')).toBe(false);
     expect(canWrite(scopeFor(false))).toBe(false);

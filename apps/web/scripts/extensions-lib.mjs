@@ -108,11 +108,8 @@ export function validateManifest(m, dirName, root) {
   req('kind', KINDS.includes(m.kind));
   req('scope', SCOPES.includes(m.scope));
   req('shell', m.shell === SHELL_API);
-  // Secrets the extension asks for (spec 004): names only; values are set by an admin in System settings.
-  if (m.secrets !== undefined) {
-    req('secrets', Array.isArray(m.secrets) && m.secrets.length <= 10 && m.secrets.every((n) => SECRET_RE.test(n)));
-    if (m.kind !== 'native' && m.secrets?.length) errors.push(`${dirName}: only native extensions can have secrets`);
-  }
+  // Secrets (spec 004) are settings fields of type "secret", not a list of their own.
+  if (m.secrets !== undefined) errors.push(`${dirName}/extension.json: declare secrets as "settings" fields with "type": "secret"`);
   // Its settings panel in System settings (spec 002, "Settings"): fields the shell renders.
   if (m.settings !== undefined) errors.push(...settingsProblems(m.settings, m.kind, dirName));
   // What Beni wears on its pages; left out, the shell guesses from the id and name.
@@ -297,13 +294,9 @@ export function languagesOf(manifest, root, messages = readTranslations(root, ma
   return [...all].sort((a, b) => (a === BASE_LANG ? -1 : b === BASE_LANG ? 1 : a.localeCompare(b)));
 }
 
-/** Settings fields of a manifest, with the older "secrets" list folded in as secret fields. */
+/** Settings fields of a manifest. */
 export function settingsOf(manifest) {
-  const fields = Array.isArray(manifest.settings) ? manifest.settings.map((f) => ({ ...f })) : [];
-  const names = new Set(fields.map((f) => f.name));
-  if (manifest.kind === 'native' && Array.isArray(manifest.secrets))
-    for (const n of manifest.secrets) if (!names.has(n)) fields.push({ name: n, label: n.replace(/_/g, ' '), type: 'secret' });
-  return fields;
+  return Array.isArray(manifest.settings) ? manifest.settings.map((f) => ({ ...f })) : [];
 }
 
 /** Installed extensions in nav order, each with its manifest. Throws on any problem. */

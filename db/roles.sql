@@ -25,7 +25,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA core TO app_rw;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA core TO app_rw;
 GRANT SELECT ON ALL TABLES IN SCHEMA core TO claude_ro;
 REVOKE SELECT ON core.sessions FROM claude_ro;
--- The Claude connector's OAuth state (migration 010): hashes only, still nothing for a data chat.
+-- The Claude connector's OAuth state (db/migrations/001_core.sql): hashes only, still nothing for a data chat.
 REVOKE SELECT ON core.oauth_clients, core.oauth_grants, core.oauth_tokens, core.oauth_requests FROM claude_ro;
 -- The agents: every row of core, but not who is logged in, the connector's tokens or the migration log.
 -- Not the owner of anything, so no DROP/ALTER/CREATE; TRUNCATE is not granted. Deletes are asked for in
@@ -34,7 +34,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA core TO agent_rw;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA core TO agent_rw;
 REVOKE ALL ON core.sessions, core.oauth_clients, core.oauth_grants, core.oauth_tokens, core.oauth_requests FROM agent_rw;
 REVOKE INSERT, UPDATE, DELETE ON core.schema_migrations FROM agent_rw;
--- The connector's addresses and their log (migration 011) are security settings: read, not change.
+-- The connector's addresses and their log (db/migrations/001_core.sql) are security settings: read, not change.
 REVOKE INSERT, UPDATE, DELETE ON core.mcp_endpoints, core.tool_calls FROM agent_rw;
 -- The web app may use two tables in `secrets`: extension secrets (encrypted; spec 004) and the app
 -- password hash.

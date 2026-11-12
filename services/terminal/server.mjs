@@ -3,7 +3,7 @@
  * Terminal sidecar (spec 004). A shell in the browser, where the AI CLIs run (`claude`, `codex`) and
  * where they are signed in to: `claude` + /login, `codex login`, `gh auth login`...
  *
- * Runs in the terminal container, sharing only the claude-home volume and the checkout. No docker
+ * Runs in the terminal container, sharing only the agent-home volume and the checkout. No docker
  * socket, no .env, no published port: the web app proxies /settings/terminal/ws here after checking
  * the session; this server checks the single-use ticket again.
  *

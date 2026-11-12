@@ -10,8 +10,6 @@ export function languageSettings(): Promise<LanguageSettings> {
       .then(([row]) => (row ? normalizeLanguageSettings(row.value) : DEFAULT_LANGUAGE_SETTINGS))
       .catch((e) => {
         cached = null;
-        // Before migration 009 has run: English only, rather than a broken app.
-        if (/app_settings/.test(String(e?.message))) return DEFAULT_LANGUAGE_SETTINGS;
         throw e;
       });
   }

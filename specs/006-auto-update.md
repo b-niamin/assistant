@@ -118,8 +118,7 @@ there when a new long-lived service or build context appears.
   are in the way. Nothing is built; the status says why, once; every run checks again, so fixing it is
   enough.
 - **Self-update**: every run compares `<home>/update.sh` with main's `scripts/update.sh` (from the mirror)
-  and, when it changed, replaces it and runs the new copy right away. An older install's task
-  (`<home>/auto-update.sh run <checkout>`) keeps working: `scripts/auto-update.sh` hands over to update.sh.
+  and, when it changed, replaces it and runs the new copy right away.
 - **Output**: `<home>/status.json` and, for the app, `/logs/updater-status.json` (status, message, step,
   steps, startedAt, attempt, the app request it took), `/logs/updater.log`, `/logs/updater-build.log` (the
   steps and the build output, as they run) and `/logs/updater-heartbeat` (every run, and every 15 s while
@@ -135,8 +134,7 @@ there when a new long-lived service or build context appears.
   owner), and the owner gets `u+rw` (`u+x` on directories). `.env` and git's read-only objects are left
   alone. Removing the ACLs leaves x bits on every file, so the checkout gets `core.fileMode false` (git
   would otherwise count every file as changed and stop the fast-forward). `install` also strips the ACL
-  from the updater home, so the mirror is cloned as (and stays owned by) the checkout owner; a mirror an
-  older version cloned as root is given back. By hand: `sudo ./beni.sh fix-permissions`;
+  from the updater home, so the mirror is cloned as (and stays owned by) the checkout owner. By hand: `sudo ./beni.sh fix-permissions`;
   `./beni.sh doctor` reports what is wrong.
 
 ## Security (spec 004)
@@ -161,7 +159,7 @@ trusted by it**.
 checks these and the rest on a throwaway project: idle run, each kind of change, a broken build (and its
 retry), a hung build, an update killed halfway and resumed, two runs at once, cancel from the host and
 from the app, manual mode, a terminal run with its bar, a tampered compose file, a planted hook and
-fsmonitor, local changes and commits, stale and live locks, self-update, the older task handing over.
+fsmonitor, local changes and commits, stale and live locks, self-update.
 
 ## Install
 
@@ -202,7 +200,7 @@ first, so `docker compose` in the folder keeps working; an entry whose file is m
 `ext update` copies the extension stays, and that run prunes nothing.
 
 System settings → Updates: Automatic or Manual (`/updater/control` in web, the `updater-control` volume that no
-other container mounts; older stacks: `/logs/updater-control`. `mode=auto|manual`, plus
+other container mounts. `mode=auto|manual`, plus
 `request=<id>` for "Update now" / "Try again" / "Resume" and `cancel=<id>` for "Cancel"; the updater reads
 them as root and never runs anything from them, and echoes the request it took in its status). While an
 update runs: a progress bar (step n of m, what runs, since when, attempt), the last lines of the build

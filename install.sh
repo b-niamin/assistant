@@ -143,7 +143,7 @@ if [ "$(id -u)" = 0 ]; then quietly "Permissions for the containers (owner, Syno
 # The compose project name: volumes and containers are prefixed with it. It is pinned in .env
 # (COMPOSE_PROJECT_NAME), so the folder can move or be renamed later and keep its data. A new install takes
 # ASSISTANT_PROJECT, else the folder name; when containers of another folder already use that name (an
-# older install also called "assistant"), the two stacks would be one, so it takes the next free one.
+# install in another folder of the same name), the two stacks would be one, so it takes the next free one.
 taken_elsewhere() {
   docker ps -a --filter "label=com.docker.compose.project=$1" \
     --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null |
@@ -184,9 +184,9 @@ else
   if [ "$had_db" = yes ]; then
     die "A database from an earlier install exists (volume ${PROJECT}_db-data), but there is no .env here.
     Its password is in the .env of that install: put that .env back in $DIR and run this again.
-    Or start with an empty database (deletes that data; daily dumps stay in volume ${PROJECT}_backups):
+    Or start with an empty database (deletes that data; backups stay in BACKUP_DIR):
       sudo docker compose -p $PROJECT down && sudo docker volume rm ${PROJECT}_db-data
-    then run this again. If that database belongs to another install (an older one in a folder with the
+    then run this again. If that database belongs to another install (in another folder with the
     same name), keep it and give this one its own name: sudo ASSISTANT_PROJECT=<name> ./install.sh"
   fi
   say "writing .env with new random secrets"
@@ -216,23 +216,13 @@ APP_TIMEZONE=$tz
 # Owner of this checkout, so the containers can edit it (not root, even when run with sudo).
 HOST_UID=$(stat -c %u .)
 WEB_PORT=$PORT
+# The MCP listener's host port (the Claude connector, spec 005).
+MCP_PORT=$(free_port 3101)
+# Containers and volumes are named after it: pinned, so moving the folder keeps them.
+COMPOSE_PROJECT_NAME=$PROJECT
 ENV
   chmod 600 .env
 fi
-# Secrets added in later versions: append them to an older .env, never change existing ones.
-for key in SECRETS_KEY SIDECAR_TICKET_SECRET CLAUDE_TOOLS_TOKEN SERVICES_DB_PASSWORD TOKEN_ENCRYPTION_KEY; do
-  if ! grep -q "^$key=." .env; then
-    sed -i "/^$key=\$/d" .env
-    if [ "$key" = TOKEN_ENCRYPTION_KEY ]; then v=$(fernet); else v=$(rand 48); fi
-    printf '%s=%s\n' "$key" "$v" >> .env
-    say "added $key to .env"
-  fi
-done
-# Older installs went by the folder name: pin it, so moving the folder keeps the same containers and volumes.
-sed -i '/^COMPOSE_PROJECT_NAME=$/d' .env
-grep -q '^COMPOSE_PROJECT_NAME=' .env || printf 'COMPOSE_PROJECT_NAME=%s\n' "$PROJECT" >> .env
-# The MCP listener's host port (the Claude connector, spec 005): a free one, also for older installs.
-grep -q '^MCP_PORT=' .env || printf 'MCP_PORT=%s\n' "$(free_port 3101)" >> .env
 
 # Which installed extensions bring a service: their compose.yml joins the stack through COMPOSE_FILE.
 compose_files() {

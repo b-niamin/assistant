@@ -87,8 +87,6 @@ prune() {
   done < "$keep.all"
   # Half-written leftovers of a killed run.
   find "$OUT" -maxdepth 1 -name '.tmp-*' -mmin +120 -exec rm -rf {} + 2>/dev/null
-  # Dumps of the old layout (assistant-<day>.dump): once a new backup exists they are not needed.
-  find "$OUT" -maxdepth 1 -name 'assistant-*.dump' -mtime +"$KEEP_DAILY" -exec rm -f {} + 2>/dev/null
   rm -f "$keep" "$keep.all" "$keep.days"
 }
 

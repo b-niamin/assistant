@@ -9,7 +9,7 @@
 #   ./beni.sh start | stop | restart [service]
 #   ./beni.sh status                containers and the app's health
 #   ./beni.sh doctor                checks the install: permissions, git, .env, database password, ...
-#   ./beni.sh logs [service]        follow logs (web, terminal, garmin-sync, ...)
+#   ./beni.sh logs [service]        follow logs (web, terminal, worker, ...)
 #   ./beni.sh ext <args>            the extension CLI in the terminal container: available, install <id>, list, ...
 #   ./beni.sh fix-permissions       owner, Synology ACLs and modes in the checkout
 #   ./beni.sh fix-db-password       the database keeps its data but takes the password in .env
@@ -130,10 +130,6 @@ doctor() {
   w() { warn "$*"; warns=$((warns + 1)); }
   printf '\n\033[1mChecking %s\033[0m\n' "$DIR"
   is_root=no; [ "$(id -u)" = 0 ] && is_root=yes
-  # The default folder used to be called assistant-core.
-  if [ "$(basename "$DIR")" = assistant-core ] && [ ! -e "$(dirname "$DIR")/assistant" ]; then
-    say "the default folder is now $(dirname "$DIR")/assistant; to move this install (data kept): sudo ./beni.sh move $(dirname "$DIR")/assistant"
-  fi
 
   # Docker
   docker_ok=no
@@ -291,7 +287,7 @@ doctor() {
 
   # Updater
   home=$(updater_home)
-  if [ ! -f "$home/update.sh" ] && [ ! -f "$home/auto-update.sh" ]; then say "the updater is not set up (sudo ./beni.sh auto-update install)"
+  if [ ! -f "$home/update.sh" ]; then say "the updater is not set up (sudo ./beni.sh auto-update install)"
   else
     st=$(sed -n 's/.*"status":"\([^"]*\)".*"message":"\([^"]*\)".*/\1: \2/p' "$home/status.json" 2>/dev/null | head -n 1)
     case $st in

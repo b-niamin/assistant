@@ -1,5 +1,5 @@
 /**
- * MCP addresses of a profile (spec 005, migration 011), set in the profile's settings. Each is a URL
+ * MCP addresses of a profile (spec 005), set in the profile's settings. Each is a URL
  * Claude connects to, /mcp/x/<id>: the built-in one shows every app of the profile and may change data;
  * the profile's own ones show the apps ticked for them, read only unless allowed. A connection follows
  * its address: changing the ticks changes what every connection on it sees at its next call.

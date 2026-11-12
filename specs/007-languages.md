@@ -33,7 +33,7 @@ extensions/<id>/i18n/pl.json   one extension's texts in Polish
 - **Which language a page is in**: the browser's pick (cookie `lang`, set in the profile menu) while it is
   still offered, else the default (`hooks.server.ts` -> `locals.lang`, `<html lang>`).
 - **Settings**: `core.app_settings` key `languages` = `{ "enabled": ["en", "pl"], "default": "pl" }`
-  (migration 009). English is always on: it is the base of every text. The first-run wizard asks for the
+  (`core.app_settings`). English is always on: it is the base of every text. The first-run wizard asks for the
   language and enables it next to English.
 - **Shell code**: `const t = useT()` in a component; `tFor(locals.lang)` in server code (form errors).
   A test (`i18n.test.ts`) fails when a `t('...')` text of the shell has no entry in a `locales/*.json`.

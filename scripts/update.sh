@@ -116,7 +116,7 @@ setup_paths() {
   [ ! -d "$MIRROR" ] || [ "$(cat "$HOME_DIR/checkout" 2>/dev/null)" = "$DIR" ] || echo "$DIR" > "$HOME_DIR/checkout" 2>/dev/null || true
   LOCK=$HOME_DIR/lock
   LOGS_MP=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_logs" 2>/dev/null || true)
-  # The app's requests (control_file): their own volume, mounted only in web; older stacks have none.
+  # The app's requests (control_file): their own volume, mounted only in web.
   CONTROL_MP=$(docker volume inspect -f '{{.Mountpoint}}' "${PROJECT}_updater-control" 2>/dev/null || true)
   [ -n "$CONTROL_MP" ] && [ -d "$CONTROL_MP" ] || CONTROL_MP=""
   # Root writes the `logs` volume directly; anyone else through a throwaway container (slower).
@@ -157,15 +157,11 @@ buildable() {
     awk '!seen[$0]++'
 }
 
-# The image of the terminal container (it has git and sh): the throwaway containers run it. Older installs
-# had the same image as `llm` (and before that `claude`); an install updating across that change still has one.
-claude_image() {
+# The image of the terminal container (it has git and sh): the throwaway containers run it.
+terminal_image() {
+  c=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=terminal" | head -n 1)
   img=""
-  for v in terminal llm claude; do
-    c=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$v" | head -n 1)
-    [ -z "$c" ] || img=$(docker inspect -f '{{.Config.Image}}' "$c" 2>/dev/null)
-    [ -z "$img" ] || break
-  done
+  [ -z "$c" ] || img=$(docker inspect -f '{{.Config.Image}}' "$c" 2>/dev/null)
   echo "${img:-$PROJECT-terminal}"
 }
 
@@ -188,16 +184,13 @@ logs_put() {
     if [ "$mode" = append ]; then
       m=$HOME_DIR/app-logs/$name
       [ -d "$HOME_DIR/app-logs" ] || mkdir -p "$HOME_DIR/app-logs"
-      # The first time: carry over what an older updater wrote, if it is still its own plain file.
-      f=$LOGS_MP/$name
-      [ -e "$m" ] || { [ -f "$f" ] && [ ! -L "$f" ] && [ "$(stat -c %u "$f")" = 0 ] && cp "$f" "$m"; } 2>/dev/null || true
       cat >> "$m"
       if [ "$(wc -c < "$m")" -gt 1048576 ]; then tail -c 524288 "$m" > "$m.new" && mv "$m.new" "$m"; fi
       logs_publish "$name" < "$m"
     else logs_publish "$name"; fi
   else
     op='>'; [ "$mode" = append ] && op='>>'
-    docker run --rm -i --network none --user 0 -v "${PROJECT}_logs:/logs" --entrypoint sh "$(claude_image)" \
+    docker run --rm -i --network none --user 0 -v "${PROJECT}_logs:/logs" --entrypoint sh "$(terminal_image)" \
       -c "cat $op /logs/$name && chmod 644 /logs/$name" >/dev/null 2>&1 || true
   fi
 }
@@ -257,14 +250,9 @@ state_save() {
 # The app's choice (System settings -> Updates): `mode=auto|manual`, `restarts=ask|auto`, `funnel=on|off`
 # (the Claude connector, see funnel_apply), and the clicks: `request=<id>` ("Update now", "Resume"),
 # `cancel=<id>` ("Cancel"), `restart=<id>` ("Restart now"). In the `updater-control` volume, which only web
-# mounts (the other containers write `logs`, and must not turn Funnel on); an older stack, without that
-# volume, or an app that has not written it yet, still has /logs/updater-control. Read as data, never run,
-# and only from a plain file.
-control_file() {
-  if [ -n "$CONTROL_MP" ] && { [ -e "$CONTROL_MP/control" ] || [ -L "$CONTROL_MP/control" ] || [ ! -f "$LOGS_MP/updater-control" ]; }; then
-    echo "$CONTROL_MP/control"
-  elif [ -n "$LOGS_MP" ]; then echo "$LOGS_MP/updater-control"; fi
-}
+# mounts (the other containers write `logs`, and must not turn Funnel on). Read as data, never run, and
+# only from a plain file.
+control_file() { [ -z "$CONTROL_MP" ] || echo "$CONTROL_MP/control"; }
 read_control() {
   MODE=auto REQUEST="" CANCEL="" RESTARTS="" RESTART_REQ="" FUNNEL=""
   f=$(control_file)
@@ -295,11 +283,6 @@ lock_holder() {
     # Just created (pid not written yet), or by a process killed in between.
     [ -n "$(find "$LOCK" -maxdepth 0 -mmin +2 2>/dev/null)" ] || { echo starting; return 0; }
     return 1
-  fi
-  if [ ! -f "$LOCK/boot" ]; then
-    # The older updater's lock (pid only): held while that pid lives, for six hours at most.
-    [ -d "/proc/$pid" ] && [ -z "$(find "$LOCK" -maxdepth 0 -mmin +360 2>/dev/null)" ] || return 1
-    echo "$pid"; return 0
   fi
   [ "$(cat "$LOCK/boot" 2>/dev/null)" = "$(boot_id)" ] || return 1
   [ -d "/proc/$pid" ] || return 1
@@ -449,7 +432,7 @@ fix_ownership() {
 # off. Prints head:<sha> and result:<uptodate|ahead|behind|merged|branch X|diverged|failed X>.
 git_checkout() {
   limit "$STEP_TIMEOUT" docker run --rm --network none --user "$OWNER_UID:$OWNER_GID" -e HOME=/tmp \
-    -v "$DIR:/repo" -v "$MIRROR:/mirror:ro" -w /repo --entrypoint sh "$(claude_image)" -c '
+    -v "$DIR:/repo" -v "$MIRROR:/mirror:ro" -w /repo --entrypoint sh "$(terminal_image)" -c '
       set -u
       # safe.directory from the global config: git fetch from a local path ignores the -c one.
       git config --global safe.directory "*"
@@ -1073,18 +1056,6 @@ cmd_install() {
     find "$HOME_DIR" -xdev -exec ls -dln {} + 2>/dev/null | acl_paths | while IFS= read -r f; do synoacltool -del "$f" >/dev/null 2>&1; done
   fi
   fix_ownership
-  # A mirror an older version cloned as root goes to the checkout owner (it fetches with their credentials).
-  if [ -d "$MIRROR" ] && [ "$(id -u)" = 0 ] && [ "$OWNER_UID" != 0 ] && [ "$(stat -c %u "$MIRROR")" = 0 ]; then
-    chown -R "$OWNER_UID:$OWNER_GID" "$MIRROR" && chmod -R u+rwX "$MIRROR" && say "mirror given to uid $OWNER_UID"
-  fi
-  # A mirror of another repo (an earlier install in this folder, before the repo moved): clone the right
-  # one; the deployed commit is then unknown to it, so the first update rebuilds everything.
-  repo_changed=0
-  if [ -d "$MIRROR" ] && [ "$(git --git-dir="$MIRROR" config remote.origin.url 2>/dev/null)" != "$url" ]; then
-    say "the mirror tracks $(git --git-dir="$MIRROR" config remote.origin.url 2>/dev/null | sed 's#//[^@/]*@#//***@#'): replacing it"
-    rm -rf "$MIRROR"
-    repo_changed=1
-  fi
   if [ ! -d "$MIRROR" ]; then
     # Clone as the checkout owner (their git credentials), else as root.
     mkdir "$MIRROR"
@@ -1097,8 +1068,6 @@ cmd_install() {
 
   cp "$0" "$HOME_DIR/update.sh.new" && chmod 755 "$HOME_DIR/update.sh.new" && mv "$HOME_DIR/update.sh.new" "$HOME_DIR/update.sh"
   echo "$DIR" > "$HOME_DIR/checkout"
-  # An older updater's copy: its scheduled task keeps working (auto-update.sh hands over to update.sh).
-  [ ! -f "$HOME_DIR/auto-update.sh" ] || cp "$(dirname "$0")/auto-update.sh" "$HOME_DIR/auto-update.sh" 2>/dev/null || true
 
   # The running checkout counts as deployed, so the first run does not rebuild everything.
   if [ ! -f "$STATE" ]; then
@@ -1109,11 +1078,6 @@ cmd_install() {
     DEPLOYED=$head DEPLOYED_AT=$(iso) SHA=$head
     state_save
     write_status ok "installed; watching $BRANCH"
-  elif [ "$repo_changed" = 1 ]; then
-    state_load
-    S_failed="" S_note="" S_target="" S_done=""
-    state_save
-    write_status ok "installed for $(printf '%s' "$url" | sed 's#//[^@/]*@#//***@#'); the next update rebuilds everything"
   fi
   # Manual mode on request (install.sh when auto-update was declined), unless the app already chose.
   f=$(control_file)
@@ -1122,7 +1086,7 @@ cmd_install() {
       # Web (OWNER_UID) rewrites it later: a fresh file of its own, renamed into place.
       t=$(mktemp "$CONTROL_MP/.updater.XXXXXX") && echo mode=manual > "$t" && chmod 644 "$t" &&
         chown "$OWNER_UID" "$t" && mv -fT "$t" "$CONTROL_MP/control" || rm -f "$t"
-    else echo mode=manual | logs_put updater-control; fi
+    fi
     say "updates are manual: the app shows new versions and updates when asked"
   fi
 
@@ -1144,7 +1108,7 @@ SYNO
     cur=$(crontab -l 2>/dev/null || true)
     if printf '%s\n' "$cur" | grep -qxF "$line"; then say "cron entry exists"
     else
-      { printf '%s\n' "$cur" | grep -v -e "$HOME_DIR/auto-update.sh" -e "$HOME_DIR/update.sh" | grep -v '^$'; echo "$line"; } | crontab - &&
+      { printf '%s\n' "$cur" | grep -v -e "$HOME_DIR/update.sh" | grep -v '^$'; echo "$line"; } | crontab - &&
         say "cron: $line"
     fi
   else

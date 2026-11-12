@@ -19,7 +19,7 @@ System settings -> Terminal has a Sign in button per tool; it types the command 
 | Codex | `codex login --device-auth` |
 | GitHub CLI | `gh auth login` |
 
-Login state lives in the `claude-home` volume (`/home/claude`), so it survives restarts and rebuilds.
+Login state lives in the `agent-home` volume (`/home/claude`), so it survives restarts and rebuilds.
 
 ## What the entrypoint does
 
@@ -36,7 +36,7 @@ Login state lives in the `claude-home` volume (`/home/claude`), so it survives r
 
 Claude Code and Codex update themselves (`npm install -g`, as Claude's auto-update and Codex's "Update now"
 run it). The image installs them as root into `/usr/local`, which the container user cannot write, so global
-npm installs go to `~/.npm-global` in the `claude-home` volume instead (`NPM_CONFIG_PREFIX`, first on `PATH`).
+npm installs go to `~/.npm-global` in the `agent-home` volume instead (`NPM_CONFIG_PREFIX`, first on `PATH`).
 The terminal server passes `NPM_CONFIG_PREFIX` into the shell it starts (and `/etc/profile.d/beni-path.sh`
 sets it for login shells): without it the CLIs see root's `/usr/local` and fail with "no write permission
 to npm prefix".

@@ -181,7 +181,7 @@ The shell route `/<id>` renders an iframe of `/api/onefile/<id>`:
   Writes go to the parent page by `postMessage` (to the shell's origin only); the parent checks the
   sender is its own iframe, batches writes and saves them to `core.extension_kv` via `PATCH /api/kv/<id>`
   (same-origin only, 5 MB per value, 20 MB per extension and owner). `sessionStorage` is an in-memory shim.
-- Every key has a version (migration 012). The shim first posts the versions its data was loaded at; each
+- Every key has a version. The shim first posts the versions its data was loaded at; each
   save sends them back, and a key someone else saved since (another device, Claude through MCP) answers
   409: the host reloads the app with the newer data instead of overwriting it. A failed save is kept and
   retried (backoff, back online, page shown again), and a pending batch is saved when the page is hidden
@@ -210,7 +210,7 @@ Visibility is separate from scope: `profiles` in `installed.json` decides who se
   `ext_<id>` (NOLOGIN) with rights on schema `<id>` and `SELECT` on `core.profiles`, granted to `app_rw`;
   `claude_ro` can read the schema (the terminal's `query` tool).
 - Extension secrets (e.g. a Home Assistant token) must not go in `core.extension_kv`, which `claude_ro`
-  can read. They live in `secrets.extension_secrets` (migration 005), written from System settings,
+  can read. They live in `secrets.extension_secrets`, written from System settings,
   read with `ctx.secrets.get`, invisible to `claude_ro`.
 - Tables an extension names `secret_*` (e.g. health's encrypted Garmin logins) are revoked from
   `ext_<id>`, `app_rw` and `claude_ro`: only the extension's service role reads them.
@@ -308,7 +308,7 @@ of it sits behind a step-up: the app password is asked again and the session sta
   `window.assistantSettings` (read-only).
 - **Secrets**: fields of type `secret` (tokens, passwords), encrypted with `SECRETS_KEY` in
   `secrets.extension_secrets`, write-only in the UI, read by native code with `ctx.secrets.get(name)`
-  (spec 004). The older manifest list `"secrets": ["token"]` still works and shows up here.
+  (spec 004).
 - **More**: an extension that needs more than fields ships `web/routes/settings/+page.svelte`; its panel
   links to that view (`/<id>/settings`).
 - **Connected accounts**: an extension that pulls data from outside accounts (Garmin, Strava, ...) ships
@@ -327,8 +327,7 @@ of it sits behind a step-up: the app password is asked again and the session sta
   connection and answer. Account passwords still never go through the web app.
   A secret that holds a list (calendar subscription links) is declared with `"multiple": true`: the card
   shows one row per item (only its host and last characters) with a remove button, and a field with
-  [+] that adds one. It stays one secret, one item per line, so `ctx.secrets.get` returns a string
-  (older values separated by spaces read the same).
+  [+] that adds one. It stays one secret, one item per line, so `ctx.secrets.get` returns a string.
 
 **System**: the terminal and the browser (spec 004; Claude and Codex run in the terminal on the owner's
 subscriptions, no AI API keys in the app), the app password (when not pinned by `APP_PASSWORD_HASH`) and

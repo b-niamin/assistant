@@ -38,13 +38,8 @@ describe('manifest validation', () => {
   });
   it('needs an html entry for onefile', () =>
     expect(lib.validateManifest(manifest({ kind: 'onefile' }), 'notes').join()).toMatch(/"entry"/));
-  it('accepts declared secret names on native extensions only (spec 004)', () => {
-    expect(lib.validateManifest(manifest({ secrets: ['url', 'api_token'] }), 'notes')).toEqual([]);
-    expect(lib.validateManifest(manifest({ secrets: ['Bad-Name'] }), 'notes').join()).toMatch(/"secrets"/);
-    expect(lib.validateManifest(manifest({ secrets: 'token' }), 'notes').join()).toMatch(/"secrets"/);
-    const onefile = manifest({ kind: 'onefile', entry: 'index.html', secrets: ['token'] });
-    expect(lib.validateManifest(onefile, 'notes').join()).toMatch(/only native/);
-  });
+  it('wants secrets as settings fields (spec 004)', () =>
+    expect(lib.validateManifest(manifest({ secrets: ['token'] }), 'notes').join()).toMatch(/"type": "secret"/));
   it('checks what Beni wears against the drawings the shell has', () => {
     expect(lib.ACCESSORIES).toEqual([...ACCESSORY_IDS]);
     expect(lib.validateManifest(manifest({ accessory: 'book' }), 'notes')).toEqual([]);
@@ -101,7 +96,7 @@ describe('generate', () => {
 
 describe('settings fields', () => {
   const base = { id: 'home', name: 'Home', description: '', version: '1.0.0', kind: 'native', scope: 'shared', shell: lib.SHELL_API };
-  it('accepts the field types and folds old secrets in', () => {
+  it('accepts the field types', () => {
     const settings = [
       { name: 'url', label: 'Address', type: 'text' },
       { name: 'token', label: 'Token', type: 'secret' },
@@ -110,7 +105,6 @@ describe('settings fields', () => {
       { name: 'links', label: 'Links', type: 'secret', multiple: true }
     ];
     expect(lib.validateManifest({ ...base, settings }, 'home')).toEqual([]);
-    expect(lib.settingsOf({ ...base, secrets: ['api_key'] })).toEqual([{ name: 'api_key', label: 'api key', type: 'secret' }]);
   });
   it('rejects bad fields', () => {
     const bad = [

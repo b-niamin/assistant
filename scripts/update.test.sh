@@ -8,7 +8,7 @@ check() {
 }
 check 'apps/web/src/routes/+page.svelte' ''
 check 'extensions/health/manifest.json' ''
-check 'db/migrations/010_x.sql' 'build:migrate build:ext-migrate migrate'
+check 'db/migrations/002_x.sql' 'build:migrate build:ext-migrate migrate'
 check 'specs/006-auto-update.md' ''
 check 'docker-compose.yml' 'all'
 check 'docker/terminal/Dockerfile' 'build:terminal'
@@ -52,5 +52,4 @@ printf 'COMPOSE_FILE=%s\n' "$T/docker-compose.yml:$T/extensions/legacy/compose.y
 if sh "$here/update.sh" tidy-compose-file "$T" >/dev/null; then echo "tidy-compose-file: a mid-copy file must block pruning" >&2; exit 1; fi
 grep -q "legacy/compose.yml" "$T/.env" || { echo "tidy-compose-file: dropped a mid-copy file" >&2; exit 1; }
 rm -rf "$T"
-sh -n "$here/auto-update.sh"
 echo "update plan, funnel: ok"

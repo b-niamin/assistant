@@ -11,14 +11,26 @@
 
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-assistant}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-assistant}
+    # Postgres keeps its data in /var/lib/postgresql/<major>/docker. A volume with data of Postgres 16 or
+    # older at its top does not start: restore the latest daily backup into a new volume instead
+    # (docs/install.md "Backups"), so an older database is never silently replaced by an empty one.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ -f /var/lib/postgresql/PG_VERSION ]; then
+          echo "This volume holds a Postgres $$(cat /var/lib/postgresql/PG_VERSION) database; this image is Postgres $$PG_MAJOR. Restore the latest backup into a new volume: docs/install.md, Upgrading Postgres." >&2
+          exit 1
+        fi
+        exec docker-entrypoint.sh postgres
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-assistant} -d ${POSTGRES_DB:-assistant}']
       interval: 5s
@@ -228,7 +240,7 @@ services:
   # where the host's own backup (Synology Hyper Backup, Time Machine) can pick it up.
   # Restore: sudo ./beni.sh restore <BACKUP_DIR>/beni-<day>. Status: /logs/backup-status.json.
   backup:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     depends_on:
       db: { condition: service_healthy }

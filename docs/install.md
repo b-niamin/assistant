@@ -137,6 +137,23 @@ passwords, ports and address), puts the current extensions in `extensions/.trash
 database from the dump and starts everything; `migrate` puts back the roles. Works across machines and
 CPU types (NAS, Mac, Raspberry Pi): the dump is logical.
 
+### Upgrading Postgres
+
+A new Postgres major (the `db` image) cannot read an older one's files, so the database moves through its
+daily dump. When `db` stops with "This volume holds a Postgres 16 database", make sure the last backup is
+recent (`./beni.sh doctor`), keep the old files aside and restore into a new volume (`<project>` is
+`COMPOSE_PROJECT_NAME` in `.env`):
+
+```sh
+sudo ./beni.sh stop
+sudo docker volume create <project>_db-data-old
+sudo docker run --rm -v <project>_db-data:/a -v <project>_db-data-old:/b alpine cp -a /a/. /b/
+sudo docker compose -p <project> rm -f db && sudo docker volume rm <project>_db-data
+sudo ./beni.sh restore <BACKUP_DIR>/beni-<latest>
+```
+
+Once the app works, remove the old files: `sudo docker volume rm <project>_db-data-old`.
+
 `install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
 Its tool output goes to `install.log`; only the tail is shown when a step fails.
 

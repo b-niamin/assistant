@@ -16,7 +16,7 @@ where it also evolves the code on request, but cannot break the running app.
 Tailscale Serve  ─► web :3000 (SvelteKit, on 127.0.0.1; tailnet only)
 Tailscale Funnel ─► web :3001 (only /mcp and its OAuth; internet, when the Claude connector is on)
                      │
-                     ├── db (Postgres 16, internal)
+                     ├── db (Postgres 18, internal)
                      │     schemas: core, secrets, ext_query, one per extension
                      │
                      ├── terminal (spec 004: the in-app terminal; Claude Code, Codex, gh, psql; no ports)

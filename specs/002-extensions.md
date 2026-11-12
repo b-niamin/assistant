@@ -67,7 +67,6 @@ assistant                           the shell (this repo)
 
 assistant-extensions                ready-made extensions and reference skeletons
   extensions/<id>/                  ready to install as they are (health, gym, ...)
-  inspirations/<name>/              skeletons Claude starts new extensions from (not installable)
 ```
 
 `ext install <id>` shallow-clones the extensions repo (`EXTENSIONS_REPO`), copies `extensions/<id>/` into
@@ -280,8 +279,8 @@ inspiration, build, settings panel, tools, check, commit) and `new-extension` (h
    (flashcards, a habit tracker, a checklist); **native** when it needs SQL, server-side calls (Home
    Assistant, calendars), data from another source, or sharing across profiles with real queries.
 2. Start from something: `ext new <id> --kind native|onefile --scope profile|shared`,
-   `--from onefile:<appType>/<variant>` (an app in onefile-apps) or `--from inspiration:<name>`
-   (`inspirations/<name>` in the extensions repo), with `--inspired-by <link>`. A ready-made extension is
+   `--from onefile:<appType>/<variant>` (an app in onefile-apps), with `--inspired-by <link>`; the
+   ready-made extensions are the working examples to read. A ready-made extension is
    just `ext install <id>`. The `add-extension` skill is the full procedure.
 3. Translate it into every language of the app (spec 007): `ext check <id>` lists the gaps as `i18n:`
    warnings, also right after `ext install`.
@@ -391,6 +390,6 @@ So:
 
 ## Next
 
-- More ready-made extensions in the extensions repo: Home Assistant (from `inspirations/home-assistant`),
-  calendar, learning, Strava or Apple Health as data sources.
+- More ready-made extensions in the extensions repo: calendar, learning, Strava or Apple Health as data
+  sources.
 - `ext update` for every installed extension from a schedule, like the shell's auto-update.

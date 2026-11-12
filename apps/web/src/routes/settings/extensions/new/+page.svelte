@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import Mascot from '#lib/Mascot.svelte';
   import { askAgent, runInDock } from '#lib/dock/dock.svelte.ts';
-  import { hueFor, inspirationPrompt, installCommand } from '#lib/settings/guide.ts';
+  import { hueFor, installCommand } from '#lib/settings/guide.ts';
   import { guessAccessory } from '#lib/mascot.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -97,29 +97,6 @@
             {t('Install')}
           </button>
           {#if e.service}<p class="meta small">{t('Then')} <code>sudo ./install.sh</code> {t('on the host, once.')}</p>{/if}
-        </li>
-      {/each}
-    </ul>
-  </section>
-{/if}
-
-{#if data.catalog.inspirations.length}
-  <section class="block" aria-labelledby="insp-h">
-    <div class="sh">
-      <h2 id="insp-h">{t('Build with AI')}</h2>
-      <div class="arrows">
-        <button type="button" class="btn-ghost arrow" aria-label={t('Previous')} onclick={() => scrollRow('row-insp', -1)}>‹</button>
-        <button type="button" class="btn-ghost arrow" aria-label={t('Next')} onclick={() => scrollRow('row-insp', 1)}>›</button>
-      </div>
-    </div>
-    <ul class="row" id="row-insp">
-      {#each data.catalog.inspirations as i (i.id)}
-        {@const p = inspirationPrompt(i)}
-        <li class="card tile" style="--hue: {hueFor(i.id)}">
-          <span class="mark" aria-hidden="true"><Mascot mood="steady" size={34} accessory={i.accessory ?? guessAccessory(i.id, i.name)} decorative /></span>
-          <h3>{i.name}</h3>
-          <p class="meta grow">{i.description}</p>
-          <button type="button" class="btn btn-primary" onclick={() => askAgent(p)}>{t('Build it')}</button>
         </li>
       {/each}
     </ul>

@@ -41,8 +41,9 @@ model and the UI. Note the link: it goes into `inspiredBy`. Do not copy code you
 - **onefile**: UI-only, data fits in key-value storage, no network (habit tracker, gym log, flashcards).
   `node scripts/ext.mjs new <id> --from onefile:<appType>/<variant>` starts from an app in onefile-apps.
 - **native**: SQL, server-side calls (Home Assistant, a calendar API), data other extensions or Claude
-  query, settings or secrets. `node scripts/ext.mjs new <id> --kind native --scope shared` or start from
-  a reference: `--from inspiration:home-assistant` (see `inspirations/README.md` in the extensions repo).
+  query, settings or secrets. `node scripts/ext.mjs new <id> --kind native --scope shared`; read a
+  ready-made extension built the same way as a working example (`home`: a connected service with a
+  token; `health`: per-profile data with tiles; in the extensions repo) and docs/extensions.md.
 
 Add `--inspired-by "<link or note>"`. Then build it with the `new-extension` skill (layout, `$shell` API,
 migrations, checks).

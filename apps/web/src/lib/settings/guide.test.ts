@@ -3,7 +3,6 @@ import {
   buildChangePrompt,
   buildPrompt,
   claudeCommand,
-  inspirationPrompt,
   installCommand,
   agentCommand,
   hueFor,
@@ -79,15 +78,13 @@ describe('add-extension prompt', () => {
     expect(p).toContain('Show my Home Assistant rooms.');
     expect(p).toContain('https://github.com/x/y as inspiration only');
     expect(p).toContain('scope shared');
-    expect(p).toContain('inspiration:home-assistant');
+    expect(p).toContain('ready-made home extension');
     expect(p).not.toContain('\n');
   });
   it('lets Claude pick by default', () => {
     expect(buildPrompt({ idea: '', scope: 'profile', template: 'nope' })).toContain('Pick the kind');
   });
-  it('every inspiration template names one and every idea has a template', () => {
-    // They live in the extensions repo (inspirations/<name>); `ext new --from inspiration:<name>` fetches them.
-    for (const t of TEMPLATES) if (t.from?.startsWith('inspiration:')) expect(t.from).toMatch(/^inspiration:[a-z][a-z0-9-]*$/);
+  it('every idea has a template', () => {
     for (const i of IDEAS) expect(TEMPLATES.map((t) => t.id)).toContain(i.template);
   });
 });
@@ -111,10 +108,5 @@ describe('commands for the dock terminal', () => {
   it('quotes AI requests on one line', () => {
     expect(agentCommand('codex', "it's\nfine")).toBe(`codex 'it'"'"'s fine'`);
     expect(installCommand('gym')).toBe('node scripts/ext.mjs install gym');
-  });
-  it('builds an inspiration request from the catalog', () => {
-    const p = inspirationPrompt({ id: 'calendar', idea: 'A family calendar.', scope: 'shared' });
-    expect(p).toContain('inspiration:calendar');
-    expect(p).toContain('scope shared');
   });
 });

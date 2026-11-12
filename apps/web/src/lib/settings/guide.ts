@@ -79,33 +79,38 @@ export interface Template {
   id: string;
   name: string;
   blurb: string;
-  /** What `ext.mjs new` gets, or null for "Claude picks". */
+  /** What `ext.mjs new` gets (`onefile`), or null for "Claude picks". */
   from: string | null;
+  /** A ready-made extension (extensions repo) built the same way, to read as a working example. */
+  example?: string;
   scope: Scope | null;
 }
 
-/** Starting points offered by the "Add an app" flow; the others are inspirations/<id> in the extensions repo. */
+/** Starting points offered by the "Add an app" flow. */
 export const TEMPLATES: Template[] = [
   { id: 'auto', name: 'Let Claude pick', blurb: 'Claude chooses the best starting point for the idea.', from: null, scope: null },
   {
     id: 'home-assistant',
     name: 'Connected service',
-    blurb: 'Like the Home example: an address and a token in its settings, data fetched on the server.',
-    from: 'inspiration:home-assistant',
+    blurb: 'Like the Home app: an address and a token in its settings, data fetched on the server.',
+    from: null,
+    example: 'home',
     scope: 'shared'
   },
   {
     id: 'calendar',
     name: 'Shared board',
-    blurb: 'Like the Calendar example: one data set for the whole household, with dashboard tiles.',
-    from: 'inspiration:calendar',
+    blurb: 'One data set for the whole household, with dashboard tiles.',
+    from: null,
+    example: 'home',
     scope: 'shared'
   },
   {
     id: 'learning',
     name: 'Personal tracker',
-    blurb: 'Like the Learning example: each profile keeps its own data, streaks on the dashboard.',
-    from: 'inspiration:learning',
+    blurb: 'Each profile keeps its own data, with numbers on the dashboard (like Training & Health).',
+    from: null,
+    example: 'health',
     scope: 'profile'
   },
   {
@@ -131,7 +136,7 @@ export interface ExtensionRequest {
   inspiration?: string;
   scope: Scope;
   template: string;
-  /** Overrides the template's starting point, e.g. `inspiration:<id>` from the catalog. */
+  /** Overrides the template's starting point. */
   from?: string;
 }
 
@@ -146,9 +151,9 @@ export function buildPrompt(r: ExtensionRequest): string {
     r.scope === 'shared' ? 'Data is shared by all profiles (scope shared).' : 'Each profile keeps its own data (scope profile).',
     t.from === 'onefile'
       ? 'Make it a onefile app (start from a fitting app in onefile-apps).'
-      : t.from
-        ? `Start from ${t.from} (inspirations/ in the extensions repo; node scripts/ext.mjs available lists ready-made apps).`
-        : 'Pick the kind and starting point yourself (node scripts/ext.mjs available lists ready-made apps; skeletons are in inspirations/ of the extensions repo).',
+      : t.example
+        ? `Make it a native extension; read the ready-made ${t.example} extension in the extensions repo as a working example (docs/extensions.md).`
+        : 'Pick the kind and starting point yourself (node scripts/ext.mjs available lists ready-made apps to read as examples; docs/extensions.md).',
     "Use our design system and Beni the mascot, translate it into every language of the app (spec 007), add a settings panel and dashboard tile if useful, run the checks."
   ];
   return parts.filter(Boolean).join(' ');
@@ -171,10 +176,6 @@ export const claudeCommand = (prompt: string): string => agentCommand('claude', 
 
 /** Install ready-made extensions from the extensions repo (the same CLI Claude uses). */
 export const installCommand = (id: string): string => `node scripts/ext.mjs install ${id}`;
-
-/** The request for building an extension from one of the extensions repo's inspirations. */
-export const inspirationPrompt = (i: { id: string; idea: string; scope: Scope }, extra = ''): string =>
-  buildPrompt({ idea: [i.idea, extra].filter((s) => s.trim()).join(' '), scope: i.scope, template: i.id, from: `inspiration:${i.id}` });
 
 /** The prompt for changing an installed extension (its panel's "Ask Claude to change it"). */
 export function buildChangePrompt(id: string, name: string, change: string): string {

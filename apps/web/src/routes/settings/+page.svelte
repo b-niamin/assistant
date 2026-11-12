@@ -152,7 +152,7 @@
       <li>
         <a href="/settings/extensions/new" class="add">
           <span class="mark plus" aria-hidden="true">+</span>
-          <span class="what"><strong>{t('Extend the system')}</strong><span class="meta">{t('Ready-made apps, inspirations, or your own idea')}</span></span>
+          <span class="what"><strong>{t('Extend the system')}</strong><span class="meta">{t('Ready-made apps or your own idea')}</span></span>
           <span class="chev" aria-hidden="true">›</span>
         </a>
       </li>

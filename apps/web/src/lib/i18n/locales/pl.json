@@ -71,7 +71,6 @@
   "On": "Włączona",
   "Off": "Wyłączona",
   "No apps yet. Install a ready-made one or let Claude build one for you.": "Nie ma jeszcze aplikacji. Zainstaluj gotową albo poproś Claude, żeby ją zbudował.",
-  "Ready-made apps, inspirations, or your own idea": "Gotowe aplikacje, inspiracje albo własny pomysł",
   "Profiles": "Profile",
   "Manage": "Zarządzaj",
   "Add": "Dodaj",
@@ -660,5 +659,9 @@
   "This server has no key to encrypt secrets with yet.": "Ten serwer nie ma jeszcze klucza do szyfrowania sekretów.",
   "Everything needed to bring the assistant back on a new machine: your data, its keys and the installed apps. Copy the backup folder off this machine too (Hyper Backup, Time Machine).": "Wszystko, czego trzeba, żeby postawić asystenta na nowym urządzeniu: twoje dane, ich klucze i zainstalowane aplikacje. Kopiuj folder kopii także poza to urządzenie (Hyper Backup, Time Machine).",
   "The latest change to the app did not build": "Ostatnia zmiana w aplikacji się nie zbudowała",
-  "The previous version keeps running. The reason is in the log of web.": "Działa poprzednia wersja. Przyczyna jest w logu web."
+  "The previous version keeps running. The reason is in the log of web.": "Działa poprzednia wersja. Przyczyna jest w logu web.",
+  "Ready-made apps or your own idea": "Gotowe aplikacje albo własny pomysł",
+  "Like the Home app: an address and a token in its settings, data fetched on the server.": "Jak aplikacja Dom: adres i token w ustawieniach, dane pobierane na serwerze.",
+  "One data set for the whole household, with dashboard tiles.": "Jeden zestaw danych dla całego domu, z kafelkami na pulpicie.",
+  "Each profile keeps its own data, with numbers on the dashboard (like Training & Health).": "Każdy profil ma własne dane, z liczbami na pulpicie (jak Trening i zdrowie)."
 }

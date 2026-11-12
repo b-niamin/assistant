@@ -1,6 +1,6 @@
 /**
  * "Extend the system": install a ready-made extension from the extensions repo (`ext install`, run in the
- * dock's terminal), or hand one of its inspirations to Claude to build. For an idea of your own the page points
+ * dock's terminal). For an idea of your own the page points
  * to Claude or Codex in the terminal (whichever is signed in). Nothing is installed from the web process itself:
  * it has no write access to extensions/.
  */
@@ -20,8 +20,7 @@ export const load: PageServerLoad = async ({ cookies, locals }) => {
     // Names and descriptions in the page's language where the catalog has them (spec 007).
     catalog: {
       ...cat,
-      extensions: cat.extensions.map((e) => localizeEntry(e, locals.lang)),
-      inspirations: cat.inspirations.map((e) => localizeEntry(e, locals.lang))
+      extensions: cat.extensions.map((e) => localizeEntry(e, locals.lang))
     },
     agents: { claude: status.claude, codex: status.codex }
   };

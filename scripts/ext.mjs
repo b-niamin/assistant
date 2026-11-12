@@ -12,7 +12,7 @@
  *   node scripts/ext.mjs check [id] [--languages pl,de]  manifests, imports, route generation, translations
  *   node scripts/ext.mjs languages                       the app's languages and what each extension lacks
  *   node scripts/ext.mjs new <id> [--kind native|onefile] [--scope profile|shared] [--name "..."]
- *                                [--from onefile:<appType>/<variant> | --from inspiration:<name>]
+ *                                [--from onefile:<appType>/<variant>]
  *                                [--inspired-by <link or note>] [--profiles a,b]
  *   node scripts/ext.mjs profiles <id> [a,b | all]       who sees it (System settings can override)
  *   node scripts/ext.mjs remove <id>                     the folder moves to extensions/.trash/; data stays
@@ -372,29 +372,17 @@ const commands = {
   async new({ pos, opts }) {
     const id = pos[0];
     checkNewId(id);
-    const example = typeof opts.from === 'string' ? /^(?:inspiration|example):([a-z0-9-]+)$/.exec(opts.from) : null;
-    // Skeletons to start from live in the extensions repo under inspirations/<name> (`example:` = old name).
-    const [exRepo, exCommit] = example ? fetchExtensionsRepo() : [];
-    const src = example ? path.join(exRepo, 'inspirations', example[1]) : null;
-    if (example && !existsSync(path.join(src, 'extension.json'))) die(`no inspirations/${example[1]} in ${EXTENSIONS_REPO}`);
-    const ex = example ? JSON.parse(readFileSync(path.join(src, 'extension.json'), 'utf8')) : {};
-    const kind = opts.kind ?? ex.kind ?? (opts.from ? 'onefile' : 'native');
-    const scope = opts.scope ?? ex.scope ?? 'profile';
+    const kind = opts.kind ?? (opts.from ? 'onefile' : 'native');
+    const scope = opts.scope ?? 'profile';
     if (!['native', 'onefile'].includes(kind)) die('--kind is native or onefile');
     if (!['profile', 'shared'].includes(scope)) die('--scope is profile or shared');
     const dest = path.join(DIR, id);
     const name = typeof opts.name === 'string' ? opts.name : id.replace(/(^|-)([a-z])/g, (_, s, c) => (s ? ' ' : '') + c.toUpperCase());
     let inspiredBy = typeof opts['inspired-by'] === 'string' ? opts['inspired-by'] : undefined;
-    if (example) {
-      // A starting point copied from inspirations/<name>, renamed to the new id; adapt it from there.
-      cpSync(src, dest, { recursive: true });
-      const mf = path.join(dest, 'extension.json');
-      const m = JSON.parse(readFileSync(mf, 'utf8'));
-      writeFileSync(mf, JSON.stringify({ ...m, id, name: opts.name ?? m.name, scope }, null, 2) + '\n');
-      inspiredBy ??= `${EXTENSIONS_REPO}/tree/${exCommit}/inspirations/${example[1]}`;
-    } else if (typeof opts.from === 'string') {
+    if (typeof opts.from === 'string') {
       const m = /^onefile:(.+\/.+)$/.exec(opts.from);
-      if (!m) die('--from takes onefile:<appType>/<variant> or inspiration:<name>');
+      // The ready-made extensions (ext available) are the working examples to read; nothing else to copy.
+      if (!m) die('--from takes onefile:<appType>/<variant>');
       const [tmp, commit] = fetchRepo(ONEFILE_REPO, 'onefile-apps');
       onefileFromRepo(tmp, m[1], dest, id, { name: opts.name, scope });
       copyTemplate('onefile-docs', dest, { id, name, scope });

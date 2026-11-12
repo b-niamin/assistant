@@ -175,7 +175,7 @@ project MCP server (or add `"enabledMcpjsonServers": ["assistant"]` to `.claude/
 
 The core installs bare; `ext install <id>` adds a ready-made extension, and the AI in the terminal builds
 others with the `add-extension` skill (System settings -> Extend the system starts it). Whatever the owner
-points at (a git repo, an app from onefile-apps, a skeleton in the extensions repo's `inspirations/`, a
+points at (a git repo, an app from onefile-apps, a ready-made extension to learn from, a
 sentence) is only inspiration: the extension is built in `extensions/<id>/` and the source is recorded in
 `inspiredBy`. No human step:
 

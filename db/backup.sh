@@ -90,6 +90,18 @@ prune() {
   rm -f "$keep" "$keep.all" "$keep.days"
 }
 
+# /logs/*.log grow with every line the services write (audit M5): once a day, one over 5 MB keeps its
+# newest 1 MB. Cut in place, so a writer appending to it (tee -a) goes on; links are left alone.
+trim_logs() {
+  for f in "$LOGS"/*.log; do
+    [ -f "$f" ] && [ ! -L "$f" ] || continue
+    [ "$(wc -c < "$f")" -gt 5242880 ] || continue
+    t=$(mktemp) || continue
+    tail -c 1048576 "$f" | sed 1d > "$t" && cat "$t" > "$f" && log "trimmed $(basename "$f") to its newest 1 MB"
+    rm -f "$t"
+  done
+}
+
 # Seconds until the next BACKUP_HOUR:00 (local time, TZ).
 until_next() {
   now=$(date +%s)
@@ -116,6 +128,7 @@ while true; do
   if [ -e "$LOGS/backup-request" ] || [ "$(date +%s)" -ge "$next" ]; then
     rm -f "$LOGS/backup-request"
     if backup_once; then next=$(( $(date +%s) + $(until_next) )); else next=$(( $(date +%s) + 1800 )); fi
+    trim_logs
   fi
   sleep 60
 done

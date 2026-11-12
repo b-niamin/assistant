@@ -275,6 +275,8 @@ doctor() {
     if [ -z "$(dc ps -a -q 2>/dev/null)" ]; then w "no containers: sudo ./beni.sh start"
     elif [ -n "$down" ]; then f "not running: $down (sudo ./beni.sh logs <service>)"
     else ok "every service runs"; fi
+    sick=$(dc ps -a --format '{{.Service}} {{.Health}}' 2>/dev/null | awk '$2 == "unhealthy" { print $1 }' | xargs)
+    [ -z "$sick" ] || f "failing its health check: $sick (sudo ./beni.sh logs <service>)"
     port=$(envv WEB_PORT)
     if curl -fs -o /dev/null "http://127.0.0.1:${port:-3000}/healthz" 2>/dev/null; then ok "the app answers on port ${port:-3000}"
     else w "the app does not answer on port ${port:-3000} (still building? sudo ./beni.sh logs web)"; fi

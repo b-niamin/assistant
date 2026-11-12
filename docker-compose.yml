@@ -9,8 +9,14 @@
 # Code is bind-mounted, so a commit in this checkout is live on the next tick / rebuild.
 # Keep the compose project name stable: volumes are prefixed with it.
 
+# Docker's own logs of every service stay small (audit M5): 3 files of 10 MB, the oldest dropped.
+x-logging: &logging
+  driver: json-file
+  options: { max-size: 10m, max-file: '3' }
+
 services:
   db:
+    logging: *logging
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
@@ -42,6 +48,7 @@ services:
   # One-shot: applies db/migrations/*.sql and the least-privilege roles, then exits. The scripts and core
   # migrations are baked into the image from main (docker/migrate/Dockerfile), never read from the checkout.
   migrate:
+    logging: *logging
     build: { context: ., dockerfile: docker/migrate/Dockerfile }
     restart: 'no'
     depends_on:
@@ -70,6 +77,7 @@ services:
   # Re-applies migrations when Claude installs or updates an extension, so that needs no human step.
   # Same image as migrate: core migrations only from main, extension ones from extensions/.
   ext-migrate:
+    logging: *logging
     build: { context: ., dockerfile: docker/migrate/Dockerfile }
     restart: unless-stopped
     depends_on:
@@ -93,6 +101,7 @@ services:
   # sees the host: /proc and /sys, read-only (docker/worker/access.json lists them; spec 004). No port, no
   # docker socket, no .env, not the `logs` volume (the updater's control file is there).
   worker:
+    logging: *logging
     build:
       context: ./docker/worker
     restart: unless-stopped
@@ -121,10 +130,18 @@ services:
     cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, KILL, SETGID, SETUID]
     security_opt: ['no-new-privileges:true']
     mem_limit: 1g
+    # The supervisor rewrites its status every 20 s; an older one means it hangs.
+    healthcheck:
+      test: ['CMD', 'python3', '-c', "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/worker/status.json') > 120)"]
+      interval: 60s
+      timeout: 10s
+      start_period: 2m
+      retries: 3
 
   # Web UI + API. Live-reload builds into build-next/ and swaps it in only after a successful build.
   # Bound to 127.0.0.1: reach it through Tailscale (`tailscale serve --bg 3000` on the host), not the LAN.
   web:
+    logging: *logging
     # Same base (glibc) as the terminal image and the same uid as the checkout owner, so both containers
     # can share apps/web/node_modules and .svelte-kit/ without permission clashes.
     image: node:26-trixie-slim
@@ -178,12 +195,20 @@ services:
     # sidecars: the internal network of the terminal and browser containers (spec 004).
     networks: [default, sidecars]
     mem_limit: 1536m
+    # Alive and the database reachable (/healthz). The first start builds the app, hence the long grace.
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 60s
+      timeout: 10s
+      start_period: 20m
+      retries: 3
 
   # In-app terminal (spec 004): the dock at the bottom of every page, with Claude Code, Codex and gh. Logins
   # typed there (`claude` + /login, `codex login`, `gh auth login`) live in the agent-home volume. No port, no
   # docker socket, no .env; the web app proxies to it only with a single-use ticket, which it re-checks.
   # See docker/terminal/README.md.
   terminal:
+    logging: *logging
     build:
       context: ./docker/terminal
       # Must match the owner of this checkout on the host (Synology: `id -u`, often 1026).
@@ -222,10 +247,18 @@ services:
     # sidecars: the web app reaches it there, and it drives the in-app browser over CDP (browser:9223).
     networks: [default, sidecars]
     mem_limit: 2g
+    # The terminal server answers HTTP (any status) on its port.
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:7681/').then(() => process.exit(0), () => process.exit(1))"]
+      interval: 60s
+      timeout: 10s
+      start_period: 1m
+      retries: 3
 
   # In-app browser (spec 004): System settings -> Browser. Chromium + noVNC; its signed-in profile is
   # in the browser-profile volume (treat it as a secret). Only reachable on the internal sidecars network.
   browser:
+    logging: *logging
     build: ./docker/browser
     restart: unless-stopped
     environment:
@@ -245,6 +278,7 @@ services:
   # where the host's own backup (Synology Hyper Backup, Time Machine) can pick it up.
   # Restore: sudo ./beni.sh restore <BACKUP_DIR>/beni-<day>. Status: /logs/backup-status.json.
   backup:
+    logging: *logging
     image: postgres:18-alpine
     restart: unless-stopped
     depends_on:

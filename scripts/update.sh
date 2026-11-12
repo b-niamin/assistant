@@ -149,7 +149,21 @@ limit() {
 dc() { limit "$STEP_TIMEOUT" $DC_BIN -p "$PROJECT" --project-directory "$DIR" -f "$DIR/docker-compose.yml" --env-file "$DIR/.env" "$@"; }
 # Same, but every build context comes from the verified copy of main ($SRC), not the checkout.
 dc_src() { $DC_BIN -p "$PROJECT" --project-directory "$SRC" -f "$SRC/docker-compose.yml" --env-file "$DIR/.env" "$@"; }
-dc_build() { limit "$BUILD_TIMEOUT" $DC_BIN -p "$PROJECT" --project-directory "$SRC" -f "$SRC/docker-compose.yml" --env-file "$DIR/.env" build "$@"; }
+# --pull: every build starts from the newest base image (Debian, Node, Python, Postgres security fixes).
+dc_build() { limit "$BUILD_TIMEOUT" $DC_BIN -p "$PROJECT" --project-directory "$SRC" -f "$SRC/docker-compose.yml" --env-file "$DIR/.env" build --pull "$@"; }
+# Once a week, while idle: pull the images services run as they are (postgres, node), so the next `up`
+# of those services starts from a patched base; nothing is restarted here (audit D7).
+BASES_EVERY=${ASSISTANT_BASES_EVERY:-604800}
+refresh_bases() {
+  f=$HOME_DIR/bases-pulled
+  last=$(cat "$f" 2>/dev/null || echo 0)
+  case $last in '' | *[!0-9]*) last=0 ;; esac
+  [ $(( $(now) - last )) -ge "$BASES_EVERY" ] || return 0
+  # Tried once a week either way: offline, the next try is a week later, not every minute.
+  now > "$f"
+  if dc pull --ignore-buildable --quiet > /dev/null 2>&1; then log "pulled the newest base images (weekly; used from the next restart of those services)"
+  else log "could not pull the newest base images (weekly); trying again next week"; fi
+}
 # Services of main's compose file that have a build section (one build step each).
 buildable() {
   dc_src config --no-interpolate 2>/dev/null |
@@ -874,6 +888,7 @@ cmd_run() {
   if [ "$resumed" = 0 ]; then
     if [ "$SHA" = "$DEPLOYED" ]; then
       prune_orphans
+      refresh_bases
       # Said once: asked for, or the end of a failed, blocked or available state.
       if [ "$requested" = 1 ] || { [ -n "$S_note" ] && [ "$S_note" != fetch ]; }; then
         S_note="" S_failed="" S_fail_count=0 ACTIONS=""

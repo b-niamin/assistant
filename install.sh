@@ -9,7 +9,10 @@
 # /setup. Defaults can be changed up front: ASSISTANT_DIR, WEB_PORT, ASSISTANT_HTTPS_PORT,
 # ASSISTANT_EXTENSIONS (or arguments: sh -s -- health gym), ASSISTANT_AUTO_UPDATE=0|1 and
 # ASSISTANT_START=manual (you start the stack yourself). ASSISTANT_PROJECT names the compose project of a
-# new install (default: the folder name; pinned in .env).
+# new install (default: the folder name; pinned in .env). ASSISTANT_TAILSCALE=0 leaves Tailscale alone (no
+# `tailscale serve`; the app stays on localhost; kept in .env as TAILSCALE_SERVE=0).
+# Interrupted (Ctrl-C, a closed terminal)? Run it again: it goes on where it stopped. `./beni.sh uninstall`
+# removes everything it made.
 #
 # What it does, and nothing else:
 #   1. checks Docker + Compose, clones the repo (ASSISTANT_REPO, ASSISTANT_DIR) if not run from a checkout,
@@ -40,6 +43,8 @@ quietly() {
   printf '\n=== %s  %s\n' "$(date -u +%H:%M:%S)" "$label" >> "$LOG"
   "$@" >> "$LOG" 2>&1 &
   pid=$!; t0=$(date +%s)
+  # Ctrl-C stops the step too (a background job ignores it), and says how to go on.
+  trap 'kill "$pid" 2>/dev/null; printf "\n" >&2; die "Interrupted. Run the same command again to go on where it stopped."' INT TERM HUP
   if [ -t 1 ]; then
     while kill -0 "$pid" 2>/dev/null; do
       printf '\r  \033[2m…\033[0m %s \033[2m%ss\033[0m\033[K' "$label" "$(($(date +%s) - t0))"
@@ -47,7 +52,8 @@ quietly() {
     done
     printf '\r\033[K'
   fi
-  if wait "$pid"; then ok "$label ($(($(date +%s) - t0))s)"; return 0; fi
+  if wait "$pid"; then trap - INT TERM HUP; ok "$label ($(($(date +%s) - t0))s)"; return 0; fi
+  trap - INT TERM HUP
   printf '  \033[31m✗\033[0m %s failed. Last lines of %s:\n' "$label" "$LOG" >&2
   tail -n 25 "$LOG" | sed 's/^/    /' >&2
   exit 1
@@ -81,9 +87,12 @@ complete=no
 if [ -f "$DIR/.env" ]; then
   PORT=$(sed -n 's/^WEB_PORT=//p' "$DIR/.env"); PORT=${PORT:-3000}
   HTTPS_PORT=$(sed -n 's/^TAILNET_HTTPS_PORT=//p' "$DIR/.env"); HTTPS_PORT=${HTTPS_PORT:-443}
+  saved_ts=$(sed -n 's/^TAILSCALE_SERVE=//p' "$DIR/.env" | tail -n 1)
+  ASSISTANT_TAILSCALE=${ASSISTANT_TAILSCALE:-${saved_ts:-1}}
 else
   PORT=${WEB_PORT:-$(free_port 3000)}
-  if [ -n "${ASSISTANT_HTTPS_PORT:-}" ]; then HTTPS_PORT=$ASSISTANT_HTTPS_PORT
+  if [ "${ASSISTANT_TAILSCALE:-1}" = 0 ]; then HTTPS_PORT=443
+  elif [ -n "${ASSISTANT_HTTPS_PORT:-}" ]; then HTTPS_PORT=$ASSISTANT_HTTPS_PORT
   elif tailnet_https_used 443; then HTTPS_PORT=8443; while tailnet_https_used "$HTTPS_PORT"; do HTTPS_PORT=$((HTTPS_PORT + 1)); done
   else HTTPS_PORT=443; fi
 fi
@@ -115,9 +124,18 @@ elif [ -d "$DIR/.git" ]; then
   say "using the checkout in $DIR"
 else
   command -v git >/dev/null 2>&1 || die "git is missing (Synology: Package Center > Git Server, or set up a checkout by hand)."
+  [ ! -e "$DIR" ] || [ -z "$(ls -A "$DIR" 2>/dev/null)" ] || die "$DIR exists and is not a checkout of the assistant: pick another folder (ASSISTANT_DIR=...)"
   say "cloning $REPO into $DIR"
   mkdir -p "$(dirname "$DIR")"
-  git clone --quiet "$REPO" "$DIR"
+  # Into a side folder first, so an interrupted clone never looks like a checkout to the next run.
+  rm -rf "$DIR.cloning"
+  trap 'rm -rf "$DIR.cloning"; printf "\n" >&2; die "Interrupted. Run the same command again to start over."' INT TERM HUP
+  git clone --quiet "$REPO" "$DIR.cloning" || { rm -rf "$DIR.cloning"; die "could not clone $REPO"; }
+  trap - INT TERM HUP
+  rmdir "$DIR" 2>/dev/null || true
+  if [ -d "$DIR" ]; then # an empty folder that stays (a mount point): the files go into it
+    (cd "$DIR.cloning" && tar cf - .) | (cd "$DIR" && tar xf -) && rm -rf "$DIR.cloning"
+  else mv "$DIR.cloning" "$DIR"; fi
 fi
 cd "$DIR"
 # The containers run as the checkout's owner (HOST_UID), never root. Run as root (through sudo) on a new
@@ -167,9 +185,12 @@ phase "Writing the configuration (.env with fresh random secrets)"
 rand() { head -c 48 /dev/urandom | base64 | tr -d '/+=\n' | cut -c1-"$1"; }
 fernet() { head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '\n'; }
 origin=""
-if command -v tailscale >/dev/null 2>&1; then
+tailscale_state=missing
+[ "${ASSISTANT_TAILSCALE:-1}" = 0 ] && tailscale_state=off
+if [ "$tailscale_state" = missing ] && command -v tailscale >/dev/null 2>&1; then
+  tailscale_state=silent
   host=$(tailscale status --json 2>/dev/null | sed -n 's/.*"DNSName": *"\([^"]*\)\.".*/\1/p' | head -n 1)
-  [ -n "$host" ] && origin="https://$host$( [ "$HTTPS_PORT" = 443 ] || echo ":$HTTPS_PORT")"
+  [ -n "$host" ] && origin="https://$host$( [ "$HTTPS_PORT" = 443 ] || echo ":$HTTPS_PORT")" && tailscale_state=on
 fi
 [ -n "$origin" ] || origin="http://localhost:$PORT"
 tz=${ASSISTANT_TIMEZONE:-}
@@ -220,6 +241,10 @@ WEB_PORT=$PORT
 MCP_PORT=$(free_port 3101)
 # Containers and volumes are named after it: pinned, so moving the folder keeps them.
 COMPOSE_PROJECT_NAME=$PROJECT
+# The daily backups: a folder of this install's own, next to the checkout (never inside it).
+BACKUP_DIR=../$(basename "$DIR")-backups
+# 0 = this installer leaves Tailscale alone (ASSISTANT_TAILSCALE=0).
+TAILSCALE_SERVE=${ASSISTANT_TAILSCALE:-1}
 ENV
   chmod 600 .env
 fi
@@ -289,7 +314,9 @@ fi
 
 # 5. tailnet
 phase "Publishing on your tailnet and setting up updates"
-if command -v tailscale >/dev/null 2>&1; then
+if [ "$(sed -n 's/^TAILSCALE_SERVE=//p' .env | tail -n 1)" = 0 ]; then
+  say "Tailscale left alone (TAILSCALE_SERVE=0 in .env)"
+elif command -v tailscale >/dev/null 2>&1; then
   if tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1 ||
     sudo tailscale serve --bg --https="$HTTPS_PORT" "$PORT" >/dev/null 2>&1; then
     ok "On your tailnet: $(sed -n 's/^PUBLIC_ORIGIN=//p' .env)"
@@ -320,6 +347,8 @@ phase "Done"
 grep -q '^INSTALLED_AT=' .env || printf 'INSTALLED_AT=%s\n' "$(date -u +%Y-%m-%dT%H:%MZ)" >> .env
 sed -i '/^START_MODE=/d' .env && printf 'START_MODE=%s\n' "$START" >> .env
 token=$(sed -n 's/^SETUP_TOKEN=//p' .env)
+backups=$(sed -n 's/^BACKUP_DIR=//p' .env | tail -n 1); backups=${backups:-../assistant-backups}
+case $backups in /*) ;; ../*) backups=$(dirname "$DIR")/${backups#../} ;; *) backups=$DIR/$backups ;; esac
 if [ "$START" = manual ] && [ -n "$(dc ps -q 2>/dev/null)" ]; then
   say "The stack is running. ./beni.sh update rebuilds or restarts what a pulled change touches."
 elif [ "$START" = manual ]; then
@@ -339,10 +368,19 @@ cat <<NEXT
 
   Open:        $(sed -n 's/^PUBLIC_ORIGIN=//p' .env)/setup
   Setup code:  $token
-$( [ "$origin" = "http://localhost:$PORT" ] && echo "  (No Tailscale found: from your computer run  ssh -L $PORT:localhost:$PORT <this-host>  and open http://localhost:$PORT/setup)")
+$(case $(sed -n 's/^PUBLIC_ORIGIN=//p' .env) in
+  http://localhost:*)
+    case $tailscale_state in
+      off) printf '  (Tailscale left alone: the app is on this machine only.' ;;
+      silent) printf '  (Tailscale did not answer (signed in? tailscale up): the app is on this machine only.' ;;
+      *) printf '  (No Tailscale here: the app is on this machine only.' ;;
+    esac
+    printf ' From another computer: ssh -L %s:localhost:%s <this-host>, then open http://localhost:%s/setup)\n' "$PORT" "$PORT" "$PORT" ;;
+esac)
 
   The wizard there sets the app password, your profile and language, the apps, updates and Claude.
-  Later:  ./beni.sh status | doctor | logs | ext available | update   (./beni.sh help)
+  Backups:     $backups (daily)
+  Later:  ./beni.sh status | doctor | logs | ext available | update | uninstall   (./beni.sh help)
 
 NEXT
 

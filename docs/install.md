@@ -25,8 +25,12 @@ Everything there can be changed later in **Settings** (`/settings`).
 Defaults can be changed up front: `ASSISTANT_DIR`, `WEB_PORT`, `ASSISTANT_HTTPS_PORT`,
 `ASSISTANT_EXTENSIONS` (or `sh -s -- health gym`), `ASSISTANT_AUTO_UPDATE=0|1`,
 `ASSISTANT_START=manual` (you start it yourself, e.g. in Synology Container Manager or Portainer: it then
-prepares `stack/docker-compose.yml` and `stack/.env` and says where to point the tool) and
-`ASSISTANT_PROJECT` (the compose project name).
+prepares `stack/docker-compose.yml` and `stack/.env` and says where to point the tool),
+`ASSISTANT_PROJECT` (the compose project name) and `ASSISTANT_TAILSCALE=0` (leave Tailscale alone: no
+`tailscale serve`, the app stays on this machine's localhost; kept in `.env` as `TAILSCALE_SERVE=0`).
+
+Interrupted (Ctrl-C, a dropped SSH session, a reboot)? Run the same command again: it goes on where it
+stopped, with the same folder, ports and secrets. A clone that did not finish is thrown away and made again.
 
 Containers and volumes are named after the compose project: the folder name, pinned in `.env` as
 `COMPOSE_PROJECT_NAME` so the folder can move later. When another folder's stack already uses that name
@@ -83,6 +87,7 @@ One command for the host (Synology: `sudo` in front):
 ./beni.sh move <new-folder>      # move the install elsewhere, data kept
 ./beni.sh backup [--list]        # make a backup now | list them
 ./beni.sh restore <backup>       # bring one back (also on a new machine, after the installer)
+./beni.sh uninstall              # remove everything (see below)
 ```
 
 Run `git` in the checkout as yourself, not with sudo: files git writes as root stop the containers
@@ -95,12 +100,27 @@ clone into the same folder name) makes the installer stop instead of failing lat
 authentication failed": put the old `.env` back, run `sudo ./beni.sh fix-db-password`, or remove the
 `<project>_db-data` volume to start empty.
 
+## Removing it
+
+```sh
+sudo ./beni.sh uninstall                  # asks you to type the project name
+sudo ./beni.sh uninstall --keep-backups   # the same, but the backups stay
+```
+
+It removes everything the installer made, also from an install that was interrupted halfway: the
+containers, volumes (the database, so all data), networks and images of the compose project, the
+updater's schedule (cron) and its home `<folder>-updater`, the tailnet address and the Claude connector
+when they point at this install, the backups in the install's own folder (`<folder>-backups`) and the
+folder itself. Backups in a folder that is not only this install's (an older shared `assistant-backups`,
+or your own `BACKUP_DIR`) stay. On a Synology, delete the Task Scheduler entry yourself (it says which);
+`--yes` skips the question, for scripts.
+
 ## Backups
 
 The `backup` service makes one backup a day (at `BACKUP_HOUR`, 3:00 by default, local time; at once when
 the last one is more than a day old) into `BACKUP_DIR`, a host folder next to the checkout
-(`../assistant-backups`, e.g. `/volume1/docker/assistant-backups`; never inside the checkout, which the
-terminal sees). Each backup is a folder `beni-<day>_<time>` with everything a new machine needs:
+(`../<folder>-backups`, e.g. `/volume1/docker/assistant-backups`; never inside the checkout, which the
+terminal sees; installs before 2026-11-12 without `BACKUP_DIR` in `.env` use `../assistant-backups`). Each backup is a folder `beni-<day>_<time>` with everything a new machine needs:
 
 | File | What |
 | --- | --- |

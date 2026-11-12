@@ -62,6 +62,9 @@ services:
       - logs:/logs
       # Handed to HOST_UID here, for web (see the web service).
       - updater-control:/updater
+    # The postgres image declares a data VOLUME this client never uses: a tmpfs there, so no anonymous
+    # volume is made (one left behind each time a container is recreated or a start is interrupted).
+    tmpfs: [/var/lib/postgresql]
     entrypoint: ['sh', '/migrate.sh']
 
   # Re-applies migrations when Claude installs or updates an extension, so that needs no human step.
@@ -81,6 +84,7 @@ services:
     volumes:
       - ./extensions:/extensions:ro
       - logs:/logs
+    tmpfs: [/var/lib/postgresql] # no anonymous volume (see migrate)
     entrypoint: ['sh', '-c', 'sh /watch-extensions.sh 2>&1 | tee -a /logs/ext-migrate.log']
 
   # Background work of the extensions (spec 002, "Background work"): their services and scheduled jobs,
@@ -261,6 +265,7 @@ services:
       - ./.env:/instance/.env:ro
       - ./extensions:/instance/extensions:ro
       - logs:/logs
+    tmpfs: [/var/lib/postgresql] # no anonymous volume (see migrate)
     entrypoint: ['sh', '/backup.sh']
 
 networks:

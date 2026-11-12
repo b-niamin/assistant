@@ -46,6 +46,9 @@ It asks nothing: it picks a folder and free ports, starts the stack and prints a
 1. Open the printed address + `/setup`, enter the setup code and follow the wizard: password, profile, apps, updates and Claude.
 2. Check the install with `sudo ./beni.sh doctor`.
 
+Interrupted? Run the same command again: it goes on where it stopped. To remove everything it made:
+`sudo ./beni.sh uninstall`.
+
 Synology steps, installer options and `beni.sh` commands: [docs/install.md](docs/install.md).
 
 ## Screenshots

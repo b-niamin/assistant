@@ -17,6 +17,9 @@
 #   ./beni.sh backup [--list]       make a backup now (database, .env, extensions) | list them
 #   ./beni.sh restore <backup>      bring a backup back (also on a new machine, after ./beni.sh install)
 #   ./beni.sh auto-update [install | status]   set up the updater and its schedule (once) | status
+#   ./beni.sh uninstall [--keep-backups] [--yes]   remove the install: containers, volumes (the data),
+#                                   images, the updater and its schedule, the tailnet address, the backups
+#                                   in this install's own folder, and this folder
 #
 # Docker on Synology needs root: put sudo in front (sudo ./beni.sh status).
 set -eu
@@ -65,7 +68,7 @@ as_owner() {
   else "$@"; fi
 }
 
-usage() { sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # --- the database password ----------------------------------------------------------------------
 # A database volume keeps the password it was created with. A new .env (a fresh clone into the same
@@ -296,9 +299,14 @@ doctor() {
       *) w "updater $st (sudo ./beni.sh update --status)" ;;
     esac
     # Each run leaves a timestamp; none for 15 minutes means the schedule does not run it.
+    # The logs volume is root's: without sudo, the updater home's own last-run stamp tells the same.
     mp=$(docker volume inspect -f '{{.Mountpoint}}' "$(project)_logs" 2>/dev/null || true)
-    if [ -n "$mp" ] && [ -f "$mp/updater-heartbeat" ] && [ -n "$(find "$mp/updater-heartbeat" -mmin -15 2>/dev/null)" ]; then
+    beat=$mp/updater-heartbeat
+    [ -n "$mp" ] && [ -r "$mp" ] || beat=$home/last-run
+    if [ -f "$beat" ] && [ -n "$(find "$beat" -mmin -15 2>/dev/null)" ]; then
       ok "the updater ran in the last 15 minutes"
+    elif [ ! -f "$beat" ] && [ -n "$(find "$home/status.json" -mmin -15 2>/dev/null)" ]; then
+      ok "the updater was just set up: its schedule runs it within a minute"
     elif [ -n "$mp" ]; then
       w "the updater has not run in the last 15 minutes: the schedule must run  sh $home/update.sh  (as root, every minute; DSM: last run time 23:59, not 00:59)"
     fi
@@ -436,6 +444,118 @@ restore() {
 # The updater's home: next to the checkout, outside it (spec 006).
 updater_home() { echo "${ASSISTANT_UPDATER_HOME:-$(dirname "$DIR")/$(basename "$DIR")-updater}"; }
 
+# --- uninstall ------------------------------------------------------------------------------------
+# Everything install.sh made, found by the compose project's labels, so it works on a half-finished
+# install too (no .env, interrupted build). Files root made (backups, a sudo run) go through a throwaway
+# container when this runs without sudo.
+as_root_rm() { # as_root_rm <path>: rm -rf, through Docker when the files are not ours
+  rm -rf "$1" 2>/dev/null && return 0
+  docker run --rm -v "$(dirname "$1"):/p" "$RM_IMAGE" rm -rf "/p/$(basename "$1")"
+}
+
+uninstall() {
+  yes=${ASSISTANT_YES:-0} keep=no
+  for a in "$@"; do
+    case $a in
+      --yes | -y) yes=1 ;;
+      --keep-backups) keep=yes ;;
+      *) die "uninstall [--keep-backups] [--yes]" ;;
+    esac
+  done
+  docker info >/dev/null 2>&1 || die "cannot talk to Docker: put sudo in front"
+  [ -f docker-compose.yml ] && [ -f install.sh ] || die "$DIR is not an install of the assistant"
+  p=$(project) home=$(updater_home) bdir=$(backup_dir)
+  own_backups=$(dirname "$DIR")/$(basename "$DIR")-backups
+  # The image rm runs in: the backup service's, which the stack pulled (not one it built).
+  RM_IMAGE=$(awk '/^  backup:/ { f = 1 } f && /image:/ { print $2; exit }' docker-compose.yml)
+  RM_IMAGE=${RM_IMAGE:-alpine}
+  # Containers of the same project name from another folder are another install: stop, touch nothing.
+  others=$(docker ps -a --filter "label=com.docker.compose.project=$p" --format '{{.Label "com.docker.compose.project.working_dir"}}' |
+    grep -v -x -e "$DIR" -e "$DIR/stack" | sort -u)
+  [ -z "$others" ] || die "the compose project $p also has containers from $others: remove that install first, or set COMPOSE_PROJECT_NAME"
+
+  printf '\n  This removes the assistant in %s for good:\n' "$DIR"
+  printf '    - containers, volumes (the database: all data) and images of the compose project %s\n' "$p"
+  [ ! -d "$home" ] || printf '    - the updater %s and its schedule\n' "$home"
+  if [ "$keep" = yes ]; then printf '    - (backups kept in %s)\n' "$bdir"
+  elif [ "$bdir" = "$own_backups" ]; then printf '    - the backups in %s\n' "$bdir"
+  else printf '    - (backups in %s stay: that folder is not only this install'"'"'s)\n' "$bdir"; fi
+  printf '    - this folder, with .env and the installed extensions\n\n'
+  if [ "$yes" != 1 ]; then
+    [ -t 0 ] || die "nothing removed: add --yes to run it without a terminal"
+    printf '  Type the project name (%s) to go on: ' "$p"
+    read -r a
+    [ "$a" = "$p" ] || die "nothing removed"
+  fi
+
+  # 1. The schedule first, so no update starts again meanwhile; a running one is cancelled.
+  # Ours, and as root also the checkout owner's (an install run without sudo put it there).
+  users=-
+  if [ "$(id -u)" = 0 ]; then users="- $(awk -F: -v u="$(owner_uid)" '$3 == u { print $1; exit }' /etc/passwd 2>/dev/null)"; fi
+  for u in $users; do
+    command -v crontab >/dev/null 2>&1 || break
+    if [ "$u" = - ]; then set --; else set -- -u "$u"; fi
+    crontab "$@" -l 2>/dev/null | grep -qF "$home/update.sh" || continue
+    crontab "$@" -l 2>/dev/null | grep -vF "$home/update.sh" | crontab "$@" - && ok "removed the cron entry${1:+ of $u}"
+  done
+  if [ -f "$home/update.sh" ] && [ -d "$home/lock" ]; then
+    sh "$home/update.sh" cancel "$DIR" >/dev/null 2>&1 || true
+    n=0; while [ -d "$home/lock" ] && [ "$n" -lt 60 ]; do sleep 2; n=$((n + 1)); done
+  fi
+
+  # 2. The tailnet: only what points at this install's ports.
+  if command -v tailscale >/dev/null 2>&1; then
+    port=$(envv WEB_PORT) https=$(envv TAILNET_HTTPS_PORT) mcp=$(envv MCP_PORT)
+    st=$(tailscale serve status --json 2>/dev/null | tr -d ' \t\r\n')
+    if [ -n "$port" ] && [ -n "$https" ] && printf '%s' "$st" | grep -q ":$https\":{\"Handlers\":{\"/\":{\"Proxy\":\"http://127.0.0.1:$port\"}}"; then
+      if tailscale serve --https="$https" off >/dev/null 2>&1 || sudo -n tailscale serve --https="$https" off >/dev/null 2>&1; then
+        ok "tailnet address on port $https removed"
+      else warn "could not stop the tailnet address: sudo tailscale serve --https=$https off"; fi
+    fi
+    if [ -n "$mcp" ]; then
+      for fp in 8443 10000; do
+        printf '%s' "$st" | sh scripts/update.sh funnel-has ours "$fp" "$mcp" | grep -q yes || continue
+        if tailscale funnel --https="$fp" off >/dev/null 2>&1 || sudo -n tailscale funnel --https="$fp" off >/dev/null 2>&1; then
+          ok "Claude connector (port $fp) removed"
+        else warn "could not stop the Claude connector: sudo tailscale funnel --https=$fp off"; fi
+      done
+    fi
+  fi
+
+  # 3. Backups: this install's own folder only (an older shared one keeps everything).
+  if [ "$keep" = no ] && [ "$bdir" = "$own_backups" ] && [ -d "$bdir" ]; then
+    as_root_rm "$bdir" && ok "removed the backups ($bdir)" || warn "could not remove $bdir"
+  fi
+
+  # 4. The stack, by its labels.
+  ids=$(docker ps -aq --filter "label=com.docker.compose.project=$p")
+  # Their unnamed volumes too (an image's VOLUME): `rm -v` leaves the ones Compose made.
+  anon=""
+  [ -z "$ids" ] || anon=$(docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}} {{end}}{{end}}' $ids |
+    tr ' ' '\n' | grep -E '^[0-9a-f]{64}$' | sort -u) || true
+  [ -z "$ids" ] || { docker rm -f -v $ids >/dev/null && ok "removed the containers"; }
+  ids=$( { docker volume ls -q --filter "label=com.docker.compose.project=$p"; printf '%s\n' $anon; } | grep . | sort -u)
+  if [ -n "$ids" ]; then
+    for v in $ids; do
+      docker volume inspect "$v" >/dev/null 2>&1 || continue # rm -v took it already
+      docker volume rm "$v" >/dev/null || warn "volume $v is still in use (docker ps -a --filter volume=$v)"
+    done
+    ok "removed the volumes"
+  fi
+  ids=$(docker network ls -q --filter "label=com.docker.compose.project=$p")
+  [ -z "$ids" ] || { docker network rm $ids >/dev/null && ok "removed the networks"; }
+  ids=$(docker images -q --filter "label=com.docker.compose.project=$p" | sort -u)
+  [ -z "$ids" ] || { docker rmi -f $ids >/dev/null && ok "removed the images"; }
+
+  # 5. Files: the updater home, then this folder.
+  if [ -d "$home" ]; then as_root_rm "$home" && ok "removed the updater ($home)"; fi
+  [ ! -f /etc/synoinfo.conf ] || warn "DSM: delete the Task Scheduler entry that runs $home/update.sh"
+  [ "$(envv START_MODE)" != manual ] || warn "Container Manager or Portainer: delete the project $p there too"
+  cd /
+  as_root_rm "$DIR" && ok "removed $DIR" || die "could not remove $DIR"
+  printf '\n  The assistant is gone.\n\n'
+}
+
 cmd=${1:-help}
 [ $# -gt 0 ] && shift
 case $cmd in
@@ -482,6 +602,7 @@ case $cmd in
       status) exec sh scripts/update.sh status "$DIR" ;;
       *) die "auto-update install | status" ;;
     esac ;;
+  uninstall) uninstall "$@" ;;
   help | -h | --help) usage ;;
   *) usage; exit 1 ;;
 esac

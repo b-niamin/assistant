@@ -1,5 +1,6 @@
 <script lang="ts">
   import Mascot from '#lib/Mascot.svelte';
+  import SetupUnlock from '#lib/setup/SetupUnlock.svelte';
   import { useT } from '#lib/i18n/index.ts';
 
   let { data, form } = $props();
@@ -14,8 +15,10 @@
   <p>{t('Two choices about what reaches the assistant from outside.')}</p>
 </div>
 
+{#if !data.unlocked}<SetupUnlock />{/if}
+
 <form method="POST" class="grid">
-  {#if form?.error}<p class="err" role="alert">{form.error}</p>{/if}
+  {#if form?.error && data.unlocked}<p class="err" role="alert">{form.error}</p>{/if}
   <fieldset>
     <legend>{t('New versions')}</legend>
     <div class="choice">
@@ -47,7 +50,7 @@
 
   <div class="nav">
     <a class="skip" href="/setup/apps">‹ {t('Back')}</a>
-    <button class="btn btn-primary">{t('Continue')}</button>
+    <button class="btn btn-primary" disabled={!data.unlocked}>{t('Continue')}</button>
   </div>
 </form>
 

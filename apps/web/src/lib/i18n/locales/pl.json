@@ -19,6 +19,7 @@
   "Unlocked for 10 minutes.": "Odblokowane na 10 minut.",
   "Locked.": "Zablokowane.",
   "Unlock first.": "Najpierw odblokuj.",
+  "The 10-minute unlock ran out. Enter the app password to go on.": "Odblokowanie na 10 minut minęło. Wpisz hasło aplikacji, żeby kontynuować.",
   "Languages saved.": "Języki zapisane.",
   "Manual updates: the app shows new versions and waits for \"Update now\".": "Aktualizacje ręczne: aplikacja pokazuje nowe wersje i czeka na „Aktualizuj teraz”.",
   "Automatic updates.": "Aktualizacje automatyczne.",
@@ -68,8 +69,8 @@
   "{n} installed": "zainstalowane: {n}",
   "Native app": "Aplikacja natywna",
   "One-file app": "Aplikacja jednoplikowa",
-  "On": "Włączona",
-  "Off": "Wyłączona",
+  "On": "Włączone",
+  "Off": "Wyłączone",
   "No apps yet. Install a ready-made one or let Claude build one for you.": "Nie ma jeszcze aplikacji. Zainstaluj gotową albo poproś Claude, żeby ją zbudował.",
   "Profiles": "Profile",
   "Manage": "Zarządzaj",
@@ -791,7 +792,7 @@
   "recommended": "zalecane",
   "The updater has not reported yet; it takes this choice on its first run.": "Aktualizator jeszcze się nie zgłosił; przyjmie ten wybór przy pierwszym uruchomieniu.",
   "Use your apps from claude.ai and the Claude apps on your phone. It opens one address to the internet (Tailscale Funnel); each new connection waits for your approval.": "Korzystaj ze swoich aplikacji z claude.ai i aplikacji Claude w telefonie. Otwiera jeden adres na internet (Tailscale Funnel); każde nowe połączenie czeka na Twoją zgodę.",
-  "Off for now": "Na razie wyłączony",
+  "Off for now": "Na razie wyłączone",
   "Nothing is reachable from outside your tailnet. Turn it on later in System settings.": "Nic nie jest dostępne spoza Twojego tailnetu. Włączysz go później w Ustawieniach systemu.",
   "Back": "Wstecz"
 }

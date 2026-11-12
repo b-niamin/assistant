@@ -63,7 +63,7 @@
         <label><span class="meta">{t('Profile id')}</span><input
             name="profile"
             placeholder="alex"
-            pattern="[a-z][a-z0-9-]*"
+            pattern="[a-z][a-z0-9\-]*"
             maxlength="32"
             required
             bind:value={profile}

@@ -8,9 +8,9 @@ import { tFor } from '#lib/i18n/index.ts';
 import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
 import { setUpdaterControl, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 
-export const load: PageServerLoad = async () => {
-  const [control, status] = await Promise.all([updaterControl(), updaterStatus()]);
-  return { mode: control.mode, funnel: control.funnel ?? 'off', updater: !!status };
+export const load: PageServerLoad = async ({ cookies }) => {
+  const [control, status, unlocked] = await Promise.all([updaterControl(), updaterStatus(), isElevated(cookies.get(SESSION_COOKIE))]);
+  return { mode: control.mode, funnel: control.funnel ?? 'off', updater: !!status, unlocked };
 };
 
 export const actions: Actions = {

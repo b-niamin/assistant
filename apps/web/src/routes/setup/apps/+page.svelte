@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Mascot from '#lib/Mascot.svelte';
-  import { runInDock } from '#lib/dock/dock.svelte.ts';
+  import SetupUnlock from '#lib/setup/SetupUnlock.svelte';
+  import { dock, runInDock } from '#lib/dock/dock.svelte.ts';
   import { guessAccessory } from '#lib/mascot.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -24,6 +25,16 @@
     asked = [...asked, ...ids];
     picked = [];
   }
+
+  // All in: the terminal's drawer closes again, so it does not cover the next step's buttons.
+  let wasWaiting = false;
+  $effect(() => {
+    if (waiting.length) wasWaiting = true;
+    else if (wasWaiting) {
+      wasWaiting = false;
+      dock.open = false;
+    }
+  });
 
   // Installs land within seconds of the command; the list follows them.
   onMount(() => {
@@ -77,8 +88,10 @@
   <p class="meta live" role="status">{t('Installing in the terminal at the bottom: {apps}. It takes a minute.', { apps: waiting.join(', ') })}</p>
 {/if}
 
-{#if !data.terminal || !data.unlocked}
+{#if !data.terminal}
   <p class="meta">{t('Apps are installed in the terminal, which is not available right now. Add them later in System settings, Apps.')}</p>
+{:else if !data.unlocked}
+  <SetupUnlock />
 {/if}
 
 <div class="nav">

@@ -20,7 +20,7 @@
 
 <svelte:head><title>{t('Language')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Language')} lede={t('The languages of the app. Every app (extension) is built in all of them: when one lacks a language, the AI translates it as it installs it.')} />
+<PageHead title={t('Language')} lede={t('Languages of the app. An app without one is translated by the AI when it is installed.')} />
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}
@@ -62,7 +62,7 @@
     {/each}
   </ul>
   <div class="foot">
-    <p class="meta">{t('English is the base of every app and stays on. Each browser can pick its own language in the profile menu.')}</p>
+    <p class="meta">{t('English always stays on. Each browser picks its own in the profile menu.')}</p>
     <button class="btn btn-primary">{t('Save')}</button>
   </div>
 </form>

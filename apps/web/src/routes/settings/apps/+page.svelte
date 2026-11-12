@@ -12,7 +12,7 @@
 
 <svelte:head><title>{t('Apps')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Apps')} lede={t('What the assistant can do. Each app has its own panel: who sees it, its settings and its data.')}>
+<PageHead title={t('Apps')} lede={t('Each app has its own panel: who sees it, its settings, its data.')}>
   {#snippet actions()}
     <a class="btn btn-primary" href="/settings/extensions/new">{t('Extend the system')}</a>
   {/snippet}

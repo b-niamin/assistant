@@ -20,7 +20,7 @@
 <div class="head">
   <h1>{t('Profiles')}</h1>
   <p class="lede">
-    {t('Everyone at home gets their own profile: their own data, apps and dashboard. Profiles are not accounts; anyone with the app password can switch between them from the menu at the top.')}
+    {t('Everyone gets their own data, apps and dashboard. Anyone with the app password can switch between them.')}
   </p>
 </div>
 
@@ -137,7 +137,7 @@
 <aside class="card tip">
   <Mascot mood="steady" size={56} decorative />
   <p>
-    {t('Apps with their own data per profile start empty for a new profile; shared apps show the same data to everyone. Claude answers for the profile you name ("for Anna, ..."), or for the first profile by default.')}
+    {t('A new profile starts empty; shared apps show the same data to everyone.')}
   </p>
 </aside>
 

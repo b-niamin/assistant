@@ -35,7 +35,7 @@
     <span class="mark" style="--hue: var(--hue-blue)" aria-hidden="true">≡</span>
     <h1>{t('Logs')}</h1>
   </div>
-  <p class="muted">{t('Everything the app writes to /logs: the web app, the updater, migrations and extension services.')}</p>
+  <p class="muted">{t('What the app, the updater and the services write to /logs.')}</p>
 </div>
 
 <div class="bar">

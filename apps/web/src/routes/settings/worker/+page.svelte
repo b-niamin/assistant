@@ -76,7 +76,7 @@
     <span class="status small {head.tone}">{head.label}</span>
   </div>
   <p class="muted">
-    {t('Runs the background work of your apps: services that run all the time and scheduled runs.')}
+    {t('The background work of your apps.')}
     {t('Installing or updating an app is enough: the worker picks it up within seconds.')}
   </p>
 </div>

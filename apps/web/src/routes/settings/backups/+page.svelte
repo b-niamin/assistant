@@ -11,7 +11,7 @@
 
 <svelte:head><title>{t('Backups')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Backups')} lede={t('Everything needed to bring the assistant back on a new machine: your data, its keys and the installed apps.')}>
+<PageHead title={t('Backups')} lede={t('Your data, its keys and the apps, to bring the assistant back on a new machine.')}>
   {#snippet actions()}
     <form method="POST" action="?/backup" use:enhance><button class="btn btn-primary">{t('Back up now')}</button></form>
   {/snippet}
@@ -56,7 +56,7 @@
     <p>{t('Copy the backup folder off this machine too (Hyper Backup, Time Machine).')}</p>
     <details class="tech">
       <summary>{t('Technical details')}</summary>
-      <p class="meta">{t('Database, .env and the installed extensions, in BACKUP_DIR next to the checkout. Copy that folder off this machine too (Hyper Backup, Time Machine). Restore: sudo ./beni.sh restore <folder>.')}</p>
+      <p class="meta">{t('Data, .env and apps, in BACKUP_DIR. Copy that folder off this machine too. Restore: sudo ./beni.sh restore <folder>.')}</p>
     </details>
   </div>
 </section>

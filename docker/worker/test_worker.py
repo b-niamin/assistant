@@ -217,6 +217,29 @@ class Supervising(unittest.TestCase):
         self.assertGreater(r.next_run, time.time())
 
 
+class ExtRunFromTheTerminal(unittest.TestCase):
+    def test_open_request_takes_only_ids_names_and_short_arguments(self):
+        ok = worker.open_request(json.dumps({"ext": "health", "unit": "garmin-sync", "argv": ["python", "-m", "sync", "login"],
+                                             "rows": 30, "cols": 100, "term": "xterm-256color"}).encode())
+        self.assertEqual(ok["argv"], ["python", "-m", "sync", "login"])
+        self.assertEqual(ok["term"], "xterm-256color")
+        for bad in ({"ext": "../etc", "unit": "x"}, {"ext": "health", "unit": "Bad"}, {"ext": "health", "unit": "x", "argv": "sh"},
+                    {"ext": "health", "unit": "x", "argv": ["a"] * 41}, {"ext": "health", "unit": "x", "argv": [1]}):
+            self.assertIsNone(worker.open_request(json.dumps(bad).encode()), bad)
+        self.assertIsNone(worker.open_request(b"not json"))
+        self.assertEqual(worker.open_request(json.dumps({"ext": "a", "unit": "b", "term": "x; rm"}).encode())["term"], "xterm")
+
+    def test_frames_round_trip(self):
+        import socket
+        a, b = socket.socketpair()
+        worker.send_frame(a, b"d", b"hello")
+        worker.send_frame(a, b"x", b"0")
+        self.assertEqual(worker.recv_frame(b), (b"d", b"hello"))
+        self.assertEqual(worker.recv_frame(b), (b"x", b"0"))
+        a.close()
+        self.assertIsNone(worker.recv_frame(b))
+
+
 class Access(unittest.TestCase):
     def test_compose_mounts_what_access_json_opens(self) -> None:
         compose = open(os.path.join(os.path.dirname(__file__), "..", "..", "docker-compose.yml")).read()

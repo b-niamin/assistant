@@ -23,9 +23,9 @@ RUN printf '%s\n' 'PATH="$HOME/.npm-global/bin:/opt/venv/bin:$PATH"' 'export NPM
 # cannot loosen them; Claude Code reads managed settings before any of its own.
 COPY managed-settings.json /etc/claude-code/managed-settings.json
 COPY beni-guard.mjs beni.rules /usr/local/lib/
-COPY beni-db /usr/local/bin/beni-db
+COPY beni-db ext-run /usr/local/bin/
 RUN chmod 644 /etc/claude-code/managed-settings.json /usr/local/lib/beni-guard.mjs /usr/local/lib/beni.rules \
- && chmod 755 /usr/local/bin/beni-db
+ && chmod 755 /usr/local/bin/beni-db /usr/local/bin/ext-run
 
 # Non-root. Match the host owner of the checkout with --build-arg UID=$(id -u) if they differ.
 ARG UID=1000

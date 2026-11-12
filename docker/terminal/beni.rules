@@ -14,3 +14,4 @@ prefix_rule(pattern = ["psql"], decision = "prompt", justification = "Raw SQL: r
 prefix_rule(pattern = ["beni-db", "--write"], decision = "prompt", justification = "Writes to the database.")
 prefix_rule(pattern = [["dropdb", "pg_restore"]], decision = "prompt", justification = "Deletes or replaces database data.")
 prefix_rule(pattern = ["node", "scripts/ext.mjs", "remove"], decision = "prompt", justification = "Removes an extension.")
+prefix_rule(pattern = ["ext-run"], decision = "prompt", justification = "Runs a command as an extension's service, with its keys.")

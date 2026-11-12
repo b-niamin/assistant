@@ -1,0 +1,96 @@
+#!/usr/bin/python3
+"""ext-run <ext> <unit> [cmd...]: runs an extension service's command (or another one, e.g. a login) in the
+worker, as that service runs it: its user, folder, venv and keys. Here, in the app's terminal.
+
+  ext-run health garmin-sync python -m sync login --profile alex
+
+The worker (docker/worker/worker.py, "ext-run from the app's terminal") listens on a socket in the
+`worker` volume and runs it on a pseudo-terminal; this relays the keys, the output and the window size.
+"""
+import json
+import os
+import select
+import signal
+import socket
+import struct
+import sys
+import termios
+import tty
+
+SOCKET = os.environ.get("EXT_RUN_SOCKET", "/worker/run/ext-run.sock")
+
+
+def send(sock, kind, payload):
+    sock.sendall(kind + struct.pack(">I", len(payload)) + payload)
+
+
+def size():
+    try:
+        cols, rows = os.get_terminal_size(sys.stdout.fileno())
+        return {"rows": rows, "cols": cols}
+    except OSError:
+        return {"rows": 24, "cols": 80}
+
+
+def main(argv):
+    if len(argv) < 2 or argv[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        return 0 if argv[:1] in (["-h"], ["--help"]) else 2
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        sock.connect(SOCKET)
+    except OSError as e:
+        print(f"ext-run: cannot reach the worker ({e.strerror}). Is it running? System settings -> Worker.", file=sys.stderr)
+        return 1
+    rest = argv[2:]
+    if rest[:1] == ["--"]:
+        rest = rest[1:]
+    send(sock, b"o", json.dumps({"ext": argv[0], "unit": argv[1], "argv": rest, "term": os.environ.get("TERM", "xterm"), **size()}).encode())
+
+    resized = []
+    signal.signal(signal.SIGWINCH, lambda *_: resized.append(1))
+    interactive = sys.stdin.isatty()
+    saved = termios.tcgetattr(0) if interactive else None
+    if interactive:
+        tty.setraw(0)
+    buf = b""
+    code = 1
+    stdin_open = True
+    try:
+        while True:
+            if resized:
+                resized.clear()
+                send(sock, b"w", json.dumps(size()).encode())
+            try:
+                ready, _, _ = select.select([sock] + ([0] if stdin_open else []), [], [], 0.5)
+            except InterruptedError:
+                continue
+            if 0 in ready:
+                data = os.read(0, 4096)
+                if data:
+                    send(sock, b"d", data)
+                else:
+                    stdin_open = False
+            if sock in ready:
+                chunk = sock.recv(65536)
+                if not chunk:
+                    break
+                buf += chunk
+                while len(buf) >= 5:
+                    n = struct.unpack(">I", buf[1:5])[0]
+                    if len(buf) < 5 + n:
+                        break
+                    kind, body, buf = buf[:1], buf[5:5 + n], buf[5 + n:]
+                    if kind == b"d":
+                        os.write(1, body)
+                    elif kind == b"x":
+                        code = int(body or b"1")
+                        return code
+    finally:
+        if saved is not None:
+            termios.tcsetattr(0, termios.TCSADRAIN, saved)
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

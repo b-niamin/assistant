@@ -42,7 +42,7 @@ Two steps stay in a terminal because they log in to outside accounts:
 
 ```sh
 docker compose exec -it terminal claude                 # /login once (or from the app's terminal)
-docker compose exec -it worker ext-run health garmin-sync python -m sync login   # only with health (password never stored)
+ext-run health garmin-sync python -m sync login   # only with health, in the app's terminal (password never stored)
 ```
 
 Re-running `./install.sh` is safe: it keeps `.env` and your extensions. Extension services and jobs start
@@ -65,7 +65,9 @@ in the `worker` on their own after `ext install`; only an extension with its own
    → Sign in (or `docker compose exec -it terminal claude`, then `/login` and `/exit`). They run in the
    terminal at the bottom of the app.
 7. **Claude connector** (claude.ai and the Claude apps): see below.
-8. **Garmin** (health extension): `docker compose exec -it worker ext-run health garmin-sync python -m sync login`;
+8. **Garmin** (health extension): System settings -> Training & Health -> "Sign in in the terminal" runs
+   `ext-run health garmin-sync python -m sync login` in the app's terminal (on the host:
+   `docker compose exec -it worker ext-run ...`);
    the history then downloads in the background.
 
 Replacing an older install: stop it first (`docker compose down` in its folder, and disable its Task

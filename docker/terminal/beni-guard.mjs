@@ -12,6 +12,7 @@
  *   git checkout/restore of everything, history rewrites
  * - deleting data: DELETE/DROP/TRUNCATE/ALTER/GRANT/REVOKE in SQL, dropdb, pg_restore
  * - rm -r outside scratch and build folders, removing an extension
+ * - `ext-run`: a command as an extension's service, with its keys (e.g. the Garmin token key)
  * - changing the agents' own permission settings (Claude's and Codex's config, this hook)
  *
  * The database role (agent_rw) and the updater are the hard limits behind this: no DDL, no secrets, and
@@ -136,6 +137,7 @@ export function bashReason(command, cwd = process.cwd()) {
     }
     if (cmd === 'dropdb' || cmd === 'pg_restore') return `${cmd} replaces or deletes database data`;
     if (cmd === 'node' && /(^|\/)ext\.mjs$/.test(w[1] ?? '') && w[2] === 'remove') return 'removing an extension';
+    if (cmd === 'ext-run') return "running a command as an extension's service, with its keys";
   }
   if (SQL_CONTEXT.test(command) && SQL_DESTRUCTIVE.test(command)) {
     return `SQL that deletes data or changes the schema or roles (${command.match(SQL_DESTRUCTIVE)[0].toUpperCase()})`;

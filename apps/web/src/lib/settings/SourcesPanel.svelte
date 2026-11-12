@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '#lib/forms.ts';
   import { onDestroy } from 'svelte';
-  import { openDock } from '#lib/dock/dock.svelte.ts';
+  import { dock, runInDock } from '#lib/dock/dock.svelte.ts';
   import { busy, type SourceState, type SourceStatus, type SourcesResult } from '#lib/extensions/sources.ts';
   import type { SettingField } from '#lib/extensions/types.ts';
   import { hueFor } from './guide.ts';
@@ -63,7 +63,8 @@
   }
   function schedule() {
     clearTimeout(timer);
-    if (busy(list)) timer = setTimeout(poll, 3000);
+    // Also for a few minutes after a sign-in was handed to the terminal, so "Connected" shows up by itself.
+    if (busy(list) || (handed && Date.now() - handed.at < 5 * 60_000)) timer = setTimeout(poll, 3000);
   }
   $effect(() => {
     void list;
@@ -88,6 +89,15 @@
     return rtf.format(Math.round(s / 86400), 'day');
   }
   const pct = (p: number) => `${Math.round(p * 100)}%`;
+
+  // The command a source asks for runs in the dock's terminal; the button follows it there.
+  let handed = $state<{ source: string; n: number; at: number } | null>(null);
+  const handoffOf = (id: string) => (handed?.source === id && dock.handoff?.n === handed.n ? dock.handoff : null);
+  function runCommand(s: SourceStatus) {
+    if (!s.command) return;
+    handed = { source: s.id, n: runInDock(s.command), at: Date.now() };
+    schedule();
+  }
 </script>
 
 <section aria-labelledby="sources-title">
@@ -120,7 +130,15 @@
             <div class="connect">
               {#if s.help}<p class="small">{s.help}</p>{/if}
               {#if s.command}
-                <p class="cmd"><code>{s.command}</code> <button type="button" class="small linkish" onclick={openDock}>{t('Open the terminal')}</button></p>
+                {@const h = handoffOf(s.id)}
+                <div class="cmd">
+                  <button type="button" class="btn btn-primary" onclick={() => runCommand(s)} disabled={h?.state === 'waiting'}>
+                    {#if h?.state === 'waiting'}<span class="spin" aria-hidden="true"></span> {t('Opening the terminal…')}{:else}{t('Sign in in the terminal')}{/if}
+                  </button>
+                  <span class="small muted" role="status">
+                    {#if h?.state === 'running'}{t('It runs in the terminal at the bottom: answer its questions there.')}{:else}<code>{s.command}</code>{/if}
+                  </span>
+                </div>
               {/if}
             </div>
           {/if}
@@ -319,6 +337,11 @@
   }
   .cmd code {
     overflow-wrap: anywhere;
+  }
+  .cmd .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
   }
   .sync {
     display: grid;

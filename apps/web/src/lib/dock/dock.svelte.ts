@@ -25,8 +25,18 @@ export const dock = $state({
   /** The terminal was opened in this page (it stays connected until the lock closes it). */
   started: false,
   /** A page wants the terminal while locked: the header's lock asks for the password. */
-  unlockAsked: false
+  unlockAsked: false,
+  /** The last command a page handed over: on its way (the terminal connects first), then running. */
+  handoff: null as Handoff | null
 });
+
+export interface Handoff {
+  cmd: string;
+  state: 'waiting' | 'running';
+  /** Counts up with every hand-off, so a page can tell its own from a later one. */
+  n: number;
+}
+let handoffs = 0;
 
 /** The dock shows while unlocked, and stays while its terminal is connected (the unlock runs out after 10 minutes). */
 export const dockShown = () => !!dock.status?.configured && (dock.status.unlocked || dock.started);
@@ -66,13 +76,19 @@ export async function lockSession() {
   dock.started = false;
   dock.open = false;
   dock.queue = [];
+  dock.handoff = null;
   if (dock.status) dock.status.unlocked = false;
 }
 
-/** Open the dock and run a command in a new tmux window, without disturbing what already runs there. */
-export function runInDock(cmd: string) {
+/**
+ * Open the dock and run a command in a new tmux window, without disturbing what already runs there. The
+ * dock's bar shows it on its way and then running (dock.handoff); returns its number there.
+ */
+export function runInDock(cmd: string): number {
   dock.queue = [...dock.queue, { run: cmd }];
+  dock.handoff = { cmd, state: 'waiting', n: ++handoffs };
   openDock();
+  return handoffs;
 }
 
 /** Open the terminal; while locked, the header's lock asks for the password first. */

@@ -25,7 +25,8 @@
     title = 'tmux · web',
     height = 'min(72vh, 680px)',
     compact = false,
-    phase = $bindable<Phase>('idle')
+    phase = $bindable<Phase>('idle'),
+    ready = $bindable(false)
   }: {
     configured: boolean;
     reachable?: boolean;
@@ -36,6 +37,8 @@
     height?: string;
     compact?: boolean;
     phase?: Phase;
+    /** tmux has drawn its first screen on this connection, so it takes keys now. */
+    ready?: boolean;
   } = $props();
 
   let host: HTMLDivElement;
@@ -155,6 +158,7 @@
     if (!configured || !term) return;
     ws?.close();
     phase = 'connecting';
+    ready = false;
     message = '';
     try {
       fit.fit();
@@ -171,9 +175,15 @@
         phase = 'open';
         term.focus();
       };
-      sock.onmessage = (e) => term.write(typeof e.data === 'string' ? e.data : new Uint8Array(e.data));
+      sock.onmessage = (e) => {
+        term.write(typeof e.data === 'string' ? e.data : new Uint8Array(e.data));
+        if (!ready && ws === sock) ready = true;
+      };
       sock.onclose = () => {
-        if (ws === sock) phase = phase === 'error' ? 'error' : 'closed';
+        if (ws === sock) {
+          phase = phase === 'error' ? 'error' : 'closed';
+          ready = false;
+        }
       };
       sock.onerror = () => {
         phase = 'error';

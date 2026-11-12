@@ -53,7 +53,7 @@ Everything, without asking, except critical changes, which wait for the owner's 
 | edit any file in the checkout (`/workspace`), extensions included, and commit | a push that can reach `main` (the host's updater deploys it as root), a force push, deleting a branch, `gh pr merge`, deleting a repo or release |
 | read data: `beni-db -c 'SELECT ...'` (role `claude_ro`) | SQL that deletes data or changes schema or roles: `DELETE`, `DROP`, `TRUNCATE`, `ALTER`, `GRANT`... |
 | write data: `beni-db --write -c 'INSERT/UPDATE ...'` (role `agent_rw`; Codex asks for every `--write`) | `git reset --hard`, `git clean -f`, `git branch -D`, `git stash drop`, history rewrites |
-| use every extension through the `assistant` MCP server, `node scripts/ext.mjs install/update/new/check` | `rm -r` outside `/tmp` and build folders, `node scripts/ext.mjs remove` |
+| use every extension through the `assistant` MCP server, `node scripts/ext.mjs install/update/new/check` | `rm -r` outside `/tmp` and build folders, `node scripts/ext.mjs remove`, `ext-run` (a command as an extension's service, with its keys) |
 | push a feature branch, open a PR | changing their own permission settings (`~/.claude/settings*.json`, `~/.codex/config.toml`, `~/.codex/rules/`) |
 
 How: Claude Code reads `/etc/claude-code/managed-settings.json` (allow list, `bypassPermissions` off) and

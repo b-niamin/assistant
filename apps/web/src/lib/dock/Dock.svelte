@@ -16,6 +16,7 @@
   const status = $derived(dock.status);
   let win = $state<TerminalWindow>();
   let phase = $state<Phase>('idle');
+  let ready = $state(false);
   // Open or closed is remembered per browser; written only after it was read back on load.
   let restored = $state(false);
   const shown = $derived(dockShown());
@@ -59,16 +60,25 @@
     }
   });
 
-  // Commands from pages (runInDock) wait for the connection, then each gets its own tmux window.
+  // Commands from pages (runInDock) wait until tmux has drawn its screen, then each gets its own tmux window.
+  let handoffTimer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
-    if (phase !== 'open' || !win || !dock.queue.length) return;
+    if (phase !== 'open' || !ready || !win || !dock.queue.length) return;
     const queued = dock.queue;
     dock.queue = [];
-    // tmux needs a moment after the socket opens before it takes keys.
     queued.forEach((item, i) =>
-      setTimeout(() => (item.run !== undefined ? win?.runInNewWindow(item.run) : win?.type(item.type)), 1200 + i * 900)
+      setTimeout(() => (item.run !== undefined ? win?.runInNewWindow(item.run) : win?.type(item.type)), 300 + i * 900)
     );
+    const h = dock.handoff;
+    setTimeout(() => {
+      if (!h || dock.handoff?.n !== h.n) return;
+      dock.handoff = { ...h, state: 'running' };
+      clearTimeout(handoffTimer);
+      handoffTimer = setTimeout(() => dock.handoff?.n === h.n && (dock.handoff = null), 8000);
+    }, 300 + queued.length * 900);
   });
+  // A hand-off that cannot connect says so instead of spinning.
+  const stuck = $derived(dock.handoff?.state === 'waiting' && (phase === 'error' || phase === 'closed'));
 
   $effect(() => {
     if (!restored) return;
@@ -113,13 +123,21 @@
       <span class="label">{t('Terminal')}</span>
       {#if dock.started}<span class="status small" class:good={phase === 'open'} title={phase === 'open' ? t('Connected') : t('Not connected')}><span class="sr">{phase === 'open' ? t('Connected') : t('Not connected')}</span></span>{/if}
       <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
-      {#if dock.open}<span class="hint">{t('Collapse')} <kbd>F6</kbd></span>{/if}
+      {#if dock.open && !dock.handoff}<span class="hint">{t('Collapse')} <kbd>F6</kbd></span>{/if}
     </button>
+    {#if dock.handoff}
+      <span class="handoff small" class:bad={stuck} role="status" title={dock.handoff.cmd}>
+        {#if stuck}{t('The terminal is not connected: the command waits for it.')}
+        {:else if dock.handoff.state === 'waiting'}<span class="spin" aria-hidden="true"></span>{t('Opening the terminal…')}
+        {:else}<span class="ok" aria-hidden="true">✓</span>{t('Running in a new tab of the terminal:')}{/if}
+        <code>{dock.handoff.cmd}</code>
+      </span>
+    {/if}
   </div>
 
   <div class="panel" id="dock-panel" hidden={!dock.open}>
     {#if dock.started}
-      <TerminalWindow bind:this={win} bind:phase configured={status?.configured ?? true} reachable={status?.reachable ?? true} height="min(50vh, 480px)" />
+      <TerminalWindow bind:this={win} bind:phase bind:ready configured={status?.configured ?? true} reachable={status?.reachable ?? true} height="min(50vh, 480px)" />
     {/if}
   </div>
 </section>
@@ -206,6 +224,26 @@
     .strip:hover .handle::before {
       background: var(--ink-3);
     }
+  }
+  .handoff {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .handoff code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .handoff.bad {
+    color: var(--critical-ink);
+  }
+  .handoff .ok {
+    color: var(--good-ink);
+    font-weight: var(--weight-bold);
   }
   .hint {
     color: var(--ink-2);

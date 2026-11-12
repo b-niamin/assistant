@@ -153,7 +153,7 @@ export const load = (async ({ url }, ctx) => {
 **The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Beni the mascot,
 motion helpers, the shared charts and empty state). The CSS tokens from `app.css` and `specs/001-design.md` are global. `ext check` rejects an
 import of anything else from the shell (`$lib` or `#lib`, another extension's files). The contract version is
-`SHELL_API` (now 3). It grows by additions only: a manifest declares the version it needs (1 to 3), and one that
+`SHELL_API` (now 4). It grows by additions only: a manifest declares the version it needs (1 to 4), and one that
 needs more than the core has does not build ("update the assistant first").
 
 **Look (required).** Every extension wears the shell's layout and has Beni, the mascot, woven in: native
@@ -267,8 +267,11 @@ The manifest declares the work; the worker decides how it runs:
   uptime, restarts, memory, last log lines, Restart) and every scheduled run (schedule, last run and its
   result, next run, Run now). Requests from the app go through `/worker/control`, which only the web app
   (HOST_UID) can write.
-- A one-off command as a unit runs it (e.g. a login that asks for a password), on the host:
-  `docker compose exec -it worker ext-run <id> <unit> [command...]`.
+- A one-off command as a unit runs it (e.g. a login that asks for a password): `ext-run <id> <unit>
+  [command...]` in the app's terminal (it reaches the worker through a socket in the `worker` volume that
+  only the terminal's user can open; agents need the owner's approval for it), or on the host
+  `docker compose exec -it worker ext-run <id> <unit> [command...]`. A source's `command` (System settings,
+  Connected accounts) is run in the app's terminal by its button.
 
 **The older way, for what the worker cannot do** (another image, a device, a GPU): an extension may still
 ship `compose.yml`, a compose fragment using only the stack's network, the `logs` volume and its own DB

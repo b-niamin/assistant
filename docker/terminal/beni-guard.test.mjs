@@ -70,6 +70,7 @@ test('files: rm -r outside scratch asks; build folders and /tmp pass', () => {
   passes('rm extensions/gym/old.txt');
   asks('node scripts/ext.mjs remove gym');
   passes('node scripts/ext.mjs install gym');
+  asks('ext-run health garmin-sync python -m sync login');
 });
 
 test('GitHub: merging a PR or deleting asks', () => {

@@ -14,11 +14,13 @@ paths in its environment only when its manifest asks for them, and the settings 
   python worker.py                        the supervisor (the container's command)
   python worker.py run <ext> <unit> [cmd]  a unit's command (or another one, e.g. a login) with its user,
                                            folder and environment: `docker compose exec -it worker
-                                           ext-run health garmin-sync python -m sync login`
+                                           ext-run health garmin-sync python -m sync login` on the host,
+                                           or `ext-run ...` in the app's terminal (through RUN_SOCKET)
   python worker.py unit                    (internal) prepares a unit's venv, then execs its command
 
 Files: /worker/status.json (what the settings page shows), /worker/logs/<ext>.<unit>.log, requests from the
-app in /worker/control/*.json (restart, run now), /data/uids.json and /data/jobs.json (state kept).
+app in /worker/control/*.json (restart, run now), the terminal's `ext-run` socket /worker/run/ext-run.sock,
+/data/uids.json and /data/jobs.json (state kept).
 """
 from __future__ import annotations
 
@@ -28,9 +30,14 @@ import json
 import os
 import re
 import signal
+import pty
+import select
 import socket
+import struct
 import subprocess
 import sys
+import termios
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -44,6 +51,8 @@ DATA = os.environ.get("WORKER_DATA_DIR", "/data")
 STATE = os.environ.get("WORKER_STATE", "/worker")
 LOGS = os.path.join(STATE, "logs")
 CONTROL = os.path.join(STATE, "control")
+# `ext-run` in the app's terminal (docker/terminal/ext-run) connects here; only HOST_UID may.
+RUN_SOCKET = os.path.join(STATE, "run", "ext-run.sock")
 UID_BASE = 61000
 SCAN_SECONDS = 3
 LOG_MAX = 4 * 1024 * 1024
@@ -723,6 +732,7 @@ class Supervisor:
         signal.signal(signal.SIGTERM, lambda *_: setattr(self, "stopping", True))
         signal.signal(signal.SIGINT, lambda *_: setattr(self, "stopping", True))
         say(f"supervising the extensions in {EXT} (host access: {', '.join(ACCESS['host'])})")
+        threading.Thread(target=serve_ext_run, args=(int(os.environ.get("HOST_UID", "1000")),), daemon=True).start()
         next_scan = 0.0
         while not self.stopping:
             now = time.time()
@@ -754,6 +764,146 @@ class Supervisor:
                     r.proc.wait(max(0.1, deadline - time.time()))
                 except subprocess.TimeoutExpired:
                     os.killpg(r.proc.pid, signal.SIGKILL)
+
+
+# -- `ext-run` from the app's terminal ------------------------------------------------------------------
+# The terminal container cannot reach Docker, so it cannot `docker compose exec` into this one. Its
+# `ext-run` (docker/terminal/ext-run) connects to RUN_SOCKET instead, and this runs `worker.py run ...` on a
+# pseudo-terminal, as the unit runs, relaying the keys and the output. The socket answers only HOST_UID (the
+# terminal's user): the same reach it already has, since it can edit the extensions this process runs.
+# Frames both ways: one type byte, a 4-byte big-endian length, the payload. Terminal -> worker: "o" (open,
+# JSON {ext, unit, argv, rows, cols, term}, first), "d" (keys), "w" (window size, JSON {rows, cols}).
+# Worker -> terminal: "d" (output), "x" (the exit code, as text, last).
+
+def send_frame(sock: socket.socket, kind: bytes, payload: bytes) -> None:
+    sock.sendall(kind + struct.pack(">I", len(payload)) + payload)
+
+
+def recv_exact(sock: socket.socket, n: int) -> bytes | None:
+    buf = b""
+    while len(buf) < n:
+        chunk = sock.recv(n - len(buf))
+        if not chunk:
+            return None
+        buf += chunk
+    return buf
+
+
+def recv_frame(sock: socket.socket, limit: int = 65536) -> tuple[bytes, bytes] | None:
+    head = recv_exact(sock, 5)
+    if not head:
+        return None
+    size = struct.unpack(">I", head[1:])[0]
+    if size > limit:
+        return None
+    body = recv_exact(sock, size) if size else b""
+    return None if body is None else (head[:1], body)
+
+
+def set_winsize(fd: int, size: Any) -> None:
+    if isinstance(size, dict):
+        rows, cols = size.get("rows"), size.get("cols")
+        if isinstance(rows, int) and isinstance(cols, int) and 0 < rows < 1000 and 0 < cols < 1000:
+            fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+
+
+def open_request(raw: bytes) -> dict[str, Any] | None:
+    """The "o" frame, checked: an installed-looking id, a unit name, a short argument list."""
+    try:
+        req = json.loads(raw)
+    except ValueError:
+        return None
+    argv = req.get("argv", []) if isinstance(req, dict) else None
+    if not (isinstance(req, dict) and isinstance(req.get("ext"), str) and ID_RE.match(req["ext"])
+            and isinstance(req.get("unit"), str) and NAME_RE.match(req["unit"])
+            and isinstance(argv, list) and len(argv) <= 40 and all(isinstance(a, str) and len(a) <= 500 for a in argv)):
+        return None
+    term = req.get("term")
+    req["term"] = term if isinstance(term, str) and re.fullmatch(r"[A-Za-z0-9._+-]{1,40}", term) else "xterm"
+    return req
+
+
+def relay_session(conn: socket.socket, host_uid: int) -> None:
+    proc = None
+    master = -1
+    try:
+        _pid, uid, _gid = struct.unpack("3i", conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i")))
+        if uid != host_uid:
+            return
+        conn.settimeout(10)
+        first = recv_frame(conn)
+        req = open_request(first[1]) if first and first[0] == b"o" else None
+        if not req:
+            send_frame(conn, b"d", b"ext-run: the request could not be read\r\n")
+            send_frame(conn, b"x", b"2")
+            return
+        conn.settimeout(None)
+        master, slave = pty.openpty()
+        set_winsize(master, req)
+        say(f"ext-run from the terminal: {req['ext']}/{req['unit']} {' '.join(req['argv'])}".rstrip())
+        # setsid -c: a session of its own with this pty as its terminal (getpass reads /dev/tty).
+        proc = subprocess.Popen(
+            ["setsid", "-c", sys.executable, os.path.join(HERE, "worker.py"), "run", req["ext"], req["unit"], "--", *req["argv"]],
+            stdin=slave, stdout=slave, stderr=slave, env={**os.environ, "TERM": req["term"]}, close_fds=True)
+        os.close(slave)
+        while True:
+            ready, _, _ = select.select([conn, master], [], [])
+            if master in ready:
+                try:
+                    out = os.read(master, 65536)
+                except OSError:  # EIO: every process on the pty is gone
+                    out = b""
+                if not out:
+                    break
+                send_frame(conn, b"d", out)
+            if conn in ready:
+                frame = recv_frame(conn)
+                if frame is None:  # the terminal went away: end the command like a closed terminal would
+                    os.killpg(proc.pid, signal.SIGHUP)
+                    break
+                if frame[0] == b"d":
+                    os.write(master, frame[1])
+                elif frame[0] == b"w":
+                    try:
+                        set_winsize(master, json.loads(frame[1]))
+                    except ValueError:
+                        pass
+        code = proc.wait()
+        send_frame(conn, b"x", str(code if code >= 0 else 128 - code).encode())
+    except (OSError, ValueError) as e:
+        say(f"ext-run session ended: {e!r}")
+    finally:
+        if proc and proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            proc.wait()
+        if master >= 0:
+            os.close(master)
+        conn.close()
+
+
+def serve_ext_run(host_uid: int) -> None:
+    try:
+        os.makedirs(os.path.dirname(RUN_SOCKET), exist_ok=True)
+        os.chmod(os.path.dirname(RUN_SOCKET), 0o755)
+        if os.path.lexists(RUN_SOCKET):
+            os.unlink(RUN_SOCKET)
+        srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        srv.bind(RUN_SOCKET)
+        os.chown(RUN_SOCKET, host_uid, host_uid)
+        os.chmod(RUN_SOCKET, 0o600)
+        srv.listen(4)
+    except OSError as e:
+        say(f"ext-run for the terminal is off: {e!r}")
+        return
+    while True:
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            continue
+        threading.Thread(target=relay_session, args=(conn, host_uid), daemon=True).start()
 
 
 # -- inside a unit (its own uid) --------------------------------------------------------------------

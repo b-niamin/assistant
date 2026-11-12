@@ -14,7 +14,10 @@ COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY worker.py access.json /opt/worker/
 # What extension services import (`import beni`): on every unit's PYTHONPATH.
 COPY lib /opt/worker/lib
-RUN printf '#!/bin/sh\nexec python3 /opt/worker/worker.py run "$@"\n' > /usr/local/bin/ext-run \
+# Every unit runs worker.py and imports lib/ under its own uid, so they must be world-readable whatever
+# modes the checkout has (a NAS checkout can be 600/700: python3 then exits 2, "can't open file").
+RUN chmod -R a+rX,go-w /opt/worker \
+ && printf '#!/bin/sh\nexec python3 /opt/worker/worker.py run "$@"\n' > /usr/local/bin/ext-run \
  && chmod 755 /usr/local/bin/ext-run \
  && python3 -m py_compile /opt/worker/worker.py /opt/worker/lib/beni/__init__.py
 WORKDIR /opt/worker

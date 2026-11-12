@@ -9,7 +9,7 @@ RUN apt-get update \
 
 RUN npm install -g @anthropic-ai/claude-code
 # Codex (log in through System settings -> Terminal) and the browser driver for the agents.
-RUN npm install -g @openai/codex@0.167.0 @playwright/mcp@0.0.84
+RUN npm install -g @openai/codex@0.167.2 @playwright/mcp@0.0.85
 
 # Python for extension services' unit tests (offline; their own requirements are not installed here).
 RUN python3 -m venv /opt/venv \

@@ -1,8 +1,8 @@
 # The worker (spec 002, "Background work"): runs the extensions' services and scheduled jobs under one
-# supervisor, each extension as its own user. Python 3.14 for the services, Node for any written in JS.
+# supervisor, each extension as its own user. Python 3.15 for the services, Node for any written in JS.
 FROM node:26-trixie-slim AS node
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 # tzdata: cron schedules follow the app's time zone (TZ).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tzdata ca-certificates \

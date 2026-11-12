@@ -30,7 +30,7 @@
     "@novnc/novnc": "1.7.0",
     "@xterm/addon-fit": "0.10.0",
     "@xterm/xterm": "5.5.0",
-    "postgres": "^3.4.9"
+    "postgres": "^4.1.0"
   },
   "imports": {
     "#lib/*": "./src/lib/*"

@@ -26,6 +26,8 @@ set -eu
 PATH=$PATH:/usr/local/bin:/var/packages/ContainerManager/target/usr/bin:/var/packages/Tailscale/target/bin
 DIR=$(cd "$(dirname "$0")" && pwd)
 cd "$DIR"
+# installed_ids, env_value, iso, json_str (shared with install.sh and the db scripts).
+. ./db/lib.sh
 
 say() { printf '  \033[2m·\033[0m %s\n' "$*"; }
 ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
@@ -45,7 +47,7 @@ dc() {
     $(sed -n 's/^COMPOSE_FILE=//p' .env | tr ':' '\n' | while IFS= read -r f; do [ ! -f "$f" ] || echo "-f $f"; done) "$@"
   $DC "$@"
 }
-envv() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n 1; }
+envv() { env_value .env "$1"; }
 # The compose project name (volumes and containers are prefixed with it): COMPOSE_PROJECT_NAME in .env,
 # which install.sh pins, else the folder name, as Compose normalizes it.
 project() {
@@ -207,7 +209,7 @@ doctor() {
     [ -f "$p" ] || w "COMPOSE_FILE lists $p, which is gone (skipped): sudo ./beni.sh install tidies it"
   done
   if [ -f extensions/installed.json ]; then
-    for id in $(grep -oE '"id"[[:space:]]*:[[:space:]]*"[a-z][a-z0-9-]*"' extensions/installed.json | sed -E 's/.*"([a-z0-9-]+)"$/\1/'); do
+    for id in $(installed_ids extensions/installed.json); do
       [ ! -f "extensions/$id/compose.yml" ] || envv COMPOSE_FILE | grep -q "extensions/$id/compose.yml" ||
         { w "extension $id brings a service that is not in the stack: sudo ./beni.sh install"; cf_ok=no; }
     done

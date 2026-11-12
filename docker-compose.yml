@@ -296,6 +296,7 @@ services:
     volumes:
       - ${BACKUP_DIR:-../assistant-backups}:/backups
       - ./db/backup.sh:/backup.sh:ro
+      - ./db/lib.sh:/lib.sh:ro
       - ./.env:/instance/.env:ro
       - ./extensions:/instance/extensions:ro
       - logs:/logs

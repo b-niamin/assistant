@@ -5,6 +5,8 @@
 # run as the extension's own owner role (spec 004). Migrations are ADDITIVE only.
 # Paths can be overridden for local testing: MIGRATIONS_DIR, ROLES_SQL, EXT_ROLE_SQL, EXTENSIONS_DIR.
 set -eu
+# installed_ids (db/lib.sh: next to this file, in the image and in the checkout).
+. "$(dirname "$0")/lib.sh"
 MIGRATIONS_DIR=${MIGRATIONS_DIR:-/migrations}
 ROLES_SQL=${ROLES_SQL:-/roles.sql}
 EXT_ROLE_SQL=${EXT_ROLE_SQL:-/extension-role.sql}
@@ -39,10 +41,7 @@ for f in "$MIGRATIONS_DIR"/*.sql; do
 done
 
 # Installed extensions (spec 002): only ids listed in installed.json, only [a-z0-9-] names.
-ext_ids=""
-if [ -f "$EXTENSIONS_DIR/installed.json" ]; then
-  ext_ids=$(grep -oE '"id"[[:space:]]*:[[:space:]]*"[a-z][a-z0-9-]*"' "$EXTENSIONS_DIR/installed.json" | sed -E 's/.*"([a-z0-9-]+)"$/\1/')
-fi
+ext_ids=$(installed_ids "$EXTENSIONS_DIR/installed.json")
 # Extension migrations come from other repos, so they never run as the superuser (spec 004). Each
 # extension gets an owner role ext_<id>_owner that owns its schema and nothing else. For the run, that
 # role gets LOGIN with a random password; the migrations connect AS it, so `RESET ROLE` or

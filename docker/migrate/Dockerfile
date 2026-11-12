@@ -6,4 +6,4 @@
 # Build context: the repo root, narrowed by /.dockerignore to db/.
 FROM postgres:18-alpine
 COPY db/migrations/ /migrations/
-COPY db/roles.sql db/extension-role.sql db/migrate.sh db/watch-extensions.sh /
+COPY db/roles.sql db/extension-role.sql db/migrate.sh db/watch-extensions.sh db/lib.sh /

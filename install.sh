@@ -138,6 +138,8 @@ else
   else mv "$DIR.cloning" "$DIR"; fi
 fi
 cd "$DIR"
+# installed_ids, env_value (shared with beni.sh and the db scripts); an older checkout may lack it.
+[ ! -f db/lib.sh ] || . ./db/lib.sh
 # The containers run as the checkout's owner (HOST_UID), never root. Run as root (through sudo) on a new
 # install, the checkout goes to the user who ran sudo (or ASSISTANT_UID).
 if [ "$(id -u)" = 0 ] && [ ! -f .env ] && [ "$(stat -c %u .)" = 0 ]; then
@@ -253,7 +255,7 @@ fi
 compose_files() {
   files=docker-compose.yml
   if [ -f extensions/installed.json ]; then
-    for id in $(grep -oE '"id"[[:space:]]*:[[:space:]]*"[a-z][a-z0-9-]*"' extensions/installed.json | sed -E 's/.*"([a-z0-9-]+)"$/\1/'); do
+    for id in $(installed_ids extensions/installed.json); do
       [ -f "extensions/$id/compose.yml" ] || continue
       # Started as root: a file that could reach the host (privileged, Docker socket...) stays out.
       if ! sh scripts/compose-policy.sh "extensions/$id/compose.yml" >&2; then

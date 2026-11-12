@@ -23,6 +23,7 @@ check 'db/roles.sql' 'build:migrate build:ext-migrate migrate'
 check "$(printf 'docker/migrate/Dockerfile\ndb/watch-extensions.sh')" 'build:migrate build:ext-migrate migrate'
 check 'docker/terminal/beni-guard.test.mjs' ''
 check 'db/backup.sh' 'restart:backup'
+check 'db/lib.sh' 'build:migrate build:ext-migrate migrate restart:backup'
 check "$(printf 'docker/terminal/a\ndocker/terminal/b\nservices/terminal/ws.mjs')" 'build:terminal restart:terminal'
 acl=$(printf '%s\n' \
   '-r-xr-xr-x+ 1 1026 100 1520 Nov  6 21:55 /v/apps/web/node_modules/.package-lock.json' \

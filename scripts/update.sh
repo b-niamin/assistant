@@ -81,6 +81,7 @@ plan() {
       docker/migrate/* | db/migrations/*.sql | db/migrate.sh | db/roles.sql | db/extension-role.sql)
         echo build:migrate; echo build:ext-migrate; echo migrate ;;
       db/backup.sh) echo restart:backup ;;
+      db/lib.sh) echo build:migrate; echo build:ext-migrate; echo migrate; echo restart:backup ;;
     esac
   done | awk '!seen[$0]++'
 }

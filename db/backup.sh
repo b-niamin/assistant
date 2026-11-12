@@ -11,6 +11,8 @@
 # only after a backup succeeded, so failures never eat the good copies. Every run writes
 # /logs/backup-status.json (read by the app and beni.sh doctor) and appends to /logs/backup.log.
 set -u
+# installed_ids, iso, json_str (db/lib.sh, mounted next to this file).
+. "$(dirname "$0")/lib.sh"
 OUT=${BACKUP_OUT:-/backups}
 LOGS=${BACKUP_LOGS:-/logs}
 HOUR=${BACKUP_HOUR:-3}
@@ -20,8 +22,6 @@ KEEP_MONTHLY=${BACKUP_KEEP_MONTHLY:-6}
 umask 077
 
 log() { echo "[backup] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*" | tee -a "$LOGS/backup.log"; }
-iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
-json_str() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n\r'; }
 
 # The status file: never follow a link someone planted, write a new file and rename it.
 status() { # $1 = ok|failed|running, $2 = message, $3 = backup name (ok only)
@@ -32,7 +32,7 @@ status() { # $1 = ok|failed|running, $2 = message, $3 = backup name (ok only)
   count=$(find "$OUT" -maxdepth 1 -type d -name 'beni-*' 2>/dev/null | wc -l | tr -d ' ')
   st_tmp="$LOGS/.backup-status.$$"
   rm -f "$st_tmp"
-  printf '{"status":"%s","at":"%s","message":"%s","lastOk":"%s","lastName":"%s","count":%s,"hour":%s}\n' \
+  printf '{"status":"%s","at":"%s","message":%s,"lastOk":"%s","lastName":"%s","count":%s,"hour":%s}\n' \
     "$1" "$(iso)" "$(json_str "$2")" "$last_ok" "$last_name" "${count:-0}" "$HOUR" > "$st_tmp" && mv -f "$st_tmp" "$LOGS/backup-status.json"
 }
 

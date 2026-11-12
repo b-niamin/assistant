@@ -4,8 +4,8 @@
  * runs; this reads them, and writes the app's requests to /updater/control (UPDATER_CONTROL_FILE), a
  * volume only this container mounts.
  */
-import { readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { jsonObject, readStatus, readText, text, writeAtomic } from './status-files';
 
 export interface UpdaterStatus {
   status: 'ok' | 'failed' | 'blocked' | 'updating' | 'available';
@@ -37,18 +37,12 @@ export interface UpdaterStatus {
 const STATUSES = new Set(['ok', 'failed', 'blocked', 'updating', 'available']);
 /** The updater ticks every 5 minutes: no sign of life for this long means its schedule does not run. */
 export const STALE_MS = 20 * 60_000;
-const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.slice(0, max) : '');
 const count = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 1000 ? v : 0);
 
 /** Parses the status file; null when it is missing or not what the updater writes. */
 export function parseUpdaterStatus(raw: string): UpdaterStatus | null {
-  let j: Record<string, unknown>;
-  try {
-    j = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!j || typeof j !== 'object' || !STATUSES.has(j.status as string)) return null;
+  const j = jsonObject(raw);
+  if (!j || !STATUSES.has(j.status as string)) return null;
   return {
     status: j.status as UpdaterStatus['status'],
     message: text(j.message),
@@ -107,13 +101,9 @@ export function updateView(
 }
 
 export async function updaterStatus(file = process.env.UPDATER_STATUS_FILE ?? '/logs/updater-status.json'): Promise<UpdaterStatus | null> {
-  try {
-    const s = parseUpdaterStatus(await readFile(file, 'utf8'));
-    if (s) s.checkedAt = (await readFile(path.join(path.dirname(file), 'updater-heartbeat'), 'utf8').catch(() => '')).trim().slice(0, 40);
-    return s;
-  } catch {
-    return null;
-  }
+  const s = await readStatus(file, parseUpdaterStatus);
+  if (s) s.checkedAt = (await readText(path.join(path.dirname(file), 'updater-heartbeat'))).trim().slice(0, 40);
+  return s;
 }
 
 /**
@@ -151,7 +141,7 @@ export function parseControl(raw: string): UpdaterControl {
 }
 
 export async function updaterControl(file = CONTROL_FILE()): Promise<UpdaterControl> {
-  return parseControl(await readFile(file, 'utf8').catch(() => ''));
+  return parseControl(await readText(file));
 }
 
 export async function setUpdaterControl(c: UpdaterControl, target = CONTROL_FILE()): Promise<void> {
@@ -163,13 +153,12 @@ export async function setUpdaterControl(c: UpdaterControl, target = CONTROL_FILE
     c.restart && `restart=${c.restart}`,
     `funnel=${c.funnel === 'on' ? 'on' : 'off'}`
   ].filter(Boolean);
-  await writeFile(`${target}.tmp`, `${lines.join('\n')}\n`, { mode: 0o644 });
-  await rename(`${target}.tmp`, target);
+  await writeAtomic(target, `${lines.join('\n')}\n`);
 }
 
 /** The last lines of the running (or last) deploy's build output, /logs/updater-build.log. */
 export async function buildTail(lines = 12, file = STATUS_FILE()): Promise<string[]> {
-  const raw = await readFile(path.join(path.dirname(file), 'updater-build.log'), 'utf8').catch(() => '');
+  const raw = await readText(path.join(path.dirname(file), 'updater-build.log'));
   // eslint-disable-next-line no-control-regex
   return raw.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').split(/\r?\n|\r/).map((l) => l.trimEnd()).filter(Boolean).slice(-lines);
 }
@@ -228,14 +217,9 @@ export interface FunnelStatus {
 }
 
 export function parseFunnelStatus(raw: string): FunnelStatus | null {
-  let j: Record<string, unknown>;
-  try {
-    j = JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  const j = jsonObject(raw);
   const states = ['on', 'off', 'error', 'unavailable'];
-  if (!j || typeof j !== 'object' || !states.includes(j.state as string)) return null;
+  if (!j || !states.includes(j.state as string)) return null;
   const url = text(j.url, 300);
   return {
     want: j.want === 'on' ? 'on' : 'off',
@@ -248,5 +232,5 @@ export function parseFunnelStatus(raw: string): FunnelStatus | null {
 }
 
 export async function funnelStatus(file = STATUS_FILE()): Promise<FunnelStatus | null> {
-  return parseFunnelStatus(await readFile(path.join(path.dirname(file), 'funnel-status.json'), 'utf8').catch(() => ''));
+  return readStatus(path.join(path.dirname(file), 'funnel-status.json'), parseFunnelStatus);
 }

@@ -6,9 +6,10 @@
  * worker's units cannot write.
  */
 import { randomUUID } from 'node:crypto';
-import { open, readFile, rename, writeFile } from 'node:fs/promises';
+import { open } from 'node:fs/promises';
 import path from 'node:path';
 import { EXTENSION_ID_RE, UNIT_NAME_RE } from '#lib/ids.js';
+import { jsonObject, readStatus, text, writeAtomic } from './status-files';
 
 export interface WorkerAccess {
   name: string;
@@ -73,20 +74,14 @@ const ext = EXTENSION_ID_RE.source.slice(1, -1), unit = UNIT_NAME_RE.source.slic
 const UNIT_KEY = new RegExp(`^${ext}/${unit}$`);
 const LOG_NAME = new RegExp(`^${ext}\\.${unit}\\.log$`);
 
-const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.slice(0, max) : '');
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 200)) : []);
 const objects = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object') : []);
 
 /** The status file as the page uses it; null when missing or not what the worker writes. */
 export function parseWorkerStatus(raw: string): WorkerStatus | null {
-  let j: Record<string, unknown>;
-  try {
-    j = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!j || typeof j !== 'object' || j.version !== 1) return null;
+  const j = jsonObject(raw);
+  if (!j || j.version !== 1) return null;
   return {
     at: text(j.at, 40),
     startedAt: text(j.started_at, 40),
@@ -137,7 +132,7 @@ export function parseWorkerStatus(raw: string): WorkerStatus | null {
 }
 
 export async function workerStatus(dir = DIR()): Promise<WorkerStatus | null> {
-  return parseWorkerStatus(await readFile(path.join(dir, 'status.json'), 'utf8').catch(() => ''));
+  return readStatus(path.join(dir, 'status.json'), parseWorkerStatus);
 }
 
 /** Running: the status was written recently (the worker rewrites it every 20 s). */
@@ -165,6 +160,5 @@ export async function unitLog(log: string, lines = 30, dir = DIR()): Promise<str
 export async function requestWorker(action: 'restart' | 'run', unit: string, dir = DIR()): Promise<void> {
   if (!UNIT_KEY.test(unit)) throw new Error('bad unit');
   const file = path.join(dir, 'control', `${Date.now()}-${randomUUID().slice(0, 8)}.json`);
-  await writeFile(`${file}.tmp`, JSON.stringify({ action, unit }), { mode: 0o644 });
-  await rename(`${file}.tmp`, file);
+  await writeAtomic(file, JSON.stringify({ action, unit }));
 }

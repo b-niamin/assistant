@@ -2,8 +2,8 @@
  * Status files in /logs the app shows: the backup service's (db/backup.sh: backup-status.json, and the
  * "Back up now" request it picks up within a minute, backup-request) and the last build's.
  */
-import { readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { jsonObject, readStatus, readText, text, writeAtomic } from './status-files';
 
 export interface BackupStatus {
   status: 'ok' | 'failed' | 'running';
@@ -21,14 +21,9 @@ const LOGS = () => path.dirname(process.env.UPDATER_STATUS_FILE ?? '/logs/update
 const STALE_MS = 36 * 3600 * 1000;
 
 export function parseBackupStatus(raw: string, now = Date.now()): BackupStatus | null {
-  let j: Record<string, unknown>;
-  try {
-    j = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!j || typeof j !== 'object' || !['ok', 'failed', 'running'].includes(j.status as string)) return null;
-  const s = (v: unknown, n = 300) => (typeof v === 'string' ? v.slice(0, n) : '');
+  const j = jsonObject(raw);
+  if (!j || !['ok', 'failed', 'running'].includes(j.status as string)) return null;
+  const s = text;
   const lastOk = s(j.lastOk, 40);
   const t = Date.parse(lastOk);
   return {
@@ -44,22 +39,16 @@ export function parseBackupStatus(raw: string, now = Date.now()): BackupStatus |
 }
 
 export async function backupStatus(dir = LOGS()): Promise<BackupStatus | null> {
-  return parseBackupStatus(await readFile(path.join(dir, 'backup-status.json'), 'utf8').catch(() => ''));
+  return readStatus(path.join(dir, 'backup-status.json'), parseBackupStatus);
 }
 
 export async function requestBackup(dir = LOGS()): Promise<void> {
-  const target = path.join(dir, 'backup-request');
-  await writeFile(`${target}.tmp`, `${new Date().toISOString()}\n`, { mode: 0o644 });
-  await rename(`${target}.tmp`, target);
+  await writeAtomic(path.join(dir, 'backup-request'), `${new Date().toISOString()}\n`);
 }
 
 /** The last build of the app by live-reload (scripts/live-reload.mjs): a failed one keeps the old build serving. */
 export async function buildStatus(dir = LOGS()): Promise<{ status: 'ok' | 'failed'; message: string; at: string } | null> {
-  try {
-    const j = JSON.parse(await readFile(path.join(dir, 'web-build-status.json'), 'utf8'));
-    if (j?.status !== 'ok' && j?.status !== 'failed') return null;
-    return { status: j.status, message: String(j.message ?? '').slice(0, 200), at: String(j.at ?? '').slice(0, 40) };
-  } catch {
-    return null;
-  }
+  const j = jsonObject(await readText(path.join(dir, 'web-build-status.json')));
+  if (j?.status !== 'ok' && j?.status !== 'failed') return null;
+  return { status: j.status, message: String(j.message ?? '').slice(0, 200), at: String(j.at ?? '').slice(0, 40) };
 }

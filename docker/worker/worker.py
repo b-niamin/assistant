@@ -50,6 +50,7 @@ LOG_KEEP = 512 * 1024
 with open(os.path.join(HERE, "access.json"), encoding="utf-8") as _f:
     ACCESS: dict[str, Any] = json.load(_f)
 
+# The same rules as apps/web/src/lib/ids.js (test_worker.py compares them).
 ID_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]{0,39}$")
 ENV_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")

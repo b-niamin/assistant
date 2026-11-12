@@ -5,6 +5,7 @@
  * The shell serves them all as one MCP server at /mcp: `<extension>__<tool>`.
  */
 import type { ExtensionContext } from '#lib/sdk/index.ts';
+import { FIELD_NAME_RE } from '#lib/ids.js';
 
 /** A JSON Schema object describing a tool's arguments. */
 export interface ToolSchema {
@@ -38,7 +39,7 @@ export interface ToolInfo {
   destructive: boolean;
 }
 
-export const TOOL_NAME_RE = /^[a-z][a-z0-9_]{0,39}$/;
+export const TOOL_NAME_RE = FIELD_NAME_RE;
 export const EMPTY_SCHEMA: ToolSchema = { type: 'object', properties: {} };
 
 /** Keep only well-formed tools; the first of a duplicated name wins. */

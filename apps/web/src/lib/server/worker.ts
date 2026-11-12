@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import { open, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { EXTENSION_ID_RE, UNIT_NAME_RE } from '#lib/ids.js';
 
 export interface WorkerAccess {
   name: string;
@@ -68,8 +69,9 @@ export interface WorkerStatus {
 /** The worker writes its status every 20 s at least: older than this, it is not running. */
 export const WORKER_STALE_MS = 90_000;
 const DIR = () => process.env.WORKER_DIR ?? '/worker';
-const UNIT_KEY = /^[a-z][a-z0-9-]*\/[a-z][a-z0-9-]{0,39}$/;
-const LOG_NAME = /^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]{0,39}\.log$/;
+const ext = EXTENSION_ID_RE.source.slice(1, -1), unit = UNIT_NAME_RE.source.slice(1, -1);
+const UNIT_KEY = new RegExp(`^${ext}/${unit}$`);
+const LOG_NAME = new RegExp(`^${ext}\\.${unit}\\.log$`);
 
 const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.slice(0, max) : '');
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);

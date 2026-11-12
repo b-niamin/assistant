@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '#lib/forms.ts';
   import Mascot from '#lib/Mascot.svelte';
+  import { inputPattern, PROFILE_ID_RE } from '#lib/ids.js';
   import { hueFor, initials, uniqueProfileId } from '#lib/settings/guide.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -93,7 +94,7 @@
             <summary>{t('Short id:')} <code>{customId || (name.trim() ? suggested : '…')}</code></summary>
             <label class="field">
               <span>{t('Used in links and by Claude. Letters, digits and dashes; cannot change later.')}</span>
-              <input name="id" bind:value={customId} pattern="[a-z][a-z0-9\-]*" maxlength="32" placeholder={suggested} autocomplete="off" />
+              <input name="id" bind:value={customId} pattern={inputPattern(PROFILE_ID_RE)} maxlength="32" placeholder={suggested} autocomplete="off" />
             </label>
           </details>
         </div>

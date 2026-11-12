@@ -102,7 +102,7 @@ instances is copied into the extensions repo by hand.
 }
 ```
 
-Ids are `[a-z][a-z0-9-]*` and may not take a path the shell owns (`login`, `api`, `profile`, ...).
+Ids are `[a-z][a-z0-9]*(-[a-z0-9]+)*` (`apps/web/src/lib/ids.js`) and may not take a path the shell owns (`login`, `api`, `profile`, ...).
 
 Next to the manifest, `i18n/<lang>.json` holds its texts in another language (English text ->
 translation); every extension ships one for each language of the app. See spec 007.

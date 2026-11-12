@@ -7,6 +7,7 @@
  */
 import type { ExtensionContext } from '#lib/sdk/index.ts';
 import { text } from './tiles';
+import { FIELD_NAME_RE } from '#lib/ids.js';
 
 /** connected; not_connected (never set up); reconnect (the login expired); planned (not supported yet). */
 export type SourceState = 'connected' | 'not_connected' | 'reconnect' | 'planned';
@@ -88,7 +89,6 @@ const STATES: SourceState[] = ['connected', 'not_connected', 'reconnect', 'plann
 const SYNC_STATES: SyncState[] = ['idle', 'queued', 'running', 'failed'];
 const ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const FIELD = /^[a-z][a-z0-9_]{0,39}$/;
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const iso = (v: unknown): string | null => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : null);
@@ -145,7 +145,7 @@ export function normalizeSources(v: unknown): SourceStatus[] {
     const sy = sync(s.sync);
     if (sy) src.sync = sy;
     if (Array.isArray(s.fields)) {
-      const fields = [...new Set(s.fields.filter((f): f is string => typeof f === 'string' && FIELD.test(f)))].slice(0, SOURCE_LIMITS.fields);
+      const fields = [...new Set(s.fields.filter((f): f is string => typeof f === 'string' && FIELD_NAME_RE.test(f)))].slice(0, SOURCE_LIMITS.fields);
       if (fields.length) src.fields = fields;
     }
     if (Array.isArray(s.facts)) {

@@ -7,6 +7,7 @@ import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { isConfigured, passwordProblem, setPassword, setupTokenMatches, setupTokenSet } from '#lib/server/app-config.ts';
 import { db } from '#lib/server/db.ts';
+import { PROFILE_ID_RE } from '#lib/ids.js';
 import { isLanguage, LANGUAGES } from '#lib/i18n/languages.ts';
 import { tFor } from '#lib/i18n/index.ts';
 import { saveLanguageSettings } from '#lib/server/languages.ts';
@@ -48,7 +49,7 @@ export const actions: Actions = {
     if (problem) return fail(400, { error: t(problem) });
     const name = String(f.get('name') ?? '').trim().slice(0, 40) || 'Me';
     const profileId = String(f.get('profile') ?? '').trim().toLowerCase();
-    if (!/^[a-z][a-z0-9-]{0,31}$/.test(profileId)) return fail(400, { error: t('Profile id: lowercase letters, digits and dashes.') });
+    if (!PROFILE_ID_RE.test(profileId)) return fail(400, { error: t('Profile id: lowercase letters, digits and dashes.') });
 
     // The app's language (spec 007): offered next to English, and the default.
     const language = String(f.get('language') ?? '');

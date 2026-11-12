@@ -6,7 +6,7 @@
 import * as env from '$app/env/private';
 import { isAccessory, type Accessory } from '#lib/mascot.ts';
 
-const ID_RE = /^[a-z][a-z0-9-]*$/;
+import { EXTENSION_ID_RE as ID_RE } from '#lib/ids.js';
 
 export interface CatalogExtension {
   id: string;

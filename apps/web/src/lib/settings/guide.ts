@@ -3,8 +3,10 @@
  * extension (a few answers -> a ready prompt for Claude in the terminal). Unit-tested; no I/O here.
  */
 
+import { PROFILE_ID_RE } from '#lib/ids.js';
+
 /** Profile ids: lowercase letters, digits and dashes, starting with a letter, up to 32 characters. */
-export const PROFILE_ID_RE = /^[a-z][a-z0-9-]*$/;
+export { PROFILE_ID_RE };
 
 /** "Anna Łucja" -> "anna-lucja". Empty when nothing usable is left (e.g. only digits or symbols). */
 export function slugify(name: string): string {

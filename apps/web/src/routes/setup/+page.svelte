@@ -1,5 +1,6 @@
 <script lang="ts">
   import Mascot from '#lib/Mascot.svelte';
+  import { inputPattern, PROFILE_ID_RE } from '#lib/ids.js';
   import { tFor } from '#lib/i18n/index.ts';
   let { data, form } = $props();
   // No language is set yet: the browser's (the server picked it from Accept-Language).
@@ -63,7 +64,7 @@
         <label><span class="meta">{t('Profile id')}</span><input
             name="profile"
             placeholder="alex"
-            pattern="[a-z][a-z0-9\-]*"
+            pattern={inputPattern(PROFILE_ID_RE)}
             maxlength="32"
             required
             bind:value={profile}

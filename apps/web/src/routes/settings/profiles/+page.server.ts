@@ -41,7 +41,7 @@ export const actions: Actions = {
     const profiles = await listProfiles();
     const typed = str(f, 'id');
     const id = typed || uniqueProfileId(name, profiles.map((p) => p.id));
-    if (!PROFILE_ID_RE.test(id) || id.length > 32)
+    if (!PROFILE_ID_RE.test(id))
       return fail(400, { error: t('The short id may use lowercase letters, digits and dashes, and must start with a letter.'), name });
     if (profiles.some((p) => p.id === id)) return fail(400, { error: t('There is already a profile with the id "{id}".', { id }), name });
 

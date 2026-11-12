@@ -79,6 +79,17 @@ class Manifests(unittest.TestCase):
             self.assertIn(needle, text)
 
 
+class SameRulesAsTheWebApp(unittest.TestCase):
+    def test_ids_match_ids_js(self) -> None:
+        """apps/web/src/lib/ids.js is where the web app and `ext check` read these rules (audit R10)."""
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, "../../apps/web/src/lib/ids.js")) as f:
+            js = f.read()
+        for name, rx in (("EXTENSION_ID_RE", worker.ID_RE), ("UNIT_NAME_RE", worker.NAME_RE)):
+            src = js.split(f"export const {name} = /", 1)[1].split("/;", 1)[0]
+            self.assertEqual(src, rx.pattern, name)
+
+
 class Schedules(unittest.TestCase):
     def test_durations(self) -> None:
         self.assertEqual([worker.parse_duration(x) for x in ("30s", "5m", "2h", "1d", "5", "1w", 5)], [30, 300, 7200, 86400, None, None, None])

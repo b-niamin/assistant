@@ -16,6 +16,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EXTENSION_ID_RE, FIELD_NAME_RE, UNIT_NAME_RE } from '../src/lib/ids.js';
 
 export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /**
@@ -28,7 +29,7 @@ export const RESERVED_IDS = new Set([
   'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',
   'profile', 'settings', 'setup', 'shell', 'static', 'x', '_app'
 ]);
-export const ID_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+export const ID_RE = EXTENSION_ID_RE;
 const KINDS = ['native', 'onefile'];
 const SCOPES = ['profile', 'shared'];
 const FIELD_TYPES = ['text', 'number', 'boolean', 'select', 'secret'];
@@ -95,7 +96,7 @@ export const ACCESSORIES = [
 ];
 
 /** A secret name: lowercase, digits, underscores, e.g. "api_token". */
-export const SECRET_RE = /^[a-z][a-z0-9_]{0,39}$/;
+export const SECRET_RE = FIELD_NAME_RE;
 
 export function validateManifest(m, dirName, root) {
   const errors = [];
@@ -138,7 +139,6 @@ export function validateManifest(m, dirName, root) {
  */
 export const WORKER_HOST = ['proc', 'sys'];
 export const WORKER_KEYS = ['TOKEN_ENCRYPTION_KEY', 'DEFAULT_PROFILE'];
-const UNIT_NAME_RE = /^[a-z][a-z0-9-]{0,39}$/;
 const ENV_RE = /^[A-Z][A-Z0-9_]{0,63}$/;
 const WORKER_ENV = new Set(['PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'TZ', 'DATABASE_URL', 'WORKER_DATA', 'EXT_ID', 'EXT_UNIT',
   'PYTHONUNBUFFERED', 'PYTHONDONTWRITEBYTECODE', 'HOST_PROC', 'HOST_SYS', ...WORKER_KEYS]);

@@ -93,9 +93,14 @@
   // The command a source asks for runs in the dock's terminal; the button follows it there.
   let handed = $state<{ source: string; n: number; at: number } | null>(null);
   const handoffOf = (id: string) => (handed?.source === id && dock.handoff?.n === handed.n ? dock.handoff : null);
+  /**
+   * The command as the app's terminal runs it: extensions from before shell 4 name the host's
+   * `docker compose exec -it worker ext-run ...`, and the terminal has `ext-run` but no Docker.
+   */
+  const inTerminal = (cmd: string) => cmd.replace(/^docker compose exec (?:-it |-i -t |-ti )?worker ext-run /, 'ext-run ');
   function runCommand(s: SourceStatus) {
     if (!s.command) return;
-    handed = { source: s.id, n: runInDock(s.command), at: Date.now() };
+    handed = { source: s.id, n: runInDock(inTerminal(s.command)), at: Date.now() };
     schedule();
   }
 </script>
@@ -136,7 +141,7 @@
                     {#if h?.state === 'waiting'}<span class="spin" aria-hidden="true"></span> {t('Opening the terminal…')}{:else}{t('Sign in in the terminal')}{/if}
                   </button>
                   <span class="small muted" role="status">
-                    {#if h?.state === 'running'}{t('It runs in the terminal at the bottom: answer its questions there.')}{:else}<code>{s.command}</code>{/if}
+                    {#if h?.state === 'running'}{t('It runs in the terminal at the bottom: answer its questions there.')}{:else}<code>{inTerminal(s.command)}</code>{/if}
                   </span>
                 </div>
               {/if}

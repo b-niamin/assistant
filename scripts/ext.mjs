@@ -22,7 +22,7 @@
  * Plain Node, no dependencies. git is the only external tool (install, update, --from).
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -171,6 +171,24 @@ function copyTemplate(name, dest, vars) {
   };
   mkdirSync(dest, { recursive: true });
   visit(src, dest);
+  readableByAll(dest);
+}
+
+/**
+ * The worker runs an extension's services as that extension's own uid (spec 002), not as the owner: they
+ * need to read its files (a+r, and a+x on folders). A clone or a copy can carry tighter modes.
+ */
+function readableByAll(dir) {
+  for (const name of readdirSync(dir)) {
+    const p = path.join(dir, name);
+    const st = lstatSync(p);
+    if (st.isSymbolicLink()) continue;
+    if (st.isDirectory()) readableByAll(p);
+    const want = st.mode | (st.isDirectory() || st.mode & 0o100 ? 0o555 : 0o444);
+    if ((st.mode & 0o7777) !== (want & 0o7777)) chmodSync(p, want & 0o7777);
+  }
+  const st = statSync(dir);
+  if ((st.mode & 0o555) !== 0o555) chmodSync(dir, (st.mode | 0o555) & 0o7777);
 }
 
 /** Shallow-clone a source repo into a temp folder (once per run); returns [folder, commit]. */
@@ -206,6 +224,7 @@ function copyFromRepo(repoDir, id) {
   const problems = [...validateManifest(manifest, id, src), ...lintExtension(src, id)];
   if (problems.length) die(`problems:\n  - ${problems.join('\n  - ')}`);
   cpSync(src, path.join(DIR, id), { recursive: true, filter: (f) => path.basename(f) !== '.git' });
+  readableByAll(path.join(DIR, id));
   return manifest;
 }
 const servicesNote = (ids) => {

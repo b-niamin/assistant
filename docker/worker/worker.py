@@ -913,7 +913,12 @@ def unit_main(spec: dict[str, Any], argv: list[str] | None = None) -> None:
     rebuilt when the file or Python changes), then the command."""
     env = dict(os.environ)
     env.pop("WORKER_UNIT", None)
-    req = os.path.join(os.getcwd(), "requirements.txt")
+    here = spec.get("dir") or os.getcwd()
+    if not os.access(here, os.R_OK | os.X_OK):
+        # Python would only say "No module named ..." (the folder cannot be listed).
+        sys.exit(f"{iso(time.time())} [worker] cannot read {here} as uid {os.getuid()}: the extension's files must be "
+                 "readable by others. On the host: sudo ./beni.sh fix-permissions")
+    req = os.path.join(here, "requirements.txt")
     if os.path.isfile(req):
         venv = os.path.join(env["WORKER_DATA"], "venv", hashlib.sha256(os.getcwd().encode()).hexdigest()[:12])
         os.makedirs(os.path.dirname(venv), exist_ok=True)

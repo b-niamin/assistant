@@ -436,6 +436,13 @@ fix_ownership() {
     \( -type f ! -perm -u+r -exec chmod u+r {} + -print \) 2>/dev/null | grep -c . || true)
   n=$((n + m))
   [ "$n" = 0 ] || log "made $n path(s) writable by their owner"
+  # The worker runs each extension's services as that extension's own uid: they must read its files
+  # (only code and manifests live there). Without it Python says "No module named ...".
+  if [ -d "$DIR/extensions" ]; then
+    n=$(find "$DIR/extensions" -xdev ! -type l \( -type d ! -perm -o+rx -o -type f ! -perm -o+r \) \
+      -print -exec chmod o+rX {} + | grep -c . || true)
+    [ "$n" = 0 ] || log "made $n path(s) in extensions/ readable for the apps' services"
+  fi
   if [ -n "$LOGS_MP" ] && [ -d "$LOGS_MP" ]; then
     chmod 1777 "$LOGS_MP"
     # web.log only as a plain file: chown and chmod would follow a symlink to a host file.

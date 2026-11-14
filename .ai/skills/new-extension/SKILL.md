@@ -50,6 +50,9 @@ Native:
   https://github.com/b-niamin/assistant-extensions/blob/main/extensions/health/web/tools.server.ts and
   .../extensions/gym/web/tools.server.ts; spec 005. Reference of the manifest, SDK and classes:
   docs/extensions.md.
+- Calendar (optional, both kinds): things with a date (a workout, a match, a deadline) go on the shared
+  calendar through `web/calendar.server.ts` (`export const calendar: ExtCalendar`, shell 5); see
+  docs/extensions.md, "Calendar entries".
 - Look (required): the shell's layout and tokens (`specs/001-design.md`) and Beni from `$shell/ui` in the
   header and every empty or error state, and its `"accessory"` in `extension.json` (what Beni wears, list in
   `specs/001-design.md`). No UI libraries, no raw hex. See the `add-extension` skill, step 4.

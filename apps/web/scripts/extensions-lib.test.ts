@@ -74,14 +74,18 @@ describe('generate', () => {
       'notes/extension.json': JSON.stringify(manifest()),
       'notes/web/routes/+page.svelte': '<h1>x</h1>',
       'notes/web/routes/+page.server.ts': 'export const load = () => ({});',
-      'notes/web/routes/Helper.svelte': '<p></p>'
+      'notes/web/routes/Helper.svelte': '<p></p>',
+      'notes/web/calendar.server.ts': 'export const calendar = { entries: () => [] };'
     });
     const web = mkdtempSync(path.join(os.tmpdir(), 'web-'));
     const first = lib.generate({ webRoot: web, dir });
     expect(first.extensions[0]).toMatchObject({ id: 'notes', href: '/notes', profiles: ['alex'], kind: 'native' });
     const reg = readFileSync(path.join(web, 'src/lib/extensions/generated/registry.ts'), 'utf8');
     expect(reg).toContain('"id": "notes"');
-    expect(first.changed).toBe(7); // page, server, registry, tiles, sources, tools and i18n maps; Helper.svelte is not a route file
+    expect(first.changed).toBe(8); // page, server, registry, tiles, sources, tools, calendar and i18n maps; Helper.svelte is not a route file
+    expect(readFileSync(path.join(web, 'src/lib/extensions/generated/calendar.server.ts'), 'utf8')).toContain(
+      `"notes": () => import('$extensions/notes/web/calendar.server'),`
+    );
     expect(lib.generate({ webRoot: web, dir }).changed).toBe(0);
   });
   it('fails on a missing extension folder and on a bad `from`', () => {

@@ -48,9 +48,11 @@ Server code imports from `$shell`, components from `$shell/ui`. Nothing else of 
 | `settings` | `all()`, `get(name)`: its panel's plain fields |
 | `secrets` | `get(name)`: a declared secret, or `null`; keep it on the server |
 | `t`, `lang` | its texts in the page's language (`t('Last night')`, `t.n(n, '{n} run', '{n} runs')`, `t.locale`) |
+| `calendar` | `entries({ from, to, only? })`: the shared calendar, every extension's entries in a range (below; shell 5) |
 
 Days: always `todayIn()` / `dayIn(date)`, never `new Date().toISOString().slice(0, 10)`, which is the UTC
-day (yesterday, between midnight and 1-2 a.m. in Poland).
+day (yesterday, between midnight and 1-2 a.m. in Poland). A wall-clock time on a day is `instantIn('2026-11-14',
+'18:30')` (the owner's zone by default; shell 5).
 
 ## Files a native extension can have
 
@@ -60,12 +62,13 @@ day (yesterday, between midnight and 1-2 a.m. in Poland).
 | `web/routes/settings/` | an extra view at `/<id>/settings`, linked from its panel |
 | `web/tools.server.ts` | its MCP tools (below); required |
 | `web/tiles.server.ts` | dashboard tiles (`ExtTile`, spec 003) |
+| `web/calendar.server.ts` | its entries on the shared calendar (`ExtCalendar`, below; also for onefile) |
 | `web/sources.server.ts` | "Connected accounts" in its panel (`ExtSources`: `list(ctx)` returns up to 8 sources with state `connected`, `not_connected`, `reconnect` or `planned`; `act(ctx, source, action, input)` runs one of their actions) |
 | `db/migrations/*.sql` | its schema `<id>`, additive only; applied by `ext-migrate` within about 15 s, as `ext_<id>_owner` |
 | `i18n/<lang>.json` | its texts in every language of the app (spec 007) |
 | `AGENTS.md` | its tables and conventions, for the AI that changes it |
 
-A onefile extension is `extension.json`, its HTML, `i18n/` and `web/tools.server.ts`. The shell injects a
+A onefile extension is `extension.json`, its HTML, `i18n/`, `web/tools.server.ts` and optionally `web/calendar.server.ts`. The shell injects a
 `localStorage` that saves to the server, the shell's tokens, `<assistant-beni>`, `window.assistantSettings`
 and `window.assistantLang`. A tile comes from the `__tile` key it writes (spec 003).
 
@@ -78,6 +81,33 @@ Use the tokens and classes of `apps/web/src/app.css` (spec 001), never raw colou
 | Colours | `--page`, `--surface`, `--surface-2`, `--ink`, `--ink-2`, `--ink-3` (secondary text), `--ink-4` (non-text marks), `--accent`, `--accent-ink` (links), `--accent-fill` (filled buttons), `--field-border`, `--good`, `--warning`, `--serious`, `--critical`, `--critical-ink` (error text), `--hue-*` (chart series) |
 | Space and shape | `--space-1` to `--space-7`, `--radius`, `--radius-sm`, `--font`, `--mono` |
 | Classes | `.card`, `.btn`, `.btn-primary` (one per screen), `.btn-ghost`, `.eyebrow`, `.muted`, `.num` (tabular figures), `.segmented`, `.status` + `good`/`warning`/`serious`/`critical` (a dot and a word, never colour alone), `.sr` (screen readers only), `.rise` (entrance) |
+
+## Calendar entries: `web/calendar.server.ts`
+
+Any extension can put its own things on the shared calendar (a workout, an activity, a match), the way it
+adds MCP tools: one file, read live, nothing copied. Shell 5 (`"shell": 5` in the manifest).
+
+```ts
+import type { ExtCalendar } from '$shell';
+export const calendar: ExtCalendar = {
+  async entries(ctx, { from, to, timeZone }) {
+    // what overlaps [from, to): timed entries as instants with a zone, all-day ones as YYYY-MM-DD
+    return [
+      { id: 'w42', title: 'Push day', start: '2026-11-14T17:30:00Z', end: '2026-11-14T18:40:00Z', kind: 'Workout', href: '/gym' },
+      { id: 'race', title: 'Half marathon', start: '2026-11-22' }          // all day; end (exclusive) optional
+    ];
+  }
+};
+```
+
+- Runs with the extension's own context for the viewing profile, so scope and roles work as everywhere.
+- The shell keeps up to 2000 entries per extension and call, drops anything outside the range or malformed
+  (no id or title, a time without a zone), clips texts (title 200, note 1000) and keeps `href` only inside
+  the extension. Each extension has 6 s; a slow one only loses its own entries.
+- Readers: `ctx.calendar.entries({ from, to })` returns `{ entries, sources }`, entries sorted, each with
+  `allDay`, an exclusive `end` and `source: { extension, name }`. The calendar extension shows them and
+  serves them to Claude; Home puts today's on its board. Inside `entries` itself `ctx.calendar` answers
+  nothing.
 
 ## MCP tools: `web/tools.server.ts`
 

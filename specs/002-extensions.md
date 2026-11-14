@@ -153,7 +153,7 @@ export const load = (async ({ url }, ctx) => {
 **The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Beni the mascot,
 motion helpers, the shared charts and empty state). The CSS tokens from `app.css` and `specs/001-design.md` are global. `ext check` rejects an
 import of anything else from the shell (`$lib` or `#lib`, another extension's files). The contract version is
-`SHELL_API` (now 4). It grows by additions only: a manifest declares the version it needs (1 to 4), and one that
+`SHELL_API` (now 5). It grows by additions only: a manifest declares the version it needs (1 to 5), and one that
 needs more than the core has does not build ("update the assistant first").
 
 **Look (required).** Every extension wears the shell's layout and has Beni, the mascot, woven in: native
@@ -349,6 +349,19 @@ profiles.
 
 Extensions are not installed from this page: `ext install` or Claude does it (see "Claude building extensions").
 
+### Calendar entries: one calendar every extension writes on
+
+A calendar extension shows the owner's days, and the other extensions put their own things on it: the gym
+its workouts, health its activities, Home its Home Assistant calendars. Like MCP tools, it is one contract
+and no extension calls another: an extension (native or onefile) ships `web/calendar.server.ts` exporting
+`calendar: ExtCalendar` (`$shell`, shell 5), whose `entries(ctx, range)` returns what overlaps the range.
+Nothing is copied: the entries stay where they live and are read when someone looks.
+
+The shell collects them (`lib/extensions/calendar.server.ts`) for one viewer: every extension that viewer
+sees, each with its own context and 6 s, checked and clipped (`lib/extensions/calendar.ts`). Any extension
+reads the result as `ctx.calendar.entries({ from, to })`; inside a contributor it answers nothing, so the
+calendar cannot loop. Writes stay with the owning extension (the calendar's own entries through its own tools).
+
 ### Claude talks to the extensions
 
 Every extension is reachable by Claude through the `assistant` MCP server, with generic tools from the
@@ -403,6 +416,6 @@ So:
 
 ## Next
 
-- More ready-made extensions in the extensions repo: calendar, learning, Strava or Apple Health as data
+- More ready-made extensions in the extensions repo: learning, Strava or Apple Health as data
   sources.
 - `ext update` for every installed extension from a schedule, like the shell's auto-update.

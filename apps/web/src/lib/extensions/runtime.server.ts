@@ -7,6 +7,7 @@ import * as env from '$app/env/private';
 import { db } from '#lib/server/db.ts';
 import { readSecret } from '#lib/server/extension-secrets.ts';
 import type { ExtActions, ExtensionContext, ExtHandler, ExtLoad, Sql } from '#lib/sdk/index.ts';
+import { calendarFor } from './calendar.server';
 import { kvAll, kvApply } from './kv.server';
 import { readSettings } from './config.server';
 import { tFor } from '#lib/i18n/index.ts';
@@ -14,7 +15,11 @@ import { EXTENSIONS, extensionById, visibleTo } from './registry.server';
 
 const roleOf = (id: string) => `ext_${id.replace(/-/g, '_')}`;
 
-export async function contextFor(id: string, event: Pick<RequestEvent, 'locals'>): Promise<ExtensionContext> {
+/**
+ * `inCalendar`: the context handed to an extension's calendar contributor. Its ctx.calendar answers
+ * nothing, so a contributor cannot ask the calendar for itself again.
+ */
+export async function contextFor(id: string, event: Pick<RequestEvent, 'locals'>, opts: { inCalendar?: boolean } = {}): Promise<ExtensionContext> {
   const profileId = event.locals.profileId;
   const ext = await extensionById(id);
   if (!ext || !visibleTo(ext, profileId)) throw error(404, 'Not found');
@@ -36,6 +41,12 @@ export async function contextFor(id: string, event: Pick<RequestEvent, 'locals'>
     settings: {
       all: () => readSettings(ext),
       get: async (name) => (await readSettings(ext))[name] ?? null
+    },
+    calendar: {
+      entries: (q) =>
+        opts.inCalendar
+          ? Promise.resolve({ entries: [], sources: [] })
+          : calendarFor(profileId, event.locals.lang ?? 'en', q, (other) => contextFor(other, event, { inCalendar: true }))
     },
     kv: {
       all: () => kvAll(ext, profileId),

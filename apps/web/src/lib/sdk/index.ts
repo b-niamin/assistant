@@ -8,12 +8,15 @@ import type { RequestEvent, ServerLoadEvent } from '@sveltejs/kit';
 import type { TransactionSql } from 'postgres';
 import type { ExtensionInfo } from '#lib/extensions/types.ts';
 import type { Translate } from '#lib/i18n/translate.ts';
+import type { CalendarQuery, CalendarResult } from '#lib/extensions/calendar.server.ts';
 
 export type { ExtensionInfo, Translate };
 /** SvelteKit helpers, re-exported so extensions import everything shell-related from one place. */
 export { error, fail, json, redirect } from '@sveltejs/kit';
 /** Calendar days in the owner's time zone (never toISOString().slice(0, 10), which is UTC's day). */
 export { dayIn, todayIn } from '#lib/dates.ts';
+/** The instant of a wall-clock time on a day, and a zone's offset, in the owner's zone by default. Since shell 5. */
+export { instantIn, offsetIn } from '#lib/dates.ts';
 /** Translation without a page (tests, pure helpers' default): English, placeholders filled in. Since shell 2. */
 export { EN } from '#lib/i18n/translate.ts';
 /** Round axis ticks, in bytes or another unit, and the gap-aware runs of a series. Since shell 2. */
@@ -60,6 +63,15 @@ export interface ExtensionContext {
     all(): Promise<Record<string, string | number | boolean | null>>;
     get(name: string): Promise<string | number | boolean | null>;
   };
+  /**
+   * The shared calendar (since shell 5): entries every extension the viewer sees puts on it through its
+   * web/calendar.server.ts, in [from, to) (Dates, ISO instants, or YYYY-MM-DD read as UTC midnight;
+   * at most 400 days), sorted, each with the extension it comes from. `only` limits it to some extensions.
+   * Inside a calendar contributor it answers nothing.
+   */
+  calendar: {
+    entries(q: CalendarQuery): Promise<CalendarResult>;
+  };
   /** Small settings and state, scoped like the extension (core.extension_kv). */
   kv: {
     all(): Promise<Record<string, string>>;
@@ -88,4 +100,9 @@ export type { ExtSources, SourceAction, SourceActionInput, SourceFact, SourceSta
 export type { ExtTool, ToolSchema } from '#lib/extensions/tools.ts';
 /** Throw from a tool's run for a call that is wrong (not a failure of the tool). Since shell 2. */
 export { ToolError } from '#lib/extensions/args.ts';
+/** Entries on the shared calendar (spec 002): `export const calendar: ExtCalendar` in web/calendar.server.ts. Since shell 5. */
+export type { CalendarEntry, CalendarRange, ExtCalendar, SharedEntry } from '#lib/extensions/calendar.ts';
+export type { CalendarQuery, CalendarResult } from '#lib/extensions/calendar.server.ts';
+/** The owner's day of an instant and the order the calendar uses. Since shell 5. */
+export { nextDay, sortEntries } from '#lib/extensions/calendar.ts';
 export type { ExtTile, TileData, TileKpi, TileListItem, TilePoint, TileSeries, TileSize, TileTone } from '#lib/extensions/tiles.ts';

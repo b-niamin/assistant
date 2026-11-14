@@ -1,17 +1,8 @@
+/** The chat moved into the panel on the right of every page: old links open it on the dashboard. */
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { grantChat, hasChatGrant } from '#lib/server/chat-grant.ts';
-import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
-import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 
-export const load: PageServerLoad = async ({ cookies }) => {
-  const sid = cookies.get(SESSION_COOKIE);
-  const elevated = await isElevated(sid);
-  if (elevated && sid) grantChat(sid);
-  const status = await terminalStatus();
-  return {
-    configured: sidecarsConfigured(),
-    reachable: status.reachable,
-    signedIn: status.claude,
-    canAct: elevated || hasChatGrant(sid)
-  };
+export const load: PageServerLoad = ({ url }) => {
+  const c = url.searchParams.get('c');
+  throw redirect(303, c && /^[a-f0-9]{16}$/.test(c) ? `/?chat=${c}` : '/?chat');
 };

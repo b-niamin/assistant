@@ -1,5 +1,5 @@
 /**
- * System settings -> Security: the one app password, and locking settings again before the 10 minutes end.
+ * System settings -> Security: the one app password, and locking the app again before the unlock runs out.
  */
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';

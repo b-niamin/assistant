@@ -3,7 +3,11 @@
   import Mascot from '#lib/Mascot.svelte';
   import Dock from '#lib/dock/Dock.svelte';
   import LockMenu from '#lib/dock/LockMenu.svelte';
-  import { dock, dockVisible } from '#lib/dock/dock.svelte.ts';
+  import ChatPanel from '#lib/chat/ChatPanel.svelte';
+  import { chatPanel, closeChat, openChat } from '#lib/chat/panel.svelte.ts';
+  import { dock, dockVisible, unlocked } from '#lib/dock/dock.svelte.ts';
+  import { goto } from '$app/navigation';
+  import { untrack } from 'svelte';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
   import { navigating, page } from '$app/state';
   import { provideLanguage, useT } from '#lib/i18n/index.ts';
@@ -12,6 +16,14 @@
   const t = useT();
   $effect.pre(() => {
     dock.enabled = data.terminal;
+  });
+  // An old /chat link lands here with ?chat (and the conversation): open the panel, tidy the address.
+  $effect(() => {
+    if (!data.authenticated || !page.url.searchParams.has('chat')) return;
+    const url = new URL(page.url.href);
+    untrack(() => openChat(url.searchParams.get('chat') ?? ''));
+    url.searchParams.delete('chat');
+    goto(url, { replace: true, reset: false });
   });
   // The first-run wizard is a page of its own: no header (the dock stays, it installs the apps).
   const wizard = $derived(page.url.pathname === '/setup' || page.url.pathname.startsWith('/setup/'));
@@ -48,11 +60,14 @@
         {/each}
       </nav>
       <div class="right">
-        <a class="chatlink" href="/chat" aria-current={page.url.pathname === '/chat' ? 'page' : undefined} title={t('Chat with Claude')}>
-          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12v8.5H9l-3.5 3v-3H4z" /></svg>
-          <span>{t('Chat')}</span>
-        </a>
         <LockMenu />
+        {#if unlocked()}
+          <button type="button" class="chatbtn" class:on={chatPanel.open} aria-expanded={chatPanel.open} title={t('Chat with Claude')}
+            onclick={() => (chatPanel.open ? closeChat() : openChat())}>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12v8.5H9l-3.5 3v-3H4z" /></svg>
+            <span class="sr">{t('Chat with Claude')}</span>
+          </button>
+        {/if}
         <UserMenu profiles={data.profiles} profileId={data.profileId} theme={data.theme} lang={data.lang} languages={data.languages} terminal={data.terminal} />
       </div>
     </div>
@@ -62,6 +77,7 @@
 <main id="main" tabindex="-1" class:docked={data.authenticated && dockVisible()} inert={data.authenticated && dock.open && dockVisible()}>{@render children()}</main>
 
 {#if data.authenticated}<Dock />{/if}
+{#if data.authenticated && chatPanel.mounted}<ChatPanel docked={dockVisible()} />{/if}
 
 <style>
   .loading {
@@ -174,45 +190,36 @@
     align-items: center;
     gap: var(--space-2);
   }
-  .chatlink {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+  .chatbtn {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
     height: 36px;
-    padding: 0 12px;
+    padding: 0;
     border: 1px solid var(--ring);
     border-radius: 999px;
     background: var(--surface);
-    color: var(--ink);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    text-decoration: none;
+    color: var(--ink-2);
+    cursor: pointer;
   }
-  .chatlink[aria-current='page'] {
-    background: var(--surface-2);
+  .chatbtn.on {
+    border-color: color-mix(in srgb, var(--hue-violet) 45%, var(--ring));
+    background: color-mix(in srgb, var(--hue-violet) 12%, var(--surface));
+    color: var(--hue-violet);
   }
   @media (hover: hover) {
-    .chatlink:hover {
+    .chatbtn:hover {
       background: var(--surface-2);
+      color: var(--ink);
     }
   }
-  .chatlink svg {
-    width: 16px;
-    height: 16px;
+  .chatbtn svg {
+    width: 18px;
+    height: 18px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.6;
+    stroke-width: 1.7;
     stroke-linejoin: round;
-  }
-  @media (max-width: 560px) {
-    .chatlink span {
-      display: none;
-    }
-    .chatlink {
-      width: 36px;
-      padding: 0;
-      justify-content: center;
-    }
   }
   main {
     max-width: 1120px;
@@ -224,11 +231,6 @@
     /* The dock bar's height (Dock.svelte .strip, 1px border, the phone's safe area). */
     --dock-h: calc(41px + env(safe-area-inset-bottom, 0px));
     padding-bottom: calc(var(--space-7) + 48px);
-  }
-  /* The chat (/chat) fills the page between the header and the dock bar. */
-  main:has(:global(.chat-page)) {
-    max-width: none;
-    padding: 0;
   }
   /* A onefile app fills the page down to the dock bar instead of running under it. */
   main.docked:has(:global(.onefile-host)) {

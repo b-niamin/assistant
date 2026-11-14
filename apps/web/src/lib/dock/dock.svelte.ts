@@ -1,6 +1,7 @@
 import { deserialize } from '$app/forms';
-import { goto } from '$app/navigation';
+import { invalidateAll } from '$app/navigation';
 import { chatHandoff } from '#lib/chat/handoff.svelte.ts';
+import { chatPanel, openChat } from '#lib/chat/panel.svelte.ts';
 import { agentCommand, shellQuote, type Agent } from '#lib/settings/guide.ts';
 
 /**
@@ -8,7 +9,7 @@ import { agentCommand, shellQuote, type Agent } from '#lib/settings/guide.ts';
  * the session is unlocked, which the lock in the header (LockMenu.svelte) shows and switches. Pages hand
  * the dock work; it opens and does it once the terminal is connected. Both read the status from `GET /dock`.
  *
- * The chat (/chat) is the main way to work with Claude; the terminal is the backup. Its bar shows only when
+ * The chat (the panel on the right, lib/chat) is the way to work with Claude; the terminal is the backup. Its bar shows only when
  * the owner turned it on in the user menu ("Turn on the terminal", the `terminal` cookie), or once a page
  * hands it a command (Sign in, installing apps...), until the lock.
  */
@@ -48,23 +49,34 @@ export interface Handoff {
 }
 let handoffs = 0;
 
-/** The dock shows while unlocked, and stays while its terminal is connected (the unlock runs out after 10 minutes). */
-export const dockShown = () => !!dock.status?.configured && (dock.status.unlocked || dock.started);
+/** The session is unlocked (the one unlock of the app: System settings, the chat and the terminal). */
+export const unlocked = () => !!dock.status?.unlocked;
+
+/** The dock is there while unlocked (a connected terminal keeps the unlock alive, see refreshDock). */
+export const dockShown = () => !!dock.status?.configured && unlocked();
 
 /** The dock's bar is on the page: unlocked, and turned on or wanted by a page. */
 export const dockVisible = () => dockShown() && (dock.enabled || dock.wanted || dock.started);
 
-/** Reload the terminal status; keeps the last known one while the app restarts. */
+/**
+ * Reload the terminal status; keeps the last known one while the app restarts. A connected terminal or the
+ * open chat counts as using the app (`?active`), so the unlock does not run out under them. When the server
+ * says locked (the idle time ran out, or Lock in another tab), the terminal goes here too.
+ */
 export async function refreshDock() {
   try {
-    const res = await fetch('/dock', { cache: 'no-store' });
-    if (res.ok) dock.status = await res.json();
+    const active = dock.started || chatPanel.open;
+    const res = await fetch(active ? '/dock?active=1' : '/dock', { cache: 'no-store' });
+    if (!res.ok) return;
+    const wasUnlocked = !!dock.status?.unlocked;
+    dock.status = await res.json();
+    if (wasUnlocked && !dock.status?.unlocked) closeDock();
   } catch {
     /* the app is restarting: keep the last known state */
   }
 }
 
-/** The same unlock as System settings (10 minutes), without leaving the page. Returns an error (the server's,
+/** Unlock without leaving the page (the same unlock as System settings); the page reloads its data. Returns an error (the server's,
  * else `fallback`, already in the page's language), or ''. */
 export async function unlockSession(password: string, fallback: string): Promise<string> {
   try {
@@ -77,6 +89,7 @@ export async function unlockSession(password: string, fallback: string): Promise
     else await refreshDock();
     dock.unlockAsked = false;
     if (dock.queue.length) dock.open = true;
+    await invalidateAll();
     return '';
   } catch {
     return fallback;
@@ -86,12 +99,17 @@ export async function unlockSession(password: string, fallback: string): Promise
 /** Lock: the session needs the password again, the terminal disconnects and the dock goes away. */
 export async function lockSession() {
   await fetch('/settings?/lock', { method: 'POST', body: new FormData(), headers: { 'x-sveltekit-action': 'true' } }).catch(() => null);
+  closeDock();
+  if (dock.status) dock.status.unlocked = false;
+  await invalidateAll();
+}
+
+function closeDock() {
   dock.started = false;
   dock.wanted = false;
   dock.open = false;
   dock.queue = [];
   dock.handoff = null;
-  if (dock.status) dock.status.unlocked = false;
 }
 
 /**
@@ -122,7 +140,7 @@ export function pickAgent(status: DockStatus | null = dock.status): Agent {
 }
 
 /**
- * Hand a request to the AI: a new chat with Claude (/chat) that sends it at once. With Codex as the default
+ * Hand a request to the AI: a new chat with Claude (the chat panel) that sends it at once. With Codex as the default
  * AI, Codex starts in a new tmux window with the prompt as its first message (not typed into a bare shell).
  */
 export async function askAgent(prompt: string) {
@@ -130,7 +148,7 @@ export async function askAgent(prompt: string) {
   const agent = pickAgent();
   if (agent === 'claude') {
     chatHandoff.ask = prompt;
-    await goto('/chat');
+    openChat('');
   } else runInDock(agentCommand(agent, prompt));
 }
 
@@ -143,6 +161,6 @@ export async function draftForAgent(draft: string) {
   const agent = pickAgent();
   if (agent === 'claude') {
     chatHandoff.draft = draft;
-    await goto('/chat');
+    openChat('');
   } else runInDock(`sh scripts/agent-draft.sh ${agent} ${shellQuote(draft)}`);
 }

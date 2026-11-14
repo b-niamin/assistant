@@ -1,8 +1,9 @@
 /**
  * GET -> what the header and the dock at the bottom of every page show: the terminal's sign-ins, whether
  * an update is being deployed (or the updater stopped), the default AI CLI (claude or codex), and whether
- * this session is unlocked (the header's lock: the terminal shows only then). States only, never file
- * contents. Any logged-in session may read it.
+ * this session is unlocked (the header's lock: the chat and the terminal act only then). States only, never
+ * file contents. Any logged-in session may read it. `?active=1` (a connected terminal or the open chat) counts
+ * as using the app and keeps the unlock alive; the plain poll does not.
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -11,11 +12,11 @@ import { isElevated, SESSION_COOKIE } from '#lib/server/session.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 import { updateView, updaterControl, updaterStatus } from '#lib/server/updater.ts';
 
-export const GET: RequestHandler = async ({ cookies, locals }) => {
+export const GET: RequestHandler = async ({ cookies, locals, url }) => {
   if (!locals.authenticated) return json({ error: 'Log in first.' }, { status: 401 });
   const [status, unlocked, u, c, agent] = await Promise.all([
     terminalStatus(),
-    isElevated(cookies.get(SESSION_COOKIE)),
+    isElevated(cookies.get(SESSION_COOKIE), url.searchParams.has('active')),
     updaterStatus(),
     updaterControl(),
     defaultAgent().catch((e) => {

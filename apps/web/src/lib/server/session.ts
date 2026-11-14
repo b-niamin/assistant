@@ -50,18 +50,32 @@ export async function listProfiles(): Promise<{ id: string; name: string }[]> {
   return db()<{ id: string; name: string }[]>`SELECT id, name FROM core.profiles ORDER BY name`;
 }
 
-/** Minutes System settings stay unlocked after typing the app password again. */
-export const ELEVATION_MINUTES = 10;
+/**
+ * The unlock: one per session, for System settings, the chat and the terminal alike. It lasts while the app
+ * is used: every check that `touch`es it pushes it UNLOCK_IDLE_MINUTES ahead again (at most once a minute),
+ * so it runs out only after that long without use, or with Lock.
+ */
+export const UNLOCK_IDLE_MINUTES = 60;
 
 export async function elevateSession(id: string): Promise<void> {
-  await db()`UPDATE core.sessions SET elevated_until = now() + make_interval(mins => ${ELEVATION_MINUTES})
+  await db()`UPDATE core.sessions SET elevated_until = now() + make_interval(mins => ${UNLOCK_IDLE_MINUTES})
              WHERE id = ${k(id)} AND expires_at > now()`;
 }
 
-export async function isElevated(id: string | undefined): Promise<boolean> {
+/** Whether the session is unlocked; `touch` (the default) counts the check as use and keeps it unlocked. */
+export async function isElevated(id: string | undefined, touch = true): Promise<boolean> {
   if (!id) return false;
-  const rows = await db()`SELECT 1 FROM core.sessions
-                          WHERE id = ${k(id)} AND expires_at > now() AND elevated_until > now()`;
+  if (!touch) {
+    const rows = await db()`SELECT 1 FROM core.sessions
+                            WHERE id = ${k(id)} AND expires_at > now() AND elevated_until > now()`;
+    return rows.length > 0;
+  }
+  const rows = await db()`
+    WITH s AS (SELECT id FROM core.sessions WHERE id = ${k(id)} AND expires_at > now() AND elevated_until > now()),
+         r AS (UPDATE core.sessions SET elevated_until = now() + make_interval(mins => ${UNLOCK_IDLE_MINUTES})
+               WHERE id IN (SELECT id FROM s)
+                 AND elevated_until < now() + make_interval(mins => ${UNLOCK_IDLE_MINUTES - 1}) RETURNING 1)
+    SELECT 1 FROM s`;
   return rows.length > 0;
 }
 

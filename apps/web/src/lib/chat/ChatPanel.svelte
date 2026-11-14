@@ -1,20 +1,21 @@
 <script lang="ts">
   /**
-   * Chat with Claude Code: the real `claude` CLI in the terminal container, on its own login, in /workspace
-   * (services/terminal/chat.mjs). The terminal at the bottom stays as the backup mode. A critical change
-   * Claude tries comes up here as a card to allow or deny; its questions come up with their options.
+   * Chat with Claude Code, the way to use AI in the app: the real `claude` CLI in the terminal container, on
+   * its own login, in /workspace (services/terminal/chat.mjs). A panel that slides in from the right on every
+   * page (panel.svelte.ts). A critical change Claude tries comes up here as a card to allow or deny; its
+   * questions come up with their options. Acting needs the app's unlock (the lock in the header).
    */
-  import { onMount, tick } from 'svelte';
-  import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { tick, untrack } from 'svelte';
   import Mascot from '#lib/Mascot.svelte';
-  import { dock, openDock } from '#lib/dock/dock.svelte.ts';
-  import { apply, emptyView, type ChatEvent, type Item, type View } from '#lib/chat/events.ts';
-  import { markdown } from '#lib/chat/markdown.ts';
-  import { chatHandoff } from '#lib/chat/handoff.svelte.ts';
+  import { dock, refreshDock, unlocked } from '#lib/dock/dock.svelte.ts';
+  import { apply, emptyView, type ChatEvent, type Item, type View } from './events.ts';
+  import { markdown } from './markdown.ts';
+  import { chatHandoff } from './handoff.svelte.ts';
+  import { chatPanel, closeChat } from './panel.svelte.ts';
   import { useT } from '#lib/i18n/index.ts';
 
-  let { data } = $props();
+  /** The terminal's bar is at the bottom of the page: the panel ends above it. */
+  let { docked = false }: { docked?: boolean } = $props();
   const t = useT();
 
   interface ChatMeta {
@@ -29,15 +30,18 @@
   let text = $state('');
   let sending = $state(false);
   let problem = $state('');
-  let locked = $state(false);
+  /** The terminal container answers /chat with 404: it still runs a version from before the chat. */
+  let outdated = $state(false);
   let showList = $state(false);
+  let panel = $state<HTMLElement>();
   let scroller = $state<HTMLElement>();
   let box = $state<HTMLTextAreaElement>();
   let stream: EventSource | null = null;
 
-  const current = $derived(page.url.searchParams.get('c') ?? '');
-  const canAct = $derived(!locked && (data.canAct || !!dock.status?.unlocked));
+  const current = $derived(chatPanel.current);
+  const canAct = $derived(unlocked());
   const title = $derived(chats.find((c) => c.id === current)?.title ?? '');
+  const status = $derived(dock.status);
 
   async function api(path: string, init?: { method?: string; body?: unknown }): Promise<Response | null> {
     const res = await fetch(`/chat/api${path}`, {
@@ -45,10 +49,12 @@
       headers: init?.body ? { 'content-type': 'application/json' } : undefined,
       body: init?.body ? JSON.stringify(init.body) : undefined
     }).catch(() => null);
+    outdated = res?.status === 404;
     if (res?.status === 403) {
-      locked = true;
       problem = '';
+      refreshDock();
     } else if (!res || res.status >= 500) problem = t('The terminal container is not reachable.');
+    else if (!res.ok && !outdated) problem = t('Claude did not take the message ({status}).', { status: res.status });
     else problem = '';
     return res;
   }
@@ -88,6 +94,12 @@
     showList = false;
   });
 
+  /** A new conversation, or another one from the list. */
+  function show(id: string) {
+    chatPanel.current = id;
+    tick().then(() => box?.focus());
+  }
+
   async function send(message = text) {
     const msg = message.trim();
     if (!msg || sending) return;
@@ -100,7 +112,7 @@
       if (res?.ok) {
         const { id } = await res.json();
         text = '';
-        await goto(`/chat?c=${id}`);
+        chatPanel.current = id;
         loadList();
       } else if (message !== text) text = msg;
     }
@@ -116,12 +128,11 @@
   async function remove(id: string) {
     if (!confirm(t('Delete this chat?'))) return;
     await api(`/${id}`, { method: 'DELETE' });
-    if (id === current) await goto('/chat');
+    if (id === current) chatPanel.current = '';
     loadList();
   }
 
   function unlock() {
-    locked = false;
     dock.unlockAsked = true;
   }
 
@@ -158,38 +169,60 @@
     return today ? d.toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString(t.locale, { day: 'numeric', month: 'short' });
   };
 
-  onMount(() => {
-    loadList();
-    // A request handed over by another page (askAgent / draftForAgent) starts a new chat.
-    if (chatHandoff.ask || chatHandoff.draft) {
+  // Each time the panel opens: a fresh list and state, focus in the message box.
+  $effect(() => {
+    if (!chatPanel.open) return;
+    untrack(() => {
+      loadList();
+      refreshDock();
+      tick().then(() => box?.focus());
+    });
+  });
+
+  // A request handed over by another page (askAgent / draftForAgent) starts a new chat.
+  $effect(() => {
+    if (!chatPanel.open || !(chatHandoff.ask || chatHandoff.draft)) return;
+    untrack(() => {
       const { ask, draft } = chatHandoff;
       chatHandoff.ask = chatHandoff.draft = '';
-      if (current) goto('/chat');
-      if (ask) send(ask);
-      else {
-        text = draft;
-        tick().then(() => box?.focus());
-      }
-    }
-    return () => stream?.close();
+      chatPanel.current = '';
+      if (ask) tick().then(() => send(ask));
+      else text = draft;
+    });
   });
+
+  $effect(() => () => stream?.close());
+
+  function onWindowKey(e: KeyboardEvent) {
+    if (e.key === 'Escape' && chatPanel.open && panel?.contains(e.target as Node)) closeChat();
+  }
 </script>
 
-<svelte:head><title>{title || t('Chat')} · {t('Assistant')}</title></svelte:head>
+<svelte:window onkeydown={onWindowKey} />
 
-<div class="chat chat-page" class:list-open={showList}>
-  <aside class="list" aria-label={t('Chats')}>
-    <div class="list-head">
-      <a class="btn btn-primary new" href="/chat" aria-current={!current ? 'page' : undefined}>{t('New chat')}</a>
-    </div>
+<aside class="chat" class:open={chatPanel.open} class:docked class:list-open={showList} bind:this={panel} inert={!chatPanel.open} aria-label={t('Chat with Claude')}>
+  <header class="top">
+    <button type="button" class="btn-ghost icon" onclick={() => (showList = !showList)} aria-expanded={showList} aria-controls="chat-list" title={t('Chats')}>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12" /></svg><span class="sr">{t('Chats')}</span>
+    </button>
+    <h2>{title || t('Chat with Claude')}</h2>
+    <button type="button" class="btn-ghost icon" onclick={() => show('')} disabled={!current} title={t('New chat')}>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" /></svg><span class="sr">{t('New chat')}</span>
+    </button>
+    <button type="button" class="btn-ghost icon" onclick={closeChat} title={t('Close')}>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg><span class="sr">{t('Close')}</span>
+    </button>
+  </header>
+
+  <nav class="list" id="chat-list" aria-label={t('Chats')}>
     {#if chats.length}
       <ul>
         {#each chats as c (c.id)}
           <li class:on={c.id === current}>
-            <a href="/chat?c={c.id}" aria-current={c.id === current ? 'page' : undefined}>
+            <button type="button" class="pick" aria-current={c.id === current ? 'true' : undefined} onclick={() => show(c.id)}>
               <span class="ct">{c.title || t('Chat')}</span>
               <span class="meta">{#if c.busy}<span class="dot" aria-hidden="true"></span>{t('working')}{:else}{ago(c.updated)}{/if}</span>
-            </a>
+            </button>
             <button type="button" class="del btn-ghost" title={t('Delete this chat?')} onclick={() => remove(c.id)}>×<span class="sr">{t('Delete')}</span></button>
           </li>
         {/each}
@@ -197,26 +230,17 @@
     {:else}
       <p class="meta empty-list">{t('No chats yet.')}</p>
     {/if}
-  </aside>
+  </nav>
 
   <section class="main">
-    <header class="top">
-      <button type="button" class="btn-ghost lists" onclick={() => (showList = !showList)} aria-expanded={showList}>☰<span class="sr">{t('Chats')}</span></button>
-      <h1>{title || t('Chat with Claude')}</h1>
-      <div class="segmented" role="group" aria-label={t('Mode')}>
-        <a href="/chat" aria-current="true">{t('Chat')}</a>
-        <a href="#terminal" onclick={(e) => (e.preventDefault(), openDock())}>{t('Terminal')}</a>
-      </div>
-    </header>
-
     <div class="scroll" bind:this={scroller}>
       {#if !current && !view.items.length}
         <div class="hello">
           <Mascot mood="idle" size={88} accessory="headphones" decorative />
           <h2>{t('What should Claude do?')}</h2>
           <p class="muted">{t('Claude Code works in the app’s own folder, with your Claude login. It asks here before critical changes.')}</p>
-          {#if !data.configured || !data.reachable}<p class="note bad">{t('The terminal container is not reachable.')}</p>
-          {:else if !data.signedIn}<p class="note">{t('Claude Code is not signed in yet: System settings → Terminal and AI.')}</p>{/if}
+          {#if status && (!status.configured || !status.reachable)}<p class="note bad">{t('The terminal container is not reachable.')}</p>
+          {:else if status && !status.claude}<p class="note">{t('Claude Code is not signed in yet: System settings → Terminal and AI.')}</p>{/if}
         </div>
       {/if}
 
@@ -294,45 +318,121 @@
 
     <form class="composer" onsubmit={(e) => (e.preventDefault(), send())}>
       {#if problem}<p class="note bad small" role="alert">{problem}</p>{/if}
+      {#if outdated}
+        <p class="note bad small" role="alert">
+          {t('The terminal container still runs a version without the chat. Restart it to use the chat.')}
+          <a href="/settings/updates" onclick={closeChat}>{t('Updates')}</a>
+        </p>
+      {/if}
       {#if !canAct}
         <p class="note small">{t('Claude acts with full access: unlock first (the lock in the header).')} <button type="button" class="btn" onclick={unlock}>{t('Unlock')}</button></p>
       {/if}
-      <div class="row">
-        <textarea bind:this={box} bind:value={text} rows="2" placeholder={current ? t('Reply to Claude…') : t('Ask Claude to do something…')} onkeydown={onKey} aria-label={t('Message')}></textarea>
-        {#if view.busy}
-          <button type="button" class="btn" onclick={() => api(`/${current}/stop`, { method: 'POST' })}>{t('Stop')}</button>
-        {/if}
-        <button class="btn btn-primary" disabled={!text.trim() || sending || !canAct}>{t('Send')}</button>
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <div class="box" class:off={!canAct} onclick={(e) => e.target === e.currentTarget && box?.focus()}>
+        <textarea bind:this={box} bind:value={text} rows="1" placeholder={current ? t('Reply to Claude…') : t('Ask Claude to do something…')} onkeydown={onKey} aria-label={t('Message')}></textarea>
+        <div class="tools">
+          <span class="hint">{t('Enter sends, Shift+Enter makes a new line')}</span>
+          {#if view.busy}
+            <button type="button" class="round stop" title={t('Stop')} onclick={() => api(`/${current}/stop`, { method: 'POST' })}>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="6" width="8" height="8" rx="1.5" /></svg><span class="sr">{t('Stop')}</span>
+            </button>
+          {/if}
+          <button class="round send" title={t('Send')} disabled={!text.trim() || sending || !canAct}>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15.5v-11M5.5 9 10 4.5 14.5 9" /></svg><span class="sr">{t('Send')}</span>
+          </button>
+        </div>
       </div>
     </form>
   </section>
-</div>
+</aside>
 
 <style>
+  /* Under the header (and its menus, z-index 10), so the lock with its password prompt and the chat button
+     stay in reach; above the terminal's bar when that is on. */
   .chat {
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    gap: var(--space-4);
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: var(--space-4);
-    height: calc(100dvh - 57px - var(--dock-h, 0px));
-    min-height: 420px;
-  }
-  .list {
+    position: fixed;
+    top: 57px;
+    right: 0;
+    bottom: 0;
+    z-index: 9;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
-    min-height: 0;
+    width: min(460px, 100vw);
+    background: var(--surface);
+    border-left: 1px solid var(--ring);
+    box-shadow: -16px 0 40px -24px rgb(0 0 0 / 45%);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition:
+      transform 0.22s ease,
+      visibility 0s 0.22s;
   }
-  .new {
-    width: 100%;
+  .chat.docked {
+    bottom: calc(41px + env(safe-area-inset-bottom, 0px));
+  }
+  .chat.open {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.22s ease;
+  }
+  :global([data-motion='reduce']) .chat {
+    transition: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chat {
+      transition: none;
+    }
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 48px;
+    flex: none;
+    padding: 0 var(--space-2) 0 var(--space-3);
+    border-bottom: 1px solid var(--ring);
+  }
+  .top h2 {
+    flex: 1;
+    min-width: 0;
+    margin: 0 var(--space-1);
+    font-size: var(--text-base);
+    font-weight: var(--weight-bold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .icon {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    flex: none;
+  }
+  .icon svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+  }
+  .list {
+    display: none;
+    flex: none;
+    max-height: 45%;
+    overflow-y: auto;
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--ring);
+  }
+  .list-open .list {
+    display: block;
   }
   .list ul {
     list-style: none;
     margin: 0;
     padding: 0;
-    overflow-y: auto;
     display: grid;
     gap: 2px;
   }
@@ -343,12 +443,17 @@
   .list li.on {
     background: var(--surface-2);
   }
-  .list li a {
+  .pick {
     display: grid;
     gap: 2px;
+    width: 100%;
     padding: var(--space-2) 28px var(--space-2) var(--space-3);
+    border: 0;
+    background: none;
     color: var(--ink);
-    text-decoration: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
   }
   @media (hover: hover) {
     .list li:hover {
@@ -391,31 +496,9 @@
   }
   .main {
     display: flex;
+    flex: 1;
     flex-direction: column;
     min-height: 0;
-    background: var(--surface);
-    border: 1px solid var(--ring);
-    border-radius: var(--radius);
-  }
-  .top {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--ring);
-  }
-  .top h1 {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    font-size: var(--text-base);
-    font-weight: var(--weight-bold);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .lists {
-    display: none;
   }
   .scroll {
     flex: 1;
@@ -616,31 +699,104 @@
     gap: var(--space-2);
   }
   .composer {
-    padding: var(--space-3) var(--space-4);
-    border-top: 1px solid var(--ring);
+    flex: none;
+    padding: var(--space-2) var(--space-3) var(--space-3);
     display: grid;
     gap: var(--space-2);
   }
-  .composer .row {
-    display: flex;
-    gap: var(--space-2);
-    align-items: flex-end;
-    max-width: 760px;
-    width: 100%;
-    margin: 0 auto;
+  .box {
+    display: grid;
+    gap: 2px;
+    padding: 10px 10px 8px 14px;
+    border: 1px solid var(--field-border);
+    border-radius: 18px;
+    background: var(--surface-2);
+    cursor: text;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
   }
-  .composer textarea {
-    flex: 1;
-    resize: none;
+  .box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-wash);
+  }
+  .box.off {
+    opacity: 0.6;
+  }
+  .box textarea {
+    width: 100%;
+    min-height: 24px;
     max-height: 200px;
+    padding: 2px 0;
+    border: 0;
+    background: none;
+    resize: none;
     field-sizing: content;
-    min-height: 44px;
     font-family: var(--font);
+    line-height: 1.5;
+    outline: none;
+    box-shadow: none;
   }
-  .composer .note {
-    max-width: 760px;
-    width: 100%;
-    margin: 0 auto;
+  .tools {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .hint {
+    flex: 1;
+    min-width: 0;
+    color: var(--ink-3);
+    font-size: var(--text-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .round {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .round svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .send {
+    background: var(--accent);
+    color: #fff;
+  }
+  .send:disabled {
+    background: var(--ring);
+    color: var(--ink-3);
+    cursor: default;
+  }
+  .stop {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--ring);
+  }
+  .stop svg {
+    fill: currentColor;
+    stroke: none;
+  }
+  @media (pointer: coarse) {
+    .hint {
+      visibility: hidden;
+    }
+    .round {
+      width: 40px;
+      height: 40px;
+    }
   }
   .note {
     margin: 0;
@@ -661,21 +817,5 @@
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
-  }
-  @media (max-width: 760px) {
-    .chat {
-      grid-template-columns: 1fr;
-      padding: var(--space-2);
-    }
-    .list {
-      display: none;
-    }
-    .list-open .list {
-      display: flex;
-      max-height: 40dvh;
-    }
-    .lists {
-      display: inline-block;
-    }
   }
 </style>

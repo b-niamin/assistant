@@ -148,11 +148,17 @@ A page starts with `PageHead` (title, one line, an action); cards, rows and choi
 has four steps with a progress row and Beni: you (code, password, name, language), apps (catalog, installed in
 the dock's terminal), updates and Claude (update mode and the updater's schedule, MCP on the internet) and done (what is next).
 
-The lock (`lib/dock/LockMenu.svelte`) shows whether this session is unlocked (the app password typed again,
-10 minutes, the same unlock as System settings). Locked, a closed padlock, and there is no terminal on any
-page; a click opens a small password prompt under it. Unlocked, an open violet padlock, and the dock
-appears at the bottom; a click locks again and closes the terminal. A terminal that is connected stays
-when the 10 minutes run out, until the lock is clicked. Left of the lock, a chip appears only when the
+The lock (`lib/dock/LockMenu.svelte`) shows whether this session is unlocked: the app's one unlock (the
+app password typed again) for System settings, the chat and the terminal alike. It lasts while the app is
+used (each use pushes it an hour ahead; an open chat panel or a connected terminal counts as use) and ends
+after an hour without use or with Lock. Locked, a closed padlock; a click opens a small password prompt
+under it. Unlocked, an open violet padlock with the chat button next to it; a click locks again and closes
+the terminal.
+
+The chat with Claude (`lib/chat/ChatPanel.svelte`) is the way to use AI in the app: a panel that slides in
+from the right over any page, opened by the chat button (shown only while unlocked), keeping its
+conversation across pages. Its header holds the list of chats, a new chat and close. The terminal is
+optional: the user menu turns it on. Left of the lock, a chip appears only when the
 host's updater needs attention: Updating, Update, Restart needed, Update interrupted, Updates stopped
 (links to System settings -> Updates). The state comes from `GET /dock` every 30 s.
 

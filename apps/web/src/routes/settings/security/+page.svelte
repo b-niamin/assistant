@@ -10,7 +10,7 @@
 
 <svelte:head><title>{t('Security')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Security')} lede={t('One app password opens the whole assistant. Settings ask for it again and lock after 10 minutes.')} />
+<PageHead title={t('Security')} lede={t('One app password opens the whole assistant. Settings and the chat ask for it again and lock after an hour without use.')} />
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}

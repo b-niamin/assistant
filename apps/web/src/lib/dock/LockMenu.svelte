@@ -1,26 +1,30 @@
 <script lang="ts">
   /**
-   * The lock in the header. Locked (the default): no terminal anywhere. A click asks for the app password
-   * (the same 10-minute unlock as System settings) and the terminal's bar appears at the bottom of every
-   * page. Unlocked: a click locks again, which also closes the terminal. Next to it, the updater's state
-   * when it needs attention. The status comes from `GET /dock`, refreshed by the dock every 30 s.
+   * The lock in the header: the app's one unlock. Locked (the default): Claude cannot act in the chat, there
+   * is no terminal and System settings ask for the password. A click asks for the app password once for all
+   * of them; the unlock lasts while the app is used (an hour without use locks it). Unlocked: the chat
+   * button appears next to it, and a click locks again. Next to it, the updater's state when it needs
+   * attention. The status comes from `GET /dock`, refreshed by the dock every 30 s.
    */
   import { tick } from 'svelte';
-  import { dock, dockShown, lockSession, refreshDock, unlockSession } from './dock.svelte.ts';
+  import { dock, lockSession, refreshDock, unlocked as isUnlocked, unlockSession } from './dock.svelte.ts';
   import { useT } from '#lib/i18n/index.ts';
   const t = useT();
 
   const status = $derived(dock.status);
-  const unlocked = $derived(dockShown());
+  const unlocked = $derived(isUnlocked());
   let menuOpen = $state(false);
   let menu = $state<HTMLElement>();
   let input = $state<HTMLInputElement>();
   let password = $state('');
   let error = $state('');
   let busy = $state(false);
+  /** When the prompt opened: the click that asked for it (a page's Unlock button) must not close it again. */
+  let openedAt = 0;
 
   async function openMenu() {
     menuOpen = true;
+    openedAt = performance.now();
     error = '';
     refreshDock();
     await tick();
@@ -59,7 +63,7 @@
   }
 
   function onWindowClick(e: MouseEvent) {
-    if (menuOpen && menu && !menu.contains(e.target as Node)) close();
+    if (menuOpen && menu && !menu.contains(e.target as Node) && performance.now() - openedAt > 300) close();
   }
 </script>
 
@@ -95,7 +99,7 @@
     disabled={busy}
     aria-expanded={unlocked ? undefined : menuOpen}
     aria-controls={unlocked ? undefined : 'lock-menu'}
-    title={unlocked ? t('Unlocked: the terminal is at the bottom. Click to lock.') : t('Locked. Click to unlock the terminal.')}
+    title={unlocked ? t('Unlocked: the chat and System settings are open. Click to lock.') : t('Locked. Click to unlock the chat and System settings.')}
     onclick={onButton}
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -104,23 +108,18 @@
       <circle cx="10" cy="13.2" r="1.1" class="dot" />
     </svg>
     {#if unlocked}<span class="ltext" aria-hidden="true">{t('Unlocked')}</span>{/if}
-    <span class="sr">{unlocked ? t('Lock (hides the terminal)') : t('Unlock (shows the terminal)')}</span>
+    <span class="sr">{unlocked ? t('Lock') : t('Unlock')}</span>
   </button>
   {#if menuOpen && !unlocked}
     <div class="menu card" id="lock-menu" role="dialog" aria-label={t('Unlock')}>
-      {#if status && !status.configured}
-        <p class="meta">{t('The terminal is not set up on this server yet.')}</p>
-        <details class="tech"><summary>{t('Technical details')}</summary><span class="meta">{t('The terminal is off. Set SIDECAR_TICKET_SECRET in .env and run docker compose up -d.')}</span></details>
-      {:else}
-        <form onsubmit={submit}>
-          <label for="lock-pw">{t('The terminal opens a shell, so it asks for the app password again.')}</label>
-          <div class="row">
-            <input id="lock-pw" bind:this={input} type="password" bind:value={password} autocomplete="current-password" placeholder={t('App password')} required />
-            <button class="btn btn-primary" disabled={busy}>{t('Unlock')}</button>
-          </div>
-          {#if error}<p class="bad" role="alert">{error}</p>{/if}
-        </form>
-      {/if}
+      <form onsubmit={submit}>
+        <label for="lock-pw">{t('Claude in the chat and System settings act with full access, so they ask for the app password again. It stays unlocked while you use the app.')}</label>
+        <div class="row">
+          <input id="lock-pw" bind:this={input} type="password" bind:value={password} autocomplete="current-password" placeholder={t('App password')} required />
+          <button class="btn btn-primary" disabled={busy}>{t('Unlock')}</button>
+        </div>
+        {#if error}<p class="bad" role="alert">{error}</p>{/if}
+      </form>
     </div>
   {/if}
 </div>
@@ -205,8 +204,7 @@
     box-shadow: 0 12px 32px -12px rgb(0 0 0 / 35%);
     z-index: 40;
   }
-  .menu label,
-  .menu .meta {
+  .menu label {
     display: block;
     margin: 0 0 var(--space-2);
     font-size: var(--text-sm);

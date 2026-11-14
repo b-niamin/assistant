@@ -1,8 +1,8 @@
 /**
  * System settings: one place for everything, like the iOS Settings app. The sidebar (+layout.svelte) leads
  * to a page per section; this overview shows what needs attention and the common tasks. Everything here
- * needs the app password again (10-minute unlock, core.sessions.elevated_until): this page holds the
- * unlock and the lock. Extensions are built by Claude: /settings/extensions/new prepares the request.
+ * needs the app's one unlock (the header's lock, core.sessions.elevated_until; it lasts while the app is
+ * used): when locked, this page asks for it too. Extensions are built by Claude: /settings/extensions/new prepares the request.
  */
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -11,7 +11,6 @@ import { tFor } from '#lib/i18n/index.ts';
 import { languageSettings } from '#lib/server/languages.ts';
 import { defaultAgent, passwordHash } from '#lib/server/app-config.ts';
 import { verifyPassword } from '#lib/server/password.ts';
-import { dropChatGrant } from '#lib/server/chat-grant.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 import { dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
@@ -54,12 +53,11 @@ export const actions: Actions = {
     await elevateSession(cookies.get(SESSION_COOKIE)!);
     const next = url.searchParams.get('next') ?? '';
     if (NEXT_RE.test(next)) throw redirect(303, `/settings/${next}`);
-    return { ok: t('Unlocked for 10 minutes.') };
+    return { ok: t('Unlocked.') };
   },
 
   lock: async ({ cookies, locals }) => {
     await dropElevation(cookies.get(SESSION_COOKIE));
-    dropChatGrant(cookies.get(SESSION_COOKIE));
     return { ok: tFor(locals.lang)('Locked.') };
   }
 };

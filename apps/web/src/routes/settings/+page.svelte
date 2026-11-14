@@ -85,7 +85,7 @@
     <form method="POST" action={next ? `?/unlock&next=${encodeURIComponent(next)}` : '?/unlock'} class="card unlock"
       use:enhance={() => async ({ update }) => (await update(), refreshDock())}>
       <h1>{t('System settings')}</h1>
-      <p class="muted">{t('Settings ask for the password again, and stay open for 10 minutes.')}</p>
+      <p class="muted">{t('Settings ask for the app password again, the same unlock as the lock in the header. It stays unlocked while you use the app.')}</p>
       {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
       <label>
         <span class="sr">{t('App password')}</span>
@@ -103,7 +103,7 @@
       <p class="lede">{attention ? t.n(attention, 'One thing needs you.', '{n} things need you.') : t('Everything is running.')}</p>
     </div>
     <form method="POST" action="?/lock" use:enhance={() => async ({ update }) => (await update(), await lockSession())}>
-      <button class="btn" title={t('Settings and the terminal close on this device until the password is typed again.')}>{t('Lock')}</button>
+      <button class="btn" title={t('Settings, the chat and the terminal close on this device until the password is typed again.')}>{t('Lock')}</button>
     </form>
   </div>
 

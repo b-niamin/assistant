@@ -308,8 +308,9 @@ The app offers both at the bottom of each extension's panel in System settings (
 ### System settings (`/settings`): one place for all settings
 
 Like the iOS Settings app: a list of the extensions, each opening its own panel, and a System part. All
-of it sits behind a step-up: the app password is asked again and the session stays elevated for
-10 minutes (`core.sessions.elevated_until`); every action checks it server-side.
+of it sits behind a step-up: the app password is asked again and the session stays elevated
+(`core.sessions.elevated_until`, the header's lock, shared with the chat and the terminal) until an hour
+without use or Lock; every action checks it server-side.
 
 **An extension's panel** (`/settings/extensions/<id>`):
 - **Availability**: on/off (hidden everywhere, data kept) and which profiles see it

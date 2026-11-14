@@ -32,6 +32,7 @@ import re
 import signal
 import pty
 import select
+import shutil
 import socket
 import struct
 import subprocess
@@ -289,6 +290,17 @@ def installed_ids(ext_dir: str | None = None) -> list[str]:
         return []
 
 
+def purged_ids(ext_dir: str | None = None) -> list[str]:
+    """installed.json "purge" (`ext remove --data`): removed extensions whose data goes, unless installed again."""
+    try:
+        with open(os.path.join(ext_dir or EXT, "installed.json"), encoding="utf-8") as f:
+            purge = json.load(f).get("purge", [])
+    except (OSError, ValueError, AttributeError):
+        return []
+    installed = set(installed_ids(ext_dir))
+    return [i for i in purge if isinstance(i, str) and ID_RE.match(i) and i not in installed] if isinstance(purge, list) else []
+
+
 def fingerprint(unit: Unit) -> str:
     """Changes when the unit's manifest entry or any file in its folder does (code updates restart it)."""
     h = hashlib.sha256(json.dumps(unit.spec(), sort_keys=True).encode())
@@ -481,6 +493,12 @@ class Supervisor:
                 r = self.units.pop(key)
                 self.unit_log(r.unit, "removed from the manifest or uninstalled: stopping")
                 self.stop(r)
+        # Removed with its data: its own folder goes too (its units were stopped just above).
+        for ext in purged_ids():
+            home = os.path.join(DATA, "ext", ext)
+            if os.path.isdir(home):
+                say(f"{ext}: removed with its data: deleting {home}")
+                shutil.rmtree(home, ignore_errors=True)
         now = time.time()
         for key, (unit, fp) in wanted.items():
             r = self.units.get(key)

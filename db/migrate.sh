@@ -102,6 +102,37 @@ for id in $ext_ids; do
   trap - EXIT
 done
 
+# Extensions removed with their data (`ext remove --data`: installed.json "purge", not installed again):
+# their schema, roles and rows in core go. Asked for by the owner in the app or the terminal (spec 002).
+for id in $(purge_ids "$EXTENSIONS_DIR/installed.json"); do
+  schema=$(echo "$id" | tr - _)
+  left=$(psql -tA -v id="$id" -v s="$schema" <<'SQL'
+SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = :'s')
+  OR EXISTS (SELECT 1 FROM pg_roles WHERE rolname LIKE 'ext\_' || :'s' || '%')
+  OR EXISTS (SELECT 1 FROM core.extension_kv WHERE extension_id = :'id')
+  OR EXISTS (SELECT 1 FROM core.extension_settings WHERE extension_id = :'id')
+  OR EXISTS (SELECT 1 FROM core.extension_config WHERE extension_id = :'id')
+  OR EXISTS (SELECT 1 FROM secrets.extension_secrets WHERE extension_id = :'id');
+SQL
+)
+  [ "$left" = t ] || continue
+  echo "[migrate] dropping the data of removed extension $id"
+  psql -v ON_ERROR_STOP=1 -q -1 -v id="$id" -v s="$schema" <<'SQL'
+SET client_min_messages = warning;
+SELECT format('DROP SCHEMA IF EXISTS %I CASCADE', :'s') \gexec
+SELECT format('DROP FUNCTION IF EXISTS ext_query.%I(text)', :'s') \gexec
+SELECT format('DROP OWNED BY %I', rolname), format('DROP ROLE %I', rolname)
+  FROM pg_roles WHERE rolname IN ('ext_' || :'s', 'ext_' || :'s' || '_owner', 'ext_' || :'s' || '_svc') \gexec
+DELETE FROM core.extension_kv WHERE extension_id = :'id';
+DELETE FROM core.extension_settings WHERE extension_id = :'id';
+DELETE FROM core.extension_config WHERE extension_id = :'id';
+DELETE FROM secrets.extension_secrets WHERE extension_id = :'id';
+DELETE FROM core.dashboard_layout WHERE tile_key LIKE :'id' || ':%';
+UPDATE core.mcp_endpoints SET extensions = array_remove(extensions, :'id') WHERE :'id' = ANY (extensions);
+DELETE FROM core.schema_migrations WHERE name LIKE :'id' || '/%';
+SQL
+done
+
 echo "[migrate] applying roles"
 psql -v ON_ERROR_STOP=1 -q \
   -v app_pw="$APP_DB_PASSWORD" -v claude_pw="$CLAUDE_DB_PASSWORD" \

@@ -2,6 +2,7 @@
   import { enhance } from '#lib/forms.ts';
   import { AGENT_NAMES, draftForAgent, pickAgent } from '#lib/dock/dock.svelte.ts';
   import SourcesPanel from '#lib/settings/SourcesPanel.svelte';
+  import RemoveExtension from '#lib/settings/RemoveExtension.svelte';
   import { claimedFields } from '#lib/extensions/sources.ts';
   import { hueFor, initials } from '#lib/settings/guide.ts';
   import { languageInfo, tFor, useT } from '#lib/i18n/index.ts';
@@ -158,6 +159,8 @@
 {#if !plain.length && !secretNames.length && !ext.settingsPage && !data.sources}
   <p class="muted">{t('{name} has no settings of its own.', { name: ext.name })}</p>
 {/if}
+
+<RemoveExtension id={ext.id} name={ext.name} native={ext.kind === 'native'} />
 
 <style>
   .change {

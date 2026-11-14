@@ -10,6 +10,18 @@ installed_ids() {
   grep -oE '"id"[[:space:]]*:[[:space:]]*"[a-z][a-z0-9-]*"' "$1" | sed -E 's/.*"([a-z0-9-]+)"$/\1/'
 }
 
+# purge_ids <extensions/installed.json>: the ids of its "purge" list (`ext remove --data`), one per line,
+# minus the installed ones; only [a-z0-9-] names.
+purge_ids() (
+  [ -f "$1" ] || return 0
+  installed=$(installed_ids "$1")
+  tr -d '\n\r' < "$1" | grep -oE '"purge"[[:space:]]*:[[:space:]]*\[[^]]*\]' | grep -oE '"[a-z][a-z0-9-]*"' | tr -d '"' |
+    while read -r id; do
+      [ "$id" = purge ] && continue
+      printf '%s\n' "$installed" | grep -qx "$id" || echo "$id"
+    done
+)
+
 # env_value <file> <NAME>: the last NAME=... line's value of a .env file ('' when there is none).
 env_value() { sed -n "s/^$2=//p" "$1" 2>/dev/null | tail -n 1; }
 

@@ -300,7 +300,10 @@ inspiration, build, settings panel, tools, check, commit) and `new-extension` (h
 
 ### CLI
 
-`node scripts/ext.mjs available | install | update | list | check [id] | languages | new | profiles | remove` (see the header of `scripts/ext.mjs`). `remove` moves the folder to `extensions/.trash/` and never drops data.
+`node scripts/ext.mjs available | install | update | list | check [id] | languages | new | profiles | remove` (see the header of `scripts/ext.mjs`). `remove` moves the folder to `extensions/.trash/` and keeps the data; `remove --data` also lists the id in
+installed.json `"purge"`, and while it is not installed again ext-migrate drops its schema, its roles and its rows in
+core (kv, settings, config, secrets, dashboard tiles, MCP address lists), and the worker deletes `/data/ext/<id>`.
+The app offers both at the bottom of each extension's panel in System settings (Remove, with a confirmation).
 
 ### System settings (`/settings`): one place for all settings
 

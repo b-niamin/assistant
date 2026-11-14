@@ -867,5 +867,15 @@
   "The updater does not run yet": "Aktualizator jeszcze nie działa",
   "Both choices need it to run every minute. Once, on the server:": "Oba wybory wymagają, żeby działał co minutę. Raz, na serwerze:",
   "Claude (claude.ai, phone) can use your apps over MCP. One address goes on the internet (Tailscale Funnel); each person connects and approves their own.": "Claude (claude.ai, telefon) może używać twoich aplikacji przez MCP. Jeden adres trafia do internetu (Tailscale Funnel); każda osoba podłącza i zatwierdza swoje.",
-  "Nothing is reachable from outside your tailnet.": "Nic nie jest osiągalne spoza twojego tailnetu."
+  "Nothing is reachable from outside your tailnet.": "Nic nie jest osiągalne spoza twojego tailnetu.",
+  "Takes {name} out of the app: its pages, tiles, AI tools and background jobs.": "Usuwa {name} z aplikacji: strony, kafelki, narzędzia AI i zadania w tle.",
+  "Remove {name}": "Usuń {name}",
+  "Remove {name}?": "Usunąć {name}?",
+  "Removing… the app rebuilds itself without {name}, about a minute.": "Usuwam… aplikacja przebudowuje się bez {name}, około minuty.",
+  "Its pages, tiles, AI tools and background jobs go away.": "Znikną jego strony, kafelki, narzędzia AI i zadania w tle.",
+  "Also delete its data": "Usuń też jego dane",
+  "Everything it stored, for every profile: its tables, settings, secrets and files. This cannot be undone.": "Wszystko, co zapisało, dla każdego profilu: tabele, ustawienia, sekrety i pliki. Tego nie da się cofnąć.",
+  "Everything it stored, for every profile: its saved state, settings and secrets. This cannot be undone.": "Wszystko, co zapisało, dla każdego profilu: zapisany stan, ustawienia i sekrety. Tego nie da się cofnąć.",
+  "Its data stays and comes back if you install it again.": "Dane zostaną i wrócą, jeśli zainstalujesz je ponownie.",
+  "Remove with data": "Usuń z danymi"
 }

@@ -15,7 +15,8 @@
  *                                [--from onefile:<appType>/<variant>]
  *                                [--inspired-by <link or note>] [--profiles a,b]
  *   node scripts/ext.mjs profiles <id> [a,b | all]       who sees it (System settings can override)
- *   node scripts/ext.mjs remove <id>                     the folder moves to extensions/.trash/; data stays
+ *   node scripts/ext.mjs remove <id> [--data]            the folder moves to extensions/.trash/; data stays,
+ *                                                       unless --data: then ext-migrate drops it within ~15 s
  *
  * Background work (manifest "services" / "jobs") runs in the worker container, which picks a new or
  * updated extension up within seconds. Only an extension with its own compose.yml needs ./install.sh.
@@ -132,7 +133,15 @@ function moveToTrash(id) {
   mkdirSync(trash, { recursive: true });
   renameSync(dest, path.join(trash, `${id}-${Date.now()}`));
 }
+/**
+ * installed.json "purge": ids removed with --data. ext-migrate drops their schema, roles and core rows, the
+ * worker their /data/ext folder, as long as they are not installed again; installing one ends its purge.
+ */
 function saveReg(reg) {
+  if (Array.isArray(reg.purge)) {
+    reg.purge = [...new Set(reg.purge)].filter((id) => ID_RE.test(id) && !reg.extensions.some((e) => e.id === id));
+    if (!reg.purge.length) delete reg.purge;
+  }
   writeFileSync(REGISTRY, JSON.stringify(reg, null, 2) + '\n');
 }
 function entryOf(reg, id) {
@@ -439,20 +448,22 @@ const commands = {
     regenerate();
   },
 
-  remove({ pos }) {
+  remove({ pos, opts }) {
     const reg = loadReg();
     const e = entryOf(reg, pos[0]);
     reg.extensions = reg.extensions.filter((x) => x !== e);
+    if (opts.data) reg.purge = [...(reg.purge ?? []), e.id];
     saveReg(reg);
     moveToTrash(e.id);
     regenerate();
-    console.log(`ext: removed ${e.id}. Its data stays in the database (schema / core.extension_kv).`);
+    if (opts.data) console.log(`ext: removed ${e.id}. Its data goes within ~15 s (ext-migrate: schema, settings, secrets, roles).`);
+    else console.log(`ext: removed ${e.id}. Its data stays in the database (schema / core.extension_kv); --data drops it.`);
   }
 };
 
 const [cmd, ...rest] = process.argv.slice(2);
 if (!cmd || !commands[cmd]) {
-  console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(2, 22).join('\n').replace(/^ \* ?/gm, ''));
+  console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(2, 23).join('\n').replace(/^ \* ?/gm, ''));
   process.exit(cmd ? 1 : 0);
 }
 try {

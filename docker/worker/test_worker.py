@@ -208,6 +208,19 @@ class Supervising(unittest.TestCase):
         self.assertEqual(self.s.units, {})
         self.assertEqual(sorted(self.events[3:]), [("monitor/collector", "stop"), ("monitor/prune", "stop")])
 
+    def test_removed_with_its_data_loses_its_folder(self) -> None:
+        old, worker.DATA = worker.DATA, tempfile.mkdtemp()
+        try:
+            for ext in ("monitor", "gym"):
+                os.makedirs(os.path.join(worker.DATA, "ext", ext, "venv"))
+            with open(os.path.join(self.root, "installed.json"), "w") as f:
+                json.dump({"extensions": [{"id": "monitor"}], "purge": ["gym", "monitor", "../x"]}, f)
+            self.assertEqual(worker.purged_ids(self.root), ["gym"])
+            self.s.scan()
+            self.assertEqual(sorted(os.listdir(os.path.join(worker.DATA, "ext"))), ["monitor"])
+        finally:
+            worker.DATA = old
+
     def test_a_job_runs_when_due(self) -> None:
         self.s.scan()
         r = self.s.units["monitor/prune"]

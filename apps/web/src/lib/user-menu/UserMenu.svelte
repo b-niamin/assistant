@@ -8,7 +8,7 @@
   import { page } from '$app/state';
   import type { Theme } from '#lib/theme.ts';
   import { hueFor, initials } from '#lib/settings/guide.ts';
-  import { setLanguage, setTheme } from './prefs.ts';
+  import { setLanguage, setTerminal, setTheme } from './prefs.ts';
   import { useT } from '#lib/i18n/index.ts';
 
   let {
@@ -16,13 +16,15 @@
     profileId,
     theme,
     lang,
-    languages
+    languages,
+    terminal
   }: {
     profiles: { id: string; name: string }[];
     profileId: string;
     theme: Theme;
     lang: string;
     languages: { code: string; name: string }[];
+    terminal: boolean;
   } = $props();
   const t = useT();
 
@@ -31,6 +33,12 @@
   // The server's value until the owner picks another one here.
   let picked = $state<Theme | null>(null);
   const current = $derived(picked ?? theme);
+  let terminalPicked = $state<boolean | null>(null);
+  const terminalOn = $derived(terminalPicked ?? terminal);
+  function toggleTerminal(on: boolean) {
+    terminalPicked = on;
+    setTerminal(on);
+  }
 
   const me = $derived(profiles.find((p) => p.id === profileId));
   const name = $derived(me?.name ?? profileId);
@@ -131,6 +139,13 @@
           </div>
         {/if}
       </div>
+
+      <hr />
+      <button type="button" class="item" role="switch" aria-checked={terminalOn} onclick={() => toggleTerminal(!terminalOn)}>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4.5h14v11H3z" /><path d="M6 8.5l2 1.5-2 1.5M10 12h4" /></svg>
+        <span class="grow">{t('Turn on the terminal')}</span>
+        <span class="switch" aria-hidden="true"><span></span></span>
+      </button>
 
       <hr />
       <form method="POST" action="/logout">
@@ -293,6 +308,34 @@
     .item:hover {
       background: var(--surface-2);
     }
+  }
+  .grow {
+    flex: 1;
+  }
+  .switch {
+    position: relative;
+    flex: none;
+    width: 32px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--axis);
+  }
+  .switch span {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+    transition: transform 150ms;
+  }
+  [aria-checked='true'] .switch {
+    background: var(--accent-fill);
+  }
+  [aria-checked='true'] .switch span {
+    transform: translateX(12px);
   }
   .item[aria-current='page'] {
     font-weight: var(--weight-bold);

@@ -7,7 +7,7 @@
    */
   import { onMount } from 'svelte';
   import TerminalWindow from '#lib/terminal/TerminalWindow.svelte';
-  import { dock, dockShown, refreshDock as refresh } from './dock.svelte.ts';
+  import { dock, dockVisible, refreshDock as refresh } from './dock.svelte.ts';
   import { useT } from '#lib/i18n/index.ts';
   const t = useT();
 
@@ -19,7 +19,7 @@
   let ready = $state(false);
   // Open or closed is remembered per browser; written only after it was read back on load.
   let restored = $state(false);
-  const shown = $derived(dockShown());
+  const shown = $derived(dockVisible());
 
   let toggleButton = $state<HTMLButtonElement>();
 

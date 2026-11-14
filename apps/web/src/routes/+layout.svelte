@@ -3,13 +3,16 @@
   import Mascot from '#lib/Mascot.svelte';
   import Dock from '#lib/dock/Dock.svelte';
   import LockMenu from '#lib/dock/LockMenu.svelte';
-  import { dock, dockShown } from '#lib/dock/dock.svelte.ts';
+  import { dock, dockVisible } from '#lib/dock/dock.svelte.ts';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
   import { navigating, page } from '$app/state';
   import { provideLanguage, useT } from '#lib/i18n/index.ts';
   let { data, children } = $props();
   provideLanguage(() => data.lang);
   const t = useT();
+  $effect.pre(() => {
+    dock.enabled = data.terminal;
+  });
   // The first-run wizard is a page of its own: no header (the dock stays, it installs the apps).
   const wizard = $derived(page.url.pathname === '/setup' || page.url.pathname.startsWith('/setup/'));
 
@@ -33,7 +36,7 @@
 
 {#if data.authenticated && !wizard}
   <!-- While the terminal is open the page behind it is out of reach for Tab and screen readers too. -->
-  <header inert={dock.open && dockShown()}>
+  <header inert={dock.open && dockVisible()}>
     <div class="bar">
       <a class="brand" href="/" aria-label={t('Assistant, home')}>
         <span class="mark"><Mascot mood="steady" size={30} decorative /></span>
@@ -45,14 +48,18 @@
         {/each}
       </nav>
       <div class="right">
+        <a class="chatlink" href="/chat" aria-current={page.url.pathname === '/chat' ? 'page' : undefined} title={t('Chat with Claude')}>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12v8.5H9l-3.5 3v-3H4z" /></svg>
+          <span>{t('Chat')}</span>
+        </a>
         <LockMenu />
-        <UserMenu profiles={data.profiles} profileId={data.profileId} theme={data.theme} lang={data.lang} languages={data.languages} />
+        <UserMenu profiles={data.profiles} profileId={data.profileId} theme={data.theme} lang={data.lang} languages={data.languages} terminal={data.terminal} />
       </div>
     </div>
   </header>
 {/if}
 
-<main id="main" tabindex="-1" class:docked={data.authenticated && dockShown()} inert={data.authenticated && dock.open && dockShown()}>{@render children()}</main>
+<main id="main" tabindex="-1" class:docked={data.authenticated && dockVisible()} inert={data.authenticated && dock.open && dockVisible()}>{@render children()}</main>
 
 {#if data.authenticated}<Dock />{/if}
 
@@ -167,6 +174,46 @@
     align-items: center;
     gap: var(--space-2);
   }
+  .chatlink {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--ring);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+  }
+  .chatlink[aria-current='page'] {
+    background: var(--surface-2);
+  }
+  @media (hover: hover) {
+    .chatlink:hover {
+      background: var(--surface-2);
+    }
+  }
+  .chatlink svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+  }
+  @media (max-width: 560px) {
+    .chatlink span {
+      display: none;
+    }
+    .chatlink {
+      width: 36px;
+      padding: 0;
+      justify-content: center;
+    }
+  }
   main {
     max-width: 1120px;
     margin: 0 auto;
@@ -177,6 +224,11 @@
     /* The dock bar's height (Dock.svelte .strip, 1px border, the phone's safe area). */
     --dock-h: calc(41px + env(safe-area-inset-bottom, 0px));
     padding-bottom: calc(var(--space-7) + 48px);
+  }
+  /* The chat (/chat) fills the page between the header and the dock bar. */
+  main:has(:global(.chat-page)) {
+    max-width: none;
+    padding: 0;
   }
   /* A onefile app fills the page down to the dock bar instead of running under it. */
   main.docked:has(:global(.onefile-host)) {

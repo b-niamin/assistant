@@ -8,6 +8,7 @@
  * the session; this server checks the single-use ticket again.
  *
  *   GET  /status  -> {"claude": bool, "codex": bool, "gh": bool}   (signed in? booleans only, never file contents)
+ *   /chat/...            the app's chat with Claude Code (chat.mjs), each request with a "chat" ticket.
  *   GET  /ws?ticket=...  WebSocket. Client -> server text frames: "0<input>" or "1<cols> <rows>".
  *                        Server -> client binary frames: terminal output.
  */
@@ -16,6 +17,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chatsDir, createChats, handleChat } from './chat.mjs';
 import { createVerifier } from './ticket.mjs';
 import { handshake, wrap } from './ws.mjs';
 
@@ -63,7 +65,12 @@ const mentions = (p, needle) => {
   }
 };
 
-const server = createServer((req, res) => {
+const WORKSPACE = existsSync('/workspace') ? '/workspace' : HOME;
+const chats = createChats({ dir: chatsDir(HOME), cwd: WORKSPACE, env: shellEnv, log });
+const chatAllowed = (req) => !!verify(String(req.headers['x-ticket'] ?? ''), 'chat');
+
+const server = createServer(async (req, res) => {
+  if (await handleChat(chats, req, res, chatAllowed)) return;
   const url = new URL(req.url ?? '/', 'http://terminal');
   if (url.pathname === '/status') {
     res.setHeader('content-type', 'application/json');
@@ -81,7 +88,6 @@ const server = createServer((req, res) => {
   res.end();
 });
 
-const WORKSPACE = existsSync('/workspace') ? '/workspace' : HOME;
 const AGENTS = { claude: 'claude -c 2>/dev/null || claude', codex: 'codex' };
 /**
  * Which tmux session to attach: `web` (the plain shell) by default, or a named one that starts an AI CLI
@@ -145,3 +151,8 @@ if (SECRET.length < 32) {
   log('SIDECAR_TICKET_SECRET is missing or shorter than 32 chars; refusing every connection');
 }
 server.listen(PORT, '0.0.0.0', () => log(`listening on :${PORT}`));
+for (const sig of ['SIGTERM', 'SIGINT'])
+  process.on(sig, () => {
+    chats.close();
+    process.exit(0);
+  });

@@ -11,6 +11,7 @@ import { tFor } from '#lib/i18n/index.ts';
 import { languageSettings } from '#lib/server/languages.ts';
 import { defaultAgent, passwordHash } from '#lib/server/app-config.ts';
 import { verifyPassword } from '#lib/server/password.ts';
+import { dropChatGrant } from '#lib/server/chat-grant.ts';
 import { createLimiter } from '#lib/server/rate-limit.ts';
 import { sidecarsConfigured, terminalStatus } from '#lib/server/sidecars.ts';
 import { dropElevation, elevateSession, isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
@@ -58,6 +59,7 @@ export const actions: Actions = {
 
   lock: async ({ cookies, locals }) => {
     await dropElevation(cookies.get(SESSION_COOKIE));
+    dropChatGrant(cookies.get(SESSION_COOKIE));
     return { ok: tFor(locals.lang)('Locked.') };
   }
 };

@@ -4,10 +4,25 @@ The shell behind the dock at the bottom of the app (spec 004): bash in tmux, wit
 `psql` and Python. The web app proxies the dock's WebSocket here after checking the session and a
 single-use ticket; this container publishes no port and has no Docker socket and no `.env`.
 
-Claude Code and Codex run only inside this shell: started by hand, or by the app (Update, Build it,
-Install open them in a new tmux window with the request as the first message). Nothing runs them in the
+Claude Code and Codex run only inside this container: in this shell, started by hand or by the app, or behind
+the app's chat (below). Nothing runs them in the
 background, and nothing reaches them from outside. From outside, Claude reaches the apps' data through
 the public MCP connector instead (System settings -> Claude connector, spec 005).
+
+## Chat
+
+The app's main way to work with Claude is the chat (`/chat`, the Chat button in the header); this terminal is
+the backup, hidden until the owner turns it on in the user menu ("Turn on the terminal") or a page hands it a
+command. The chat runs the same `claude` CLI here, headless (`services/terminal/chat.mjs`):
+`claude -p --input-format stream-json --output-format stream-json --permission-prompt-tool stdio`, in
+`/workspace`, on the CLI's own login (no API key), with the same managed settings and `beni-guard.mjs`. What the
+guard answers "ask" for arrives as a `can_use_tool` request and shows in the chat as an Allow/Deny card;
+AskUserQuestion shows its options. A chat's process quits after 20 idle minutes and the next message resumes
+the session (`--resume`). Chats live in `~/.beni/chats` (the `agent-home` volume). The web app reaches them
+through `/chat/api/...` with a single-use `chat` ticket per request; writing needs the unlocked session, which
+leaves an 8-hour chat grant behind (like a connected terminal) until the lock. Pages that hand the AI a request
+(Ask the AI to translate, Update an extension) open a chat; with Codex as the default AI they still use a tmux
+window.
 
 ## Sign-ins
 

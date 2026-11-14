@@ -1,10 +1,16 @@
 import { deserialize } from '$app/forms';
+import { goto } from '$app/navigation';
+import { chatHandoff } from '#lib/chat/handoff.svelte.ts';
 import { agentCommand, shellQuote, type Agent } from '#lib/settings/guide.ts';
 
 /**
  * The dock at the bottom of every page (Dock.svelte): the one terminal in the app. It is there only while
  * the session is unlocked, which the lock in the header (LockMenu.svelte) shows and switches. Pages hand
  * the dock work; it opens and does it once the terminal is connected. Both read the status from `GET /dock`.
+ *
+ * The chat (/chat) is the main way to work with Claude; the terminal is the backup. Its bar shows only when
+ * the owner turned it on in the user menu ("Turn on the terminal", the `terminal` cookie), or once a page
+ * hands it a command (Sign in, installing apps...), until the lock.
  */
 export type DockItem = { run: string; type?: undefined } | { type: string; run?: undefined };
 export interface DockStatus {
@@ -24,6 +30,10 @@ export const dock = $state({
   status: null as DockStatus | null,
   /** The terminal was opened in this page (it stays connected until the lock closes it). */
   started: false,
+  /** The owner turned the terminal on in the user menu. */
+  enabled: false,
+  /** A page handed the terminal work (or opened it) while it is turned off: it shows until the lock. */
+  wanted: false,
   /** A page wants the terminal while locked: the header's lock asks for the password. */
   unlockAsked: false,
   /** The last command a page handed over: on its way (the terminal connects first), then running. */
@@ -40,6 +50,9 @@ let handoffs = 0;
 
 /** The dock shows while unlocked, and stays while its terminal is connected (the unlock runs out after 10 minutes). */
 export const dockShown = () => !!dock.status?.configured && (dock.status.unlocked || dock.started);
+
+/** The dock's bar is on the page: unlocked, and turned on or wanted by a page. */
+export const dockVisible = () => dockShown() && (dock.enabled || dock.wanted || dock.started);
 
 /** Reload the terminal status; keeps the last known one while the app restarts. */
 export async function refreshDock() {
@@ -74,6 +87,7 @@ export async function unlockSession(password: string, fallback: string): Promise
 export async function lockSession() {
   await fetch('/settings?/lock', { method: 'POST', body: new FormData(), headers: { 'x-sveltekit-action': 'true' } }).catch(() => null);
   dock.started = false;
+  dock.wanted = false;
   dock.open = false;
   dock.queue = [];
   dock.handoff = null;
@@ -93,6 +107,7 @@ export function runInDock(cmd: string): number {
 
 /** Open the terminal; while locked, the header's lock asks for the password first. */
 export function openDock() {
+  dock.wanted = true;
   if (dockShown()) dock.open = true;
   else dock.unlockAsked = true;
 }
@@ -106,17 +121,28 @@ export function pickAgent(status: DockStatus | null = dock.status): Agent {
   return status && !status[want] && status[other] ? other : want;
 }
 
-/** Start the AI CLI in a new tmux window with the prompt as its first message (not typed into a bare shell). */
+/**
+ * Hand a request to the AI: a new chat with Claude (/chat) that sends it at once. With Codex as the default
+ * AI, Codex starts in a new tmux window with the prompt as its first message (not typed into a bare shell).
+ */
 export async function askAgent(prompt: string) {
   if (!dock.status) await refreshDock();
-  runInDock(agentCommand(pickAgent(), prompt));
+  const agent = pickAgent();
+  if (agent === 'claude') {
+    chatHandoff.ask = prompt;
+    await goto('/chat');
+  } else runInDock(agentCommand(agent, prompt));
 }
 
 /**
- * Start the AI CLI in a new tmux window and type a draft into its input box without Enter, for the owner
- * to finish. scripts/agent-draft.sh waits until the CLI is up, so no key reaches the shell.
+ * A draft for the owner to finish: in a new chat's message box (Claude), or typed into Codex's input box in
+ * a new tmux window without Enter (scripts/agent-draft.sh waits until the CLI is up, so no key reaches the shell).
  */
 export async function draftForAgent(draft: string) {
   if (!dock.status) await refreshDock();
-  runInDock(`sh scripts/agent-draft.sh ${pickAgent()} ${shellQuote(draft)}`);
+  const agent = pickAgent();
+  if (agent === 'claude') {
+    chatHandoff.draft = draft;
+    await goto('/chat');
+  } else runInDock(`sh scripts/agent-draft.sh ${agent} ${shellQuote(draft)}`);
 }

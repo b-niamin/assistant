@@ -8,7 +8,7 @@ Synology walkthrough, the everyday `beni.sh` commands, extensions and developmen
 In a terminal it asks a few questions; Enter takes the suggestion in [brackets], and `ASSISTANT_YES=1` (or
 no terminal) takes them all. A choice given as a variable below is not asked. The suggestions stay clear of what already runs: the folder
 (`assistant` in the folder you run it from, e.g. `/volume1/docker/assistant` after `cd /volume1/docker`), a free local port, the HTTPS port on
-your tailnet (443, or 8443 when something is already served there), updates from `main` by themselves
+your tailnet (8443, or the next free one; 443 stays free for the [MCP connector](#mcp-connector-claudeai-the-claude-apps)), updates from `main` by themselves
 ([spec 006](../specs/006-auto-update.md)) and starting the stack itself. It clones this repo, writes `.env`
 with random secrets, starts the stack, runs `tailscale serve`, sets up the updater, waits for the app and
 prints its address plus a one-time setup code. It shows numbered progress for each phase.
@@ -176,7 +176,9 @@ Its tool output goes to `install.log`; only the tail is shown when a step fails.
 ## MCP connector (claude.ai, the Claude apps)
 
 The app's MCP server can be added to Claude as a custom connector. claude.ai calls it from the internet,
-so only that server is published, through Tailscale Funnel; the app stays on the tailnet.
+so only that server is published, through Tailscale Funnel on port 443 (claude.ai connects to no other
+port); the app stays on the tailnet, on another port. When 443 only repeats the app (its address is on
+another port), the updater takes 443 over; anything else there has to go first.
 
 1. Once, in the Tailscale admin console: allow Funnel for this machine (Access controls, the `funnel`
    node attribute; Tailscale's Funnel docs show the snippet). If you skip it, the settings page shows the

@@ -175,8 +175,8 @@ minutes, one `git fetch`.
 
 The updater also applies System settings → Claude connector (spec 005): `funnel=on|off` in the control
 file. On every run, before anything else and independent of updates, it compares `tailscale funnel status`
-with the switch and runs `tailscale funnel --bg --https=8443 http://127.0.0.1:<MCP_PORT>` (10000 when 8443
-serves something else) or `tailscale funnel --https=<port> off`, then writes `/logs/funnel-status.json`
+with the switch and runs `tailscale funnel --bg --https=443 http://127.0.0.1:<MCP_PORT>` (taking 443 over when it
+only repeats the app, whose address is on another port) or `tailscale funnel --https=<port> off`, then writes `/logs/funnel-status.json`
 (`{want, state: on|off|error|unavailable, port, url, message, at}`, only when it changed, and hourly).
 When Tailscale does not allow Funnel for the machine yet, `message` carries the link that enables it.
 `sudo sh <home>/update.sh funnel` applies the switch at once.

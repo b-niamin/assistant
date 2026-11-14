@@ -15,7 +15,7 @@ It has to work for every extension, including ones that did not exist when this 
 One MCP server, served by the web app at `/mcp`, with two ways in:
 
 ```
-claude.ai, Claude apps ──HTTPS──> Tailscale Funnel :8443 ──> web, public listener :3001 ──┐
+claude.ai, Claude apps ──HTTPS──> Tailscale Funnel :443 ───> web, public listener :3001 ──┐
   (the Claude connector, OAuth)                              (only /mcp, /mcp/oauth/*,   │
                                                               2 discovery files)        ├─> /mcp ─> each extension's
 terminal: Claude Code, Codex ──stdio──> scripts/assistant-mcp.mjs ──Bearer CLAUDE_TOOLS_TOKEN──┘        tools, run with
@@ -112,11 +112,14 @@ must be reachable over public HTTPS. The rest of the app must not be.
   `/.well-known/oauth-protected-resource[/mcp]` and `/.well-known/oauth-authorization-server`
   (`lib/mcp/paths.js`); everything else is 404, WebSocket upgrades too. It marks its requests
   (`x-beni-public`, stripped on the main listener), and `hooks.server.ts` refuses any other path from it.
-- **Tailscale Funnel** publishes that listener at `https://<machine>.<tailnet>.ts.net:8443` (10000 when
-  8443 serves something else). The app's own address stays tailnet-only (Tailscale Serve).
+- **Tailscale Funnel** publishes that listener at `https://<machine>.<tailnet>.ts.net` (port 443: claude.ai's
+  servers connect to no other port). The app's own address stays tailnet-only (Tailscale Serve), on another
+  port (install.sh suggests 8443). When 443 only repeats the app (Serve to WEB_PORT, PUBLIC_ORIGIN on another
+  port) the updater takes it over; anything else on 443 is reported, not touched. A funnel of ours on 8443
+  or 10000 (older versions) moves to 443.
 - **The switch** is System settings -> MCP on the internet (`/settings/connector`), once for the server. It writes `funnel=on|off`
   to `/updater/control` (a volume only web mounts, spec 006); the host's updater (spec 006, runs every minute as root) applies it with
-  `tailscale funnel --bg --https=8443 http://127.0.0.1:<MCP_PORT>` (or `... off`) and reports the state,
+  `tailscale funnel --bg --https=443 http://127.0.0.1:<MCP_PORT>` (or `... off`) and reports the state,
   port and URL in `/logs/funnel-status.json`. No container gets the Tailscale socket. On the host,
   `sudo sh <home>/update.sh funnel` applies it at once.
 - **One manual step**: Tailscale has to allow Funnel for the machine once (the `funnel` node attribute in

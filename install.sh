@@ -124,10 +124,10 @@ else
   fi
   if [ "${ASSISTANT_TAILSCALE:-1}" = 0 ]; then HTTPS_PORT=443
   elif [ -n "${ASSISTANT_HTTPS_PORT:-}" ]; then HTTPS_PORT=$ASSISTANT_HTTPS_PORT
-  elif tailnet_https_used 443; then HTTPS_PORT=8443; while tailnet_https_used "$HTTPS_PORT"; do HTTPS_PORT=$((HTTPS_PORT + 1)); done
-  else HTTPS_PORT=443; fi
+  # 443 stays free for the MCP connector: claude.ai reaches Tailscale Funnel only there (spec 005).
+  else HTTPS_PORT=8443; while tailnet_https_used "$HTTPS_PORT"; do HTTPS_PORT=$((HTTPS_PORT + 1)); done; fi
   if [ "$interactive" = yes ] && [ "${ASSISTANT_TAILSCALE:-1}" != 0 ] && [ -z "${ASSISTANT_HTTPS_PORT:-}" ] && command -v tailscale >/dev/null 2>&1; then
-    ask HTTPS_PORT "HTTPS port on your tailnet (443 = https://<machine>; another keeps what is served on 443)" "$HTTPS_PORT"
+    ask HTTPS_PORT "HTTPS port on your tailnet (443 = https://<machine>, but the MCP connector needs 443 free)" "$HTTPS_PORT"
   fi
 fi
 # How it is started (now = by this installer, manual = Container Manager & co.): kept in .env.

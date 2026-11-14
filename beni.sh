@@ -517,7 +517,7 @@ uninstall() {
       else warn "could not stop the tailnet address: sudo tailscale serve --https=$https off"; fi
     fi
     if [ -n "$mcp" ]; then
-      for fp in 8443 10000; do
+      for fp in 443 8443 10000; do
         printf '%s' "$st" | sh scripts/update.sh funnel-has ours "$fp" "$mcp" | grep -q yes || continue
         if tailscale funnel --https="$fp" off >/dev/null 2>&1 || sudo -n tailscale funnel --https="$fp" off >/dev/null 2>&1; then
           ok "Claude connector (port $fp) removed"

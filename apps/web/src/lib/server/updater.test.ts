@@ -60,7 +60,7 @@ it('keeps the manual mode and the update request for the host', async () => {
 });
 
 it('reads the Claude connector state the updater applied, and nothing else', () => {
-  const ok = { want: 'on', state: 'on', port: '8443', url: 'https://h.tail1.ts.net:8443/mcp', message: '', at: '2026-11-11T21:00:00Z' };
+  const ok = { want: 'on', state: 'on', port: '443', url: 'https://h.tail1.ts.net/mcp', message: '', at: '2026-11-11T21:00:00Z' };
   expect(parseFunnelStatus(JSON.stringify(ok))).toEqual(ok);
   expect(parseFunnelStatus(JSON.stringify({ ...ok, url: 'https://evil.example/x', port: '84;43' }))).toMatchObject({ url: '', port: '' });
   expect(parseFunnelStatus(JSON.stringify({ ...ok, state: 'maybe' }))).toBeNull();

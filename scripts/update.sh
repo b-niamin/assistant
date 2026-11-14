@@ -744,13 +744,16 @@ deploy() {
 # --- the Claude connector: Tailscale Funnel (spec 005) ---------------------------------------------
 # System settings -> Claude connector writes funnel=on|off to the control file. Funnel publishes ONE local
 # port to the internet: the web app's public listener (MCP_PORT in .env, 127.0.0.1:3101), which answers
-# only the MCP and OAuth paths (apps/web/server.mjs); the app itself stays on the tailnet. Funnel offers
-# HTTPS ports 443, 8443 and 10000: this takes 8443, or 10000 when 8443 already serves something else.
+# only the MCP and OAuth paths (apps/web/server.mjs); the app itself stays on the tailnet. claude.ai's
+# servers connect only to port 443, so Funnel takes 443. When 443 only repeats the app (Tailscale Serve to
+# WEB_PORT while PUBLIC_ORIGIN is on another port), it is taken over; anything else on 443 is left alone
+# and reported. A funnel of ours on 8443 or 10000 (where older versions put it) moves to 443.
 # Tailscale must allow Funnel for this machine once (the `funnel` node attribute in the tailnet policy);
 # until then `tailscale funnel` prints a link to enable it, which goes to the app as the message.
-FUNNEL_PORTS="8443 10000"
-# funnel_has <ours|on|used> <port> <mcp-port>: tests `tailscale funnel status --json` (stdin, whitespace
-# removed). ours: the port's only path proxies to our listener. on: funnel is on for the port. used: the
+FUNNEL_PORT=443
+OLD_FUNNEL_PORTS="8443 10000"
+# funnel_has <ours|on|used> <port> <local-port>: tests `tailscale funnel status --json` (stdin, whitespace
+# removed). ours: the port's only path proxies to that local port. on: funnel is on for the port. used: the
 # port serves anything.
 funnel_has() {
   st=$(cat)
@@ -762,26 +765,35 @@ funnel_has() {
   esac
 }
 funnel_status_now() { limit 15 tailscale funnel status --json 2>/dev/null | tr -d ' \t\r\n'; }
+env_of() { sed -n "s/^$1=\\([^[:space:]]*\\)[[:space:]]*\$/\\1/p" "$DIR/.env" 2>/dev/null | tail -n 1; }
 
 funnel_apply() {
   [ -n "$LOGS_MP" ] || return 0
   want=${FUNNEL:-off}
-  mcp=$(sed -n 's/^MCP_PORT=\([0-9][0-9]*\)[[:space:]]*$/\1/p' "$DIR/.env" 2>/dev/null | tail -n 1)
-  mcp=${mcp:-3101}
-  state="" port="" url="" msg=""
+  mcp=$(env_of MCP_PORT); case $mcp in '' | *[!0-9]*) mcp=3101 ;; esac
+  web=$(env_of WEB_PORT); case $web in '' | *[!0-9]*) web=3000 ;; esac
+  state="" port="" url="" msg="" old=""
   if ! command -v tailscale >/dev/null 2>&1; then
     state=unavailable msg="Tailscale is not installed on this host."
   else
     st=$(funnel_status_now)
-    for p in $FUNNEL_PORTS; do printf '%s' "$st" | funnel_has ours "$p" "$mcp" && { port=$p; break; }; done
+    for p in $OLD_FUNNEL_PORTS; do printf '%s' "$st" | funnel_has ours "$p" "$mcp" && old="$old $p"; done
     if [ "$want" = on ]; then
-      if [ -z "$port" ] || ! printf '%s' "$st" | funnel_has on "$port" "$mcp"; then
-        if [ -z "$port" ]; then
-          for p in $FUNNEL_PORTS; do printf '%s' "$st" | funnel_has used "$p" "$mcp" || { port=$p; break; }; done
+      port=$FUNNEL_PORT
+      if ! printf '%s' "$st" | funnel_has ours "$port" "$mcp" || ! printf '%s' "$st" | funnel_has on "$port" "$mcp"; then
+        if printf '%s' "$st" | funnel_has ours "$port" "$web"; then
+          case $(env_of PUBLIC_ORIGIN) in
+            https://*:[0-9]*) ;;
+            *) state=error msg="claude.ai connects only to port 443, which is the app's address (PUBLIC_ORIGIN). Serve the app on another tailnet port (e.g. 8443) and set PUBLIC_ORIGIN to it." ;;
+          esac
+          if [ -z "$state" ]; then
+            limit 25 tailscale serve --https="$port" off >/dev/null 2>&1 </dev/null || true
+            log "Claude connector: port $port only repeated the app ($(env_of PUBLIC_ORIGIN)): taken for the funnel"
+          fi
+        elif ! printf '%s' "$st" | funnel_has ours "$port" "$mcp" && printf '%s' "$st" | funnel_has used "$port" "$mcp"; then
+          state=error msg="claude.ai connects only to port 443, and 443 serves something else here; free it (tailscale serve status)."
         fi
-        if [ -z "$port" ]; then
-          state=error msg="Ports 8443 and 10000 already serve something else; free one (tailscale serve status)."
-        else
+        if [ -z "$state" ]; then
           out=$(limit 25 tailscale funnel --bg --https="$port" "http://127.0.0.1:$mcp" 2>&1 </dev/null)
           st=$(funnel_status_now)
           if printf '%s' "$st" | funnel_has on "$port" "$mcp"; then log "Claude connector: funnel on, port $port"
@@ -795,16 +807,24 @@ funnel_apply() {
         fi
       fi
       [ -n "$state" ] || state=on
+      [ "$state" = on ] || port=""
     else
-      if [ -n "$port" ]; then
-        limit 25 tailscale funnel --https="$port" off >/dev/null 2>&1 </dev/null || true
-        log "Claude connector: funnel off (port $port)"
+      if printf '%s' "$st" | funnel_has ours "$FUNNEL_PORT" "$mcp"; then
+        limit 25 tailscale funnel --https="$FUNNEL_PORT" off >/dev/null 2>&1 </dev/null || true
+        log "Claude connector: funnel off (port $FUNNEL_PORT)"
       fi
       state=off port=""
     fi
+    # Older versions' funnel (8443/10000) goes once 443 is on, or when the switch is off.
+    if [ "$state" != error ]; then
+      for p in $old; do
+        limit 25 tailscale funnel --https="$p" off >/dev/null 2>&1 </dev/null || true
+        log "Claude connector: funnel off on old port $p"
+      done
+    fi
     if [ "$state" = on ]; then
       dns=$(limit 15 tailscale status --json 2>/dev/null | sed -n 's/.*"DNSName": *"\([^"]*\)\.".*/\1/p' | head -n 1)
-      [ -z "$dns" ] || url="https://$dns:$port/mcp"
+      [ -z "$dns" ] || url="https://$dns$( [ "$port" = 443 ] || echo ":$port")/mcp"
     fi
   fi
   body=$(printf '{"want":%s,"state":%s,"port":%s,"url":%s,"message":%s' "$(json_str "$want")" "$(json_str "$state")" "$(json_str "$port")" "$(json_str "$url")" "$(json_str "$msg")")

@@ -57,5 +57,11 @@ export async function handleMcp(request: Request, endpointId: string | null): Pr
   return json(out.json, { status: out.status, headers: { 'cache-control': 'no-store' } });
 }
 
-/** No server-to-client stream and no sessions: GET and DELETE are not offered (Streamable HTTP allows that). */
-export const notOffered = (): Response => new Response(null, { status: 405, headers: { allow: 'POST' } });
+/**
+ * No server-to-client stream and no sessions: GET and DELETE are not offered (Streamable HTTP allows that).
+ * Without a token they still answer 401, so a client probing the address with GET finds where to sign in.
+ */
+export async function notOffered(request: Request, endpointId: string | null): Promise<Response> {
+  if (!(await callerFor(request, endpointId))) return unauthorized(request, endpointId ? `/mcp/x/${endpointId}` : '/mcp');
+  return new Response(null, { status: 405, headers: { allow: 'POST' } });
+}

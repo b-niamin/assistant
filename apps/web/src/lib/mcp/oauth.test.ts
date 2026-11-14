@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { authServerMetadata, basicAuth, canWrite, endpointOfResource, escapeHtml, knownScope, pkceMatches, publicBase, redirectHosts, redirectWith, resourceMetadata, scopeFor, sha256, userCode, validRedirectUri } from './oauth';
-import { isMcpPath, isOAuthApi } from './paths.js';
+import { isCorsPath, isMcpPath, isOAuthApi } from './paths.js';
 
 describe('claude connector oauth', () => {
   it('checks PKCE S256 only', () => {
@@ -58,5 +58,9 @@ describe('claude connector oauth', () => {
     for (const p of ['/', '/login', '/settings', '/mcpx', '/api/kv/gym', '/.well-known/other', '/_app/immutable/x.js', '/mcp/x/short', '/mcp/x/eabcdefghij0123456789/more']) expect(isMcpPath(p)).toBe(false);
     expect(isOAuthApi('/mcp/oauth/token')).toBe(true);
     expect(isOAuthApi('/mcp/oauth/authorize')).toBe(false);
+    expect(isCorsPath('/mcp/x/eabcdefghij0123456789')).toBe(true);
+    expect(isCorsPath('/mcp/oauth/token')).toBe(true);
+    expect(isCorsPath('/mcp/oauth/authorize')).toBe(false);
+    expect(isCorsPath('/login')).toBe(false);
   });
 });

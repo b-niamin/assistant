@@ -5,5 +5,7 @@ import { ENDPOINT_ID_RE } from '#lib/mcp/endpoints.server.ts';
 
 export const POST: RequestHandler = ({ request, params }) =>
   ENDPOINT_ID_RE.test(params.id) ? handleMcp(request, params.id) : new Response('Not found', { status: 404 });
-export const GET: RequestHandler = notOffered;
-export const DELETE: RequestHandler = notOffered;
+const other: RequestHandler = ({ request, params }) =>
+  ENDPOINT_ID_RE.test(params.id) ? notOffered(request, params.id) : new Response('Not found', { status: 404 });
+export const GET = other;
+export const DELETE = other;

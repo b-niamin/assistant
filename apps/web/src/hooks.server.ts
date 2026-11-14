@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Handle, HandleServerError } from '@sveltejs/kit/hooks';
 import { randomBytes } from 'node:crypto';
 import { extensionForPath, visibleTo } from '#lib/extensions/registry.server.ts';
-import { isMcpPath } from '#lib/mcp/paths.js';
+import { CORS_HEADERS, isCorsPath, isMcpPath } from '#lib/mcp/paths.js';
 import { defaultProfile, isConfigured } from '#lib/server/app-config.ts';
 import { canonicalRedirect } from '#lib/server/canonical-origin.ts';
 import { checkSession, isElevated, listProfiles, PROFILE_COOKIE, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
@@ -15,6 +15,9 @@ const PUBLIC_PATHS = new Set(['/login', '/healthz', '/setup']);
 export const handle: Handle = async ({ event, resolve }) => {
   // The MCP server and its OAuth (spec 005): their own bearer tokens, never the session.
   if (isMcpPath(event.url.pathname)) {
+    // claude.ai checks the address from the browser first: its CORS preflight must not meet a 405.
+    const cors = isCorsPath(event.url.pathname);
+    if (cors && event.request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
     event.locals.authenticated = false;
     event.locals.profileId = await defaultProfile();
     event.locals.theme = parseTheme(undefined);
@@ -22,6 +25,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     response.headers.set('X-Content-Type-Options', 'nosniff');
     if (!response.headers.has('Referrer-Policy')) response.headers.set('Referrer-Policy', 'no-referrer');
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    if (cors) for (const [k, v] of Object.entries(CORS_HEADERS)) response.headers.set(k, v);
     return response;
   }
   // server.mjs lets only the paths above in from the internet; anything else from there is a bug.

@@ -24,6 +24,9 @@ terminal: Claude Code, Codex ──stdio──> scripts/assistant-mcp.mjs ──
 
 - **`/mcp` and the profiles' MCP addresses `/mcp/x/<id>`** (`lib/mcp/handler.server.ts`): MCP over Streamable HTTP without sessions or
   server-sent events: POST one JSON-RPC message or a batch, get one JSON answer (202 for notifications).
+  GET and DELETE answer 405, or 401 (with the sign-in metadata) without a token. Every public path but the
+  authorize page answers CORS (`Access-Control-Allow-Origin: *`, preflight 204): claude.ai checks the
+  address from the browser before it signs in.
   Tools: `extensions` (the apps, their scope and tools, the profiles) and `<extension>__<tool>` for every
   tool of every extension the caller may see. The list is read on each `tools/list`, so a new extension
   appears on the server without a restart (claude.ai reads the list when it connects: reconnect there).

@@ -184,6 +184,14 @@ export const installPrompt = (id: string): string =>
   `Install the ready-made extension ${id}: run ${installCommand(id)}; if it lacks one of the app's languages, ` +
   `translate it (add-extension skill); then tell me what to set up.`;
 
+/** Remove an installed extension (its folder goes to extensions/.trash/; `--data` also drops what it stored). */
+export const removeCommand = (id: string, withData = false): string => `node scripts/ext.mjs remove ${id}${withData ? ' --data' : ''}`;
+
+/** What "Remove" asks the agent, the same way as "Install": the owner already confirmed it in the dialog. */
+export const removePrompt = (id: string, withData = false): string =>
+  `Remove the extension ${id}: run ${removeCommand(id, withData)} (I confirmed it${withData ? ', its data goes too' : ', its data stays'}); ` +
+  `then tell me when the app has rebuilt without it.`;
+
 /** The prompt for changing an installed extension (its panel's "Ask Claude to change it"). */
 export function buildChangePrompt(id: string, name: string, change: string): string {
   return `Change the ${name} extension (extensions/${id}, new-extension skill): ${oneLine(change).replace(/[.!?]?$/, '.')} Keep our design system and Pingo, run the checks.`;

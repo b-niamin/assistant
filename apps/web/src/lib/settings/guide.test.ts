@@ -9,6 +9,8 @@ import {
   IDEAS,
   initials,
   PROFILE_ID_RE,
+  removeCommand,
+  removePrompt,
   shellQuote,
   slugify,
   TEMPLATES,
@@ -108,5 +110,11 @@ describe('commands for the dock terminal', () => {
   it('quotes AI requests on one line', () => {
     expect(agentCommand('codex', "it's\nfine")).toBe(`codex 'it'"'"'s fine'`);
     expect(installCommand('gym')).toBe('node scripts/ext.mjs install gym');
+    expect(removeCommand('gym')).toBe('node scripts/ext.mjs remove gym');
+    expect(removeCommand('gym', true)).toBe('node scripts/ext.mjs remove gym --data');
+  });
+  it('asks the AI to remove an app, with or without its data', () => {
+    expect(removePrompt('gym')).toContain('run node scripts/ext.mjs remove gym (');
+    expect(removePrompt('gym', true)).toContain('remove gym --data');
   });
 });

@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { dock, runInDock } from '#lib/dock/dock.svelte.ts';
+  import { askAgent } from '#lib/dock/dock.svelte.ts';
+  import { removePrompt } from '#lib/settings/guide.ts';
   import { useT } from '#lib/i18n/index.ts';
 
   /**
-   * "Remove" at the bottom of an extension's panel: a confirmation, then `ext remove` in the terminal (the
-   * same way apps are installed). With "Also delete its data", ext-migrate drops its schema, roles,
+   * "Remove" at the bottom of an extension's panel: a confirmation, then the AI runs `ext remove` in the chat,
+   * the same way apps are installed (askAgent). With "Also delete its data", ext-migrate drops its schema, roles,
    * settings and secrets within ~15 s. The page follows the app's rebuild and goes back to Apps.
    */
   let { id, name, native }: { id: string; name: string; native: boolean } = $props();
@@ -13,16 +14,18 @@
 
   let dialog = $state<HTMLDialogElement>();
   let withData = $state(false);
-  let handoff = $state(0);
+  let asked = $state(false);
   let timer: ReturnType<typeof setInterval> | undefined;
-  const sending = $derived(handoff > 0 && dock.handoff?.n === handoff && dock.handoff?.state === 'waiting');
 
   function open() {
     withData = false;
     dialog?.showModal();
   }
   function remove() {
-    handoff = runInDock(`node scripts/ext.mjs remove ${id}${withData ? ' --data' : ''}`);
+    asked = true;
+    clearInterval(timer);
+    dialog?.close();
+    void askAgent(removePrompt(id, withData));
     // Gone from the running app = removed and rebuilt; the app may not answer while it rebuilds.
     timer = setInterval(async () => {
       try {
@@ -47,33 +50,28 @@
     <span class="meta">{t('Takes {name} out of the app: its pages, tiles, AI tools and background jobs.', { name })}</span>
     <button type="button" class="btn danger" onclick={open}>{t('Remove {name}', { name })}</button>
   </p>
+  {#if asked}<p class="meta" role="status">{t('Removing… the app rebuilds itself without {name}, about a minute.', { name })}</p>{/if}
 </section>
 
 <dialog bind:this={dialog} class="card" aria-labelledby="remove-title">
   <h2 id="remove-title">{t('Remove {name}?', { name })}</h2>
-  {#if handoff}
-    <p role="status">
-      {sending ? t('Opening the terminal…') : t('Removing… the app rebuilds itself without {name}, about a minute.', { name })}
-    </p>
-  {:else}
-    <p>{t('Its pages, tiles, AI tools and background jobs go away.')}</p>
-    <label class="check">
-      <input type="checkbox" bind:checked={withData} />
-      <span>
-        {t('Also delete its data')}
-        <span class="muted small">
-          {native
-            ? t('Everything it stored, for every profile: its tables, settings, secrets and files. This cannot be undone.')
-            : t('Everything it stored, for every profile: its saved state, settings and secrets. This cannot be undone.')}
-        </span>
+  <p>{t('Its pages, tiles, AI tools and background jobs go away.')}</p>
+  <label class="check">
+    <input type="checkbox" bind:checked={withData} />
+    <span>
+      {t('Also delete its data')}
+      <span class="muted small">
+        {native
+          ? t('Everything it stored, for every profile: its tables, settings, secrets and files. This cannot be undone.')
+          : t('Everything it stored, for every profile: its saved state, settings and secrets. This cannot be undone.')}
       </span>
-    </label>
-    {#if !withData}<p class="muted small">{t('Its data stays and comes back if you install it again.')}</p>{/if}
-    <div class="actions">
-      <button type="button" class="btn" onclick={() => dialog?.close()}>{t('Cancel')}</button>
-      <button type="button" class="btn danger" onclick={remove}>{withData ? t('Remove with data') : t('Remove')}</button>
-    </div>
-  {/if}
+    </span>
+  </label>
+  {#if !withData}<p class="muted small">{t('Its data stays and comes back if you install it again.')}</p>{/if}
+  <div class="actions">
+    <button type="button" class="btn" onclick={() => dialog?.close()}>{t('Cancel')}</button>
+    <button type="button" class="btn danger" onclick={remove}>{withData ? t('Remove with data') : t('Remove')}</button>
+  </div>
 </dialog>
 
 <style>

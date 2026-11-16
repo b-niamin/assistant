@@ -2,7 +2,7 @@
   /**
    * Chat with Claude Code, the way to use AI in the app: the real `claude` CLI in the terminal container, on
    * its own login, in /workspace (services/terminal/chat.mjs). A panel that slides in from the right on every
-   * page (panel.svelte.ts). A critical change Claude tries comes up here as a card to allow or deny; its
+   * page (panel.svelte.ts): on a wide screen it pushes the page aside, and its left edge drags to resize it. A critical change Claude tries comes up here as a card to allow or deny; its
    * questions come up with their options. Acting needs the app's unlock (the lock in the header).
    */
   import { tick, untrack } from 'svelte';
@@ -11,11 +11,15 @@
   import { apply, emptyView, type ChatEvent, type Item, type View } from './events.ts';
   import { markdown } from './markdown.ts';
   import { chatHandoff } from './handoff.svelte.ts';
-  import { chatPanel, closeChat } from './panel.svelte.ts';
+  import { CHAT_DEFAULT_WIDTH, CHAT_MIN_WIDTH, chatPanel, clampChatWidth, closeChat, setChatWidth } from './panel.svelte.ts';
   import { useT } from '#lib/i18n/index.ts';
 
-  /** The terminal's bar is at the bottom of the page: the panel ends above it. */
-  let { docked = false }: { docked?: boolean } = $props();
+  /**
+   * docked: the terminal's bar is at the bottom of the page, the panel ends above it. width: the drawer's
+   * width, already kept within the viewport. push: it sits beside the page (which makes room for it) rather
+   * than over it.
+   */
+  let { docked = false, width = CHAT_DEFAULT_WIDTH, push = false, viewport = 1280 }: { docked?: boolean; width?: number; push?: boolean; viewport?: number } = $props();
   const t = useT();
 
   interface ChatMeta {
@@ -223,6 +227,32 @@
 
   $effect(() => () => stream?.close());
 
+  // The left edge: drag it (or use the arrow keys on it) to make the drawer wider or narrower.
+  let grip = $state<HTMLElement>();
+  function onGripDown(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    grip?.setPointerCapture(e.pointerId);
+    chatPanel.resizing = true;
+  }
+  function onGripMove(e: PointerEvent) {
+    if (!chatPanel.resizing) return;
+    setChatWidth(clampChatWidth(viewport - e.clientX, viewport), false);
+  }
+  function onGripUp(e: PointerEvent) {
+    if (!chatPanel.resizing) return;
+    if (grip?.hasPointerCapture(e.pointerId)) grip.releasePointerCapture(e.pointerId);
+    chatPanel.resizing = false;
+    setChatWidth(chatPanel.width);
+  }
+  function onGripKey(e: KeyboardEvent) {
+    const step = e.shiftKey ? 80 : 24;
+    const next = e.key === 'ArrowLeft' ? width + step : e.key === 'ArrowRight' ? width - step : e.key === 'Home' ? CHAT_DEFAULT_WIDTH : null;
+    if (next === null) return;
+    e.preventDefault();
+    setChatWidth(clampChatWidth(next, viewport));
+  }
+
   function onWindowKey(e: KeyboardEvent) {
     if (e.key === 'Escape' && chatPanel.open && panel?.contains(e.target as Node)) closeChat();
   }
@@ -230,7 +260,12 @@
 
 <svelte:window onkeydown={onWindowKey} />
 
-<aside class="chat" class:open={chatPanel.open} class:docked class:list-open={showList} bind:this={panel} inert={!chatPanel.open} aria-label={t('Chat with Claude')}>
+<aside class="chat" class:open={chatPanel.open} class:docked class:push class:resizing={chatPanel.resizing} class:list-open={showList} style:--w="{width}px" bind:this={panel} inert={!chatPanel.open} aria-label={t('Chat with Claude')}>
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+  <div class="grip" bind:this={grip} role="separator" aria-orientation="vertical" aria-label={t('Chat width')} title={t('Drag to resize the chat')}
+    aria-valuenow={width} aria-valuemin={CHAT_MIN_WIDTH} aria-valuemax={clampChatWidth(Infinity, viewport)} tabindex="0"
+    onpointerdown={onGripDown} onpointermove={onGripMove} onpointerup={onGripUp} onpointercancel={onGripUp} onkeydown={onGripKey}
+    ondblclick={() => setChatWidth(CHAT_DEFAULT_WIDTH)}></div>
   <header class="top">
     <button type="button" class="btn-ghost icon" onclick={() => (showList = !showList)} aria-expanded={showList} aria-controls="chat-list" title={t('Chats')}>
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12" /></svg><span class="sr">{t('Chats')}</span>
@@ -394,7 +429,7 @@
     z-index: 9;
     display: flex;
     flex-direction: column;
-    width: min(460px, 100vw);
+    width: min(var(--w), 100vw);
     background: var(--surface);
     border-left: 1px solid var(--ring);
     box-shadow: -16px 0 40px -24px rgb(0 0 0 / 45%);
@@ -403,6 +438,62 @@
     transition:
       transform 0.22s ease,
       visibility 0s 0.22s;
+  }
+  /* Beside the page, which has made room for it: from the very top, level with the app's header. */
+  .chat.push {
+    top: 0;
+    z-index: 11;
+    box-shadow: none;
+  }
+  .chat.push .top {
+    height: 56px;
+    border-bottom-color: var(--ring);
+  }
+  .chat.resizing {
+    transition: none;
+    user-select: none;
+  }
+  .grip {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -5px;
+    z-index: 1;
+    width: 10px;
+    cursor: col-resize;
+    touch-action: none;
+  }
+  .grip::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 4px;
+    width: 2px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .grip:focus-visible {
+    outline: none;
+  }
+  .grip:focus-visible::after,
+  .resizing .grip::after {
+    opacity: 1;
+  }
+  @media (hover: hover) {
+    .grip:hover::after {
+      opacity: 0.6;
+    }
+  }
+  /* A phone: the drawer takes the whole width, nothing to drag. */
+  @media (max-width: 600px) {
+    .chat {
+      width: 100vw;
+    }
+    .grip {
+      display: none;
+    }
   }
   .chat.docked {
     bottom: calc(41px + env(safe-area-inset-bottom, 0px));
@@ -539,6 +630,7 @@
   }
   .scroll {
     flex: 1;
+    overflow-x: hidden;
     overflow-y: auto;
     padding: var(--space-4);
   }
@@ -559,6 +651,8 @@
     padding: 0;
     max-width: 760px;
     display: grid;
+    /* One column no wider than the panel: a long line wraps instead of widening it. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
   }
   .item.user {
@@ -622,17 +716,29 @@
   }
   .tool summary {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-2);
     cursor: pointer;
     min-width: 0;
   }
+  /* A long command wraps: three lines while folded, all of it once opened. */
   .tool summary code {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    flex: 1;
     min-width: 0;
     font-family: var(--mono);
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+  .tool[open] summary code {
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: none;
   }
   .tname {
     flex: none;
@@ -648,6 +754,7 @@
   }
   .tool pre {
     margin: var(--space-2) 0 0;
+    overflow-wrap: anywhere;
     max-height: 300px;
     overflow-y: auto;
   }

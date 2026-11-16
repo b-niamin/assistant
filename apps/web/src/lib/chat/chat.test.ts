@@ -46,3 +46,15 @@ describe('markdown', () => {
     );
   });
 });
+
+describe('chat drawer width', () => {
+  it('stays between the minimum and what leaves the page enough room', async () => {
+    const { clampChatWidth, CHAT_MIN_WIDTH } = await import('./panel.svelte.ts');
+    expect(clampChatWidth(100, 1440)).toBe(CHAT_MIN_WIDTH);
+    expect(clampChatWidth(600, 1440)).toBe(600);
+    expect(clampChatWidth(5000, 1440)).toBe(1440 - 420);
+    // Over the page on a narrow screen: up to the whole viewport.
+    expect(clampChatWidth(460, 390)).toBe(390);
+    expect(clampChatWidth(460, 800)).toBe(460);
+  });
+});

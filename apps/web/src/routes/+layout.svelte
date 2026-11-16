@@ -5,7 +5,7 @@
   import Dock from '#lib/dock/Dock.svelte';
   import LockMenu from '#lib/dock/LockMenu.svelte';
   import ChatPanel from '#lib/chat/ChatPanel.svelte';
-  import { chatPanel, closeChat, openChat } from '#lib/chat/panel.svelte.ts';
+  import { CHAT_PUSH_FROM, chatPanel, clampChatWidth, closeChat, openChat } from '#lib/chat/panel.svelte.ts';
   import { dock, dockVisible, unlocked } from '#lib/dock/dock.svelte.ts';
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
@@ -29,6 +29,11 @@
   // The first-run wizard is a page of its own: no header (the dock stays, it installs the apps).
   const wizard = $derived(page.url.pathname === '/setup' || page.url.pathname.startsWith('/setup/'));
 
+  // The chat drawer pushes the page aside on a wide screen; on a narrow one it covers the page.
+  let viewport = $state(1280);
+  const chatWidth = $derived(clampChatWidth(chatPanel.width, viewport));
+  const chatPush = $derived(data.authenticated && chatPanel.open && viewport >= CHAT_PUSH_FROM);
+
   // A thin bar at the top while a page loads, shown only after 150 ms so quick ones do not flicker.
   let loading = $state(false);
   $effect(() => {
@@ -41,12 +46,15 @@
   });
 </script>
 
+<svelte:window bind:innerWidth={viewport} />
+
 <svelte:head><title>{t('Assistant')}</title></svelte:head>
 
 {#if loading}<div class="loading" role="progressbar" aria-label={t('Loading')}></div>{/if}
 
 <a class="skip" href="#main">{t('Skip to content')}</a>
 
+<div class="page" class:pushed={chatPush} class:resizing={chatPanel.resizing} style:--chat-w="{chatWidth}px">
 {#if data.authenticated && !wizard}
   <!-- While the terminal is open the page behind it is out of reach for Tab and screen readers too. -->
   <header inert={dock.open && dockVisible()}>
@@ -76,9 +84,10 @@
 {/if}
 
 <main id="main" tabindex="-1" class:docked={data.authenticated && dockVisible()} inert={data.authenticated && dock.open && dockVisible()}>{@render children()}</main>
+</div>
 
 {#if data.authenticated}<Dock />{/if}
-{#if data.authenticated && chatPanel.mounted}<ChatPanel docked={dockVisible()} />{/if}
+{#if data.authenticated && chatPanel.mounted}<ChatPanel docked={dockVisible()} width={chatWidth} push={chatPush} {viewport} />{/if}
 
 <style>
   .loading {
@@ -116,6 +125,24 @@
   }
   .skip:focus {
     top: var(--space-2);
+  }
+  /* The chat drawer, when it pushes, takes its width off the right of the page (header included). */
+  .page {
+    transition: padding-right 0.22s ease;
+  }
+  .page.pushed {
+    padding-right: var(--chat-w);
+  }
+  .page.resizing {
+    transition: none;
+  }
+  :global([data-motion='reduce']) .page {
+    transition: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .page {
+      transition: none;
+    }
   }
   main:focus {
     outline: none;

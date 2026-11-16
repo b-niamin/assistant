@@ -3,22 +3,22 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { accessoryFor, type Accessory, type Mood } from './mascot';
-  import { accessorySvg, SHY_SVG } from './beni-accessories';
-  import { beniWatch, watchSecrets } from './beni-watch.svelte';
+  import { accessorySvg, SHY_SVG } from './pingo-accessories';
+  import { pingoWatch, watchSecrets } from './pingo-watch.svelte';
 
   /**
-   * Beni: a jelly-bean runner that dresses for the page. Pure SVG + CSS (transform/opacity only), so it costs
+   * Pingo: a jelly-bean runner that dresses for the page. Pure SVG + CSS (transform/opacity only), so it costs
    * nothing to animate. Mood picks the idle loop; a click makes it bounce; pupils follow the pointer.
    * Everything stands still under prefers-reduced-motion.
    *
-   * What Beni wears follows the page (`accessoryFor`: the app's own accessory, a wrench in settings, ...)
-   * unless `accessory` names one; an asleep Beni with nothing else on gets a nightcap. While a password
-   * field has focus Beni pulls a sleep mask over its eyes (`shy`), and peeks when the password is revealed.
+   * What Pingo wears follows the page (`accessoryFor`: the app's own accessory, a wrench in settings, ...)
+   * unless `accessory` names one; an asleep Pingo with nothing else on gets a nightcap. While a password
+   * field has focus Pingo pulls a sleep mask over its eyes (`shy`), and peeks when the password is revealed.
    */
   let {
     mood = 'idle',
     size = 96,
-    label = 'Beni',
+    label = 'Pingo',
     decorative = false,
     accessory = 'auto',
     shy = 'auto'
@@ -43,7 +43,7 @@
   });
   const covering = $derived.by(() => {
     if (shy !== 'auto') return shy === true ? 'hidden' : shy === 'peek' ? 'shown' : 'none';
-    return beniWatch.secrecy;
+    return pingoWatch.secrecy;
   });
 
   function poke() {
@@ -180,7 +180,7 @@
     opacity: 0.35;
   }
   .pip {
-    --beni-skin: var(--m);
+    --pingo-skin: var(--m);
   }
   .pip :global(.band-stripe) {
     fill: var(--accent);

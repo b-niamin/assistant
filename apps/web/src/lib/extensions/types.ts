@@ -20,7 +20,7 @@ export interface ExtensionInfo {
   settings: SettingField[];
   /** Names of its secret fields; an admin sets the values (spec 004). */
   secrets: string[];
-  /** What Beni wears on its pages (manifest "accessory", beni-accessories.ts); null = guessed from id and name. */
+  /** What Pingo wears on its pages (manifest "accessory", pingo-accessories.ts); null = guessed from id and name. */
   accessory: string | null;
   /**
    * Other extensions it works better with (manifest "worksWith", spec 002): the id and what it adds, in

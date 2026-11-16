@@ -24,8 +24,8 @@ import path from 'node:path';
 const MAIN = /^(refs\/heads\/)?(main|master)$/;
 const SCRATCH = /^(\/tmp\/|\/var\/tmp\/)|(^|\/)(node_modules|\.svelte-kit|build|build-next|dist|__pycache__|\.pytest_cache|\.venv|coverage)(\/|$)/;
 const GUARDED_FILES =
-  /(^|\/)\.claude\/settings(\.local)?\.json$|(^|\/)\.claude\.json$|(^|\/)\.codex\/(config\.toml|hooks\.json|rules\/)|^\/etc\/(claude-code|codex)\/|beni-guard\.mjs$/;
-const SQL_CONTEXT = /\b(psql|beni-db|pg_dump|pg_restore|dropdb|psycopg2?|asyncpg|sqlalchemy)\b|DATABASE_URL|\.sql\b|sql`/i;
+  /(^|\/)\.claude\/settings(\.local)?\.json$|(^|\/)\.claude\.json$|(^|\/)\.codex\/(config\.toml|hooks\.json|rules\/)|^\/etc\/(claude-code|codex)\/|pingo-guard\.mjs$/;
+const SQL_CONTEXT = /\b(psql|pingo-db|pg_dump|pg_restore|dropdb|psycopg2?|asyncpg|sqlalchemy)\b|DATABASE_URL|\.sql\b|sql`/i;
 const SQL_DESTRUCTIVE =
   /\b(DROP\s+(TABLE|SCHEMA|DATABASE|ROLE|USER|VIEW|INDEX|FUNCTION|TYPE|EXTENSION|SEQUENCE|MATERIALIZED|OWNED)|TRUNCATE|DELETE\s+FROM|ALTER\s+(TABLE|SCHEMA|ROLE|USER|DATABASE|SYSTEM|DEFAULT)|GRANT|REVOKE|CREATE\s+(ROLE|USER|DATABASE|EXTENSION)|COPY\b[^;]*\bPROGRAM)\b/i;
 

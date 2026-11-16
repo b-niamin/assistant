@@ -71,7 +71,7 @@
     <button class="btn {data.want === 'on' ? '' : 'btn-primary'}" disabled={!data.updaterInstalled}>{data.want === 'on' ? t('Turn off') : t('Turn on')}</button>
   </form>
   {#if !data.updaterInstalled}
-    <p class="meta">{t("The host's updater applies this switch. On the host, this sets it up:")} <code>sudo ./beni.sh update</code></p>
+    <p class="meta">{t("The host's updater applies this switch. On the host, this sets it up:")} <code>sudo ./pingo.sh update</code></p>
   {:else if slow}
     <p class="bad" role="status">
       {#if data.updaterStale}

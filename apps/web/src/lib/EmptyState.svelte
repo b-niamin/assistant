@@ -4,7 +4,7 @@
   import type { Mood } from '#lib/mascot.ts';
 
   /**
-   * "Nothing here yet" (`$shell/ui`, specs/001): Beni beside a heading and what to do about it. The
+   * "Nothing here yet" (`$shell/ui`, specs/001): Pingo beside a heading and what to do about it. The
    * children are the body (a sentence, a button). `level` keeps the page's heading order.
    */
   let {

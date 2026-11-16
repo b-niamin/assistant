@@ -1,4 +1,4 @@
-"""The `beni` helpers that extension services import. Run: cd docker/worker && python3 -m unittest -q"""
+"""The `pingo` helpers that extension services import. Run: cd docker/worker && python3 -m unittest -q"""
 from __future__ import annotations
 
 import io
@@ -9,21 +9,21 @@ from contextlib import redirect_stdout
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
-import beni  # noqa: E402
+import pingo  # noqa: E402
 
 
 class Env(unittest.TestCase):
     def test_numbers_with_bounds(self) -> None:
         with mock.patch.dict(os.environ, {"A": "3", "B": "x", "C": " "}):
-            self.assertEqual(beni.env_int("A", 30, minimum=5), 5)
-            self.assertEqual(beni.env_int("B", 30), 30)
-            self.assertEqual(beni.env_int("C", 30, maximum=10), 10)
-            self.assertEqual(beni.env("C", "d"), "d")
+            self.assertEqual(pingo.env_int("A", 30, minimum=5), 5)
+            self.assertEqual(pingo.env_int("B", 30), 30)
+            self.assertEqual(pingo.env_int("C", 30, maximum=10), 10)
+            self.assertEqual(pingo.env("C", "d"), "d")
 
     def test_connect_needs_a_url(self) -> None:
         with mock.patch.dict(os.environ, {"DATABASE_URL": ""}):
             with self.assertRaises(Exception):
-                beni.connect()
+                pingo.connect()
 
 
 class Loop(unittest.TestCase):
@@ -35,12 +35,12 @@ class Loop(unittest.TestCase):
             if len(calls) == 1:
                 raise ValueError("boom")
             if len(calls) == 3:
-                beni.stopping().set()
+                pingo.stopping().set()
 
         out = io.StringIO()
         with redirect_stdout(out):
-            beni.every(0, one)
-        beni.stopping().clear()
+            pingo.every(0, one)
+        pingo.stopping().clear()
         self.assertEqual(len(calls), 3)
         self.assertIn("error: ValueError: boom", out.getvalue())
 

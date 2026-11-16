@@ -21,13 +21,13 @@ in the manifest, what the shell gives an extension, and how to try it. Inside a 
 | `version` | yes | semver `x.y.z`; `ext update` compares it |
 | `kind` | yes | `native` (Svelte routes compiled into the shell) or `onefile` (one HTML file in a sandbox) |
 | `scope` | yes | `profile` (each person their own data) or `shared` (one data set for the home) |
-| `shell` | yes | the SDK version the extension needs: `1`, `2` (charts, `EmptyState`, `EN`, ticks) or `3` (`import beni` for services). It only grows, so an extension runs on that core and newer ones |
+| `shell` | yes | the SDK version the extension needs: `1`, `2` (charts, `EmptyState`, `EN`, ticks), `5` (calendar) or `6` (`import pingo` for services, `<assistant-pingo>` in onefile apps). It only grows, so an extension runs on that core and newer ones |
 | `entry` | onefile | the HTML file, e.g. `app.html` |
 | `settings` | no | up to 30 fields of its panel in System settings: `name`, `type` (`text`, `number`, `boolean`, `select`, `secret`), `label` (1-60 characters), `default`; `secret` only for native |
 | `secrets` | no | native only, up to 10 names; values are set by the owner and read with `ctx.secrets.get` |
-| `accessory` | no | what Beni wears on its pages (`beni-accessories.ts`); left out, it is guessed |
+| `accessory` | no | what Pingo wears on its pages (`pingo-accessories.ts`); left out, it is guessed |
 | `languages` | no | onefile: the languages its own UI speaks (up to 20) |
-| `services`, `jobs` | no | background work the `worker` container runs (spec 002, "Background work"); Python services `import beni` for logging, settings, the database and their loop |
+| `services`, `jobs` | no | background work the `worker` container runs (spec 002, "Background work"); Python services `import pingo` for logging, settings, the database and their loop |
 
 ## The `$shell` SDK
 
@@ -36,7 +36,7 @@ Server code imports from `$shell`, components from `$shell/ui`. Nothing else of 
 | From | What |
 | --- | --- |
 | `$shell` | types `ExtensionContext`, `ExtLoad`, `ExtActions`, `ExtHandler`, `ExtTool`, `ExtTile`, `ExtSources`, `DataOf`; `error`, `fail`, `json`, `redirect`; `todayIn(tz?)`, `dayIn(date, tz?)`; since 2: `EN` (English `t` for pure helpers and tests), `niceTicks`, `byteTicks`, `scaledTicks`, `runsOf` |
-| `$shell/ui` | `Mascot` (Beni), `countUp`, `useT`, `todayIn`, `dayIn`, `enhance`, `saveOnChoose`; since 2: `LineChart` (series over time with tooltip, arrow keys and a table twin), `Sparkline` (trend glyph), `EmptyState` (Beni + heading + body). Use these before drawing your own (`apps/web/src/lib/sdk/ui.ts`) |
+| `$shell/ui` | `Mascot` (Pingo), `countUp`, `useT`, `todayIn`, `dayIn`, `enhance`, `saveOnChoose`; since 2: `LineChart` (series over time with tooltip, arrow keys and a table twin), `Sparkline` (trend glyph), `EmptyState` (Pingo + heading + body). Use these before drawing your own (`apps/web/src/lib/sdk/ui.ts`) |
 
 `ExtensionContext` (the `ctx` every load, action, tool and source gets):
 
@@ -69,7 +69,7 @@ day (yesterday, between midnight and 1-2 a.m. in Poland). A wall-clock time on a
 | `AGENTS.md` | its tables and conventions, for the AI that changes it |
 
 A onefile extension is `extension.json`, its HTML, `i18n/`, `web/tools.server.ts` and optionally `web/calendar.server.ts`. The shell injects a
-`localStorage` that saves to the server, the shell's tokens, `<assistant-beni>`, `window.assistantSettings`
+`localStorage` that saves to the server, the shell's tokens, `<assistant-pingo>`, `window.assistantSettings`
 and `window.assistantLang`. A tile comes from the `__tile` key it writes (spec 003).
 
 ## Look

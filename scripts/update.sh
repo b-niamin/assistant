@@ -13,7 +13,7 @@
 #   sh <home>/update.sh funnel        apply the Claude connector switch (Tailscale Funnel) now, see funnel_apply
 #   sh scripts/update.sh fix-permissions | plan | acl-paths
 #
-# <home> is <checkout>-updater, next to the checkout. `sudo ./beni.sh update [--status|--cancel|--restart]` runs it.
+# <home> is <checkout>-updater, next to the checkout. `sudo ./pingo.sh update [--status|--cancel|--restart]` runs it.
 #
 # It runs on the HOST, never in a container: no container gets the Docker socket (spec 004). What it
 # runs comes only from a private mirror of GitHub main in <home>, which no container can see: this script
@@ -889,7 +889,7 @@ funnel_apply() {
 cmd_run() {
   setup_paths "${1:-}"
   [ -n "$DC_BIN" ] || die "Docker Compose is missing"
-  [ -d "$MIRROR" ] || die "no mirror at $MIRROR: run 'sudo ./beni.sh update' or 'sh scripts/update.sh install' first"
+  [ -d "$MIRROR" ] || die "no mirror at $MIRROR: run 'sudo ./pingo.sh update' or 'sh scripts/update.sh install' first"
   heartbeat
   iso > "$HOME_DIR/last-run" 2>/dev/null; rm -f "$HOME_DIR/last-error"
   read_control
@@ -917,7 +917,7 @@ cmd_run() {
     [ -z "$why" ] || HANDLED=${REQUEST:-$S_handled}
   fi
 
-  # "Restart now" in the app, `beni.sh update --restart`, or restarts set to automatic: the held
+  # "Restart now" in the app, `pingo.sh update --restart`, or restarts set to automatic: the held
   # services that wait get their restart (before any update, which may hold more).
   if [ -n "$RESTART_REQ" ] && [ "$RESTART_REQ" != "$S_restarted" ]; then
     S_restarted=$RESTART_REQ; restart_why="asked in the app"
@@ -1064,7 +1064,7 @@ cmd_run() {
 
 # In a terminal: offer the restart of the held services right away.
 ask_restart() {
-  [ "$TTY" = 1 ] && [ -r /dev/tty ] || { say "$(pending_services) wait for a restart: System settings > Updates, or sudo ./beni.sh update --restart"; return 0; }
+  [ "$TTY" = 1 ] && [ -r /dev/tty ] || { say "$(pending_services) wait for a restart: System settings > Updates, or sudo ./pingo.sh update --restart"; return 0; }
   printf '[update] %s run the previous version. Restart now? It ends the Claude and Codex sessions and the terminal in them. [y/N] ' "$(pending_services)"
   # No answer in 10 minutes counts as no (someone walked away from the terminal).
   # (--foreground: a command in the background process group cannot read the terminal.)
@@ -1074,7 +1074,7 @@ ask_restart() {
   echo
   case $a in
     [yY]*) restart_now "asked from the host"; [ -n "$S_pending" ] || say "restarted" ;;
-    *) say "left for later: System settings > Updates, or sudo ./beni.sh update --restart" ;;
+    *) say "left for later: System settings > Updates, or sudo ./pingo.sh update --restart" ;;
   esac
 }
 
@@ -1132,7 +1132,7 @@ cmd_status() {
     [ -z "$S_target" ] || say "an update to $(short "$S_target") was interrupted (step(s) done:${S_done:- none}); the next run resumes it"
   fi
   say "running commit: $(short "$DEPLOYED") since ${DEPLOYED_AT:-?}"
-  [ -z "$S_pending" ] || say "waiting for a restart: $(pending_services) (sudo ./beni.sh update --restart)"
+  [ -z "$S_pending" ] || say "waiting for a restart: $(pending_services) (sudo ./pingo.sh update --restart)"
   say "last run: $(cat "$HOME_DIR/last-run" 2>/dev/null || echo never) (the schedule should run it every minute, all day)"
   [ ! -f "$HOME_DIR/last-error" ] || say "last error: $(cat "$HOME_DIR/last-error")"
   f=$(control_file); [ -z "$f" ] || [ ! -f "$f" ] || [ -L "$f" ] || say "mode: $(sed -n 's/^mode=//p' "$f" | tail -n 1)"

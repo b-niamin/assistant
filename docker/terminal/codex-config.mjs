@@ -9,9 +9,9 @@
  * A `sandbox_mode` already in the file wins.
  *
  * Without the sandbox, approvals do the guarding: `approval_policy = "on-request"` (unless the file sets
- * one) and the execpolicy rules in /usr/local/lib/beni.rules, copied to ~/.codex/rules/beni.rules, make
+ * one) and the execpolicy rules in /usr/local/lib/pingo.rules, copied to ~/.codex/rules/pingo.rules, make
  * Codex ask the owner before a critical command (a push, a recursive delete, raw SQL...), as
- * beni-guard.mjs does for Claude.
+ * pingo-guard.mjs does for Claude.
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -19,8 +19,8 @@ import path from 'node:path';
 const HOME = process.env.HOME ?? '/home/claude';
 const dir = process.env.CODEX_HOME || path.join(HOME, '.codex');
 const file = path.join(dir, 'config.toml');
-const BEGIN = '# >>> beni (managed, rewritten on every start)';
-const END = '# <<< beni';
+const BEGIN = '# >>> pingo (managed, rewritten on every start)';
+const END = '# <<< pingo';
 const OURS = ['mcp_servers.assistant', 'mcp_servers.browser'];
 
 let text = existsSync(file) ? readFileSync(file, 'utf8') : '';
@@ -60,8 +60,8 @@ ${END}
 mkdirSync(dir, { recursive: true });
 writeFileSync(file, `${top}${text ? `${text}\n\n` : ''}${tables}`);
 
-const RULES = process.env.BENI_CODEX_RULES ?? '/usr/local/lib/beni.rules';
+const RULES = process.env.PINGO_CODEX_RULES ?? '/usr/local/lib/pingo.rules';
 if (existsSync(RULES)) {
   mkdirSync(path.join(dir, 'rules'), { recursive: true });
-  copyFileSync(RULES, path.join(dir, 'rules', 'beni.rules'));
+  copyFileSync(RULES, path.join(dir, 'rules', 'pingo.rules'));
 }

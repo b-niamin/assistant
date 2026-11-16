@@ -3,7 +3,7 @@
 This folder is an extension of the assistant shell. Read the shell's `AGENTS.md` and
 `specs/002-extensions.md` first. Rules that matter here:
 
-- Import from the shell ONLY `$shell` (types, context) and `$shell/ui` (Beni, motion helpers). Never `$lib` or `#lib`,
+- Import from the shell ONLY `$shell` (types, context) and `$shell/ui` (Pingo, motion helpers). Never `$lib` or `#lib`,
   never another extension. `node scripts/ext.mjs check {{id}}` enforces it.
 - Server code gets `ctx` as the second argument of `load`, actions and `+server.ts` handlers. Query only
   through `ctx.db(sql => ...)`: it runs as role `ext_{{schema}}`, which sees schema `{{schema}}` and
@@ -23,7 +23,7 @@ This folder is an extension of the assistant shell. Read the shell's `AGENTS.md`
   write (validated like the form), each with `readOnly: true|false`. They reach Claude through the
   `assistant` MCP server, in the terminal and on claude.ai (the Claude connector).
 - Look (required): the shell's layout and tokens (`.card`, `.btn`, `.muted`, `--ink-*`, `--accent`,
-  `--hue-*`, `--space-*`; the shell's `specs/001-design.md`) and Beni (`Mascot` from `$shell/ui`) in the
+  `--hue-*`, `--space-*`; the shell's `specs/001-design.md`) and Pingo (`Mascot` from `$shell/ui`) in the
   header and every empty or error state. No UI libraries, no raw hex.
 - `extensions/` is this instance's own folder (git-ignored in the assistant repo, kept by the daily
   backup): nothing to commit. Before handing it over, run the shell's checks:

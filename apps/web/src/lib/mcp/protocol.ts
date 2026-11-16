@@ -21,7 +21,7 @@ export interface McpBackend {
   callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
 }
 
-export const SERVER_INFO = { name: 'assistant', title: 'Beni Assistant', version: '2.0.0' };
+export const SERVER_INFO = { name: 'assistant', title: 'Pingo Assistant', version: '2.0.0' };
 export const INSTRUCTIONS =
   'A self-hosted personal assistant made of apps (extensions); each app holds one kind of data (training, ' +
   'the gym log, the house...). Call `extensions` first to see the apps, their profiles and tools, then each ' +

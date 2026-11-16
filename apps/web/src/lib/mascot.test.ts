@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { accessoryFor, accessoryOf, ACCESSORY_IDS, guessAccessory, lineFor, moodFor, moodForHour } from './mascot';
-import { ACCESSORY_SVG } from './beni-accessories';
+import { ACCESSORY_SVG } from './pingo-accessories';
 
 describe('mascot', () => {
   it('maps readiness bands to moods', () => {
@@ -29,7 +29,7 @@ describe('accessories', () => {
     { id: 'learning', name: 'Learning' },
     { id: 'odd', name: 'Something', accessory: 'cape' }
   ];
-  it('dresses Beni for the page', () => {
+  it('dresses Pingo for the page', () => {
     expect(accessoryFor('/', exts)).toBe('none');
     expect(accessoryFor('/gym', exts)).toBe('headband');
     expect(accessoryFor('/health/sleep', exts)).toBe('stethoscope');

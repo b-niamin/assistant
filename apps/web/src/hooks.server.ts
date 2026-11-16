@@ -29,7 +29,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     return response;
   }
   // server.mjs lets only the paths above in from the internet; anything else from there is a bug.
-  if (event.request.headers.get('x-beni-public') === '1') throw error(404, 'Not found');
+  if (event.request.headers.get('x-pingo-public') === '1') throw error(404, 'Not found');
 
   // Opened under another port than PUBLIC_ORIGIN's: go there, or every form would fail the CSRF check.
   // Tailscale Serve keeps the browser's Host and sets X-Forwarded-Host; either only ever leads to ORIGIN.

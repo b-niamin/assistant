@@ -205,7 +205,7 @@ export async function latestOnGithub(repoUrl: string, branch: string): Promise<s
   let sha: string | null = null;
   try {
     const res = await fetch(`https://github.com/${repo}.git/info/refs?service=git-upload-pack`, {
-      headers: { 'user-agent': 'git/2.45 beni-assistant' },
+      headers: { 'user-agent': 'git/2.45 pingo-assistant' },
       signal: AbortSignal.timeout(4000)
     });
     if (res.ok) sha = refFromAdvertisement(await res.text(), branch);

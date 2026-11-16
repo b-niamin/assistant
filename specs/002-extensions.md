@@ -89,7 +89,7 @@ instances is copied into the extensions repo by hand.
   "scope": "profile",             // profile | shared
   "shell": 1,                     // SDK contract version this extension was written for
   "entry": "app.html",            // onefile only
-  "accessory": "stethoscope",     // optional: what Beni wears on its pages (specs/001-design.md); else guessed
+  "accessory": "stethoscope",     // optional: what Pingo wears on its pages (specs/001-design.md); else guessed
   "languages": ["en", "pl"],      // onefile only: the languages its own UI speaks (spec 007)
   "worksWith": [                  // optional, at most 5: other extensions it does more with (see "Works with")
     { "id": "calendar", "why": "Shows what is on today on the board." }
@@ -162,14 +162,14 @@ export const load = (async ({ url }, ctx) => {
   boundary against hostile code. Untrusted code belongs in a onefile extension.)
 - `ctx.kv`: small key-value storage scoped like the extension (`core.extension_kv`), e.g. settings.
 
-**The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Beni the mascot,
+**The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Pingo the mascot,
 motion helpers, the shared charts and empty state). The CSS tokens from `app.css` and `specs/001-design.md` are global. `ext check` rejects an
 import of anything else from the shell (`$lib` or `#lib`, another extension's files). The contract version is
 `SHELL_API` (now 5). It grows by additions only: a manifest declares the version it needs (1 to 5), and one that
 needs more than the core has does not build ("update the assistant first").
 
-**Look (required).** Every extension wears the shell's layout and has Beni, the mascot, woven in: native
-pages through the global tokens and `$shell/ui`, onefile apps through the tokens and `<assistant-beni>`
+**Look (required).** Every extension wears the shell's layout and has Pingo, the mascot, woven in: native
+pages through the global tokens and `$shell/ui`, onefile apps through the tokens and `<assistant-pingo>`
 that the host injects into their iframe. Details and the `look:` warnings of `ext check`: spec 001,
 "Extensions wear this look".
 
@@ -265,7 +265,7 @@ The manifest declares the work; the worker decides how it runs:
   `WORKER_DATA` (as the extension's uid, again when the file or Python changes); Node runs scripts with
   their own vendored `node_modules`, if any. Logs: `/worker/logs/<id>.<unit>.log` (also in System settings
   -> Logs), each line of the unit's output plus the worker's own notes (started, exited, run took 2 s).
-- **`import beni`** (shell 3; `docker/worker/lib/beni`, on every unit's `PYTHONPATH`): what each service
+- **`import pingo`** (shell 6; `docker/worker/lib/pingo`, on every unit's `PYTHONPATH`): what each service
   would otherwise write again: `log()` and `logger()` (one line, the app's time zone), `env()` /
   `env_int()` (settings with bounds), `connect()` (psycopg as the extension's role), `every(seconds, fn)`
   (a loop that survives a failed pass and stops on SIGTERM). Tests outside the worker put

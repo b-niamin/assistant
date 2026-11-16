@@ -5,18 +5,18 @@
  * - the design tokens of app.css (`--page`, `--surface`, `--ink`, `--accent`, `--space-*`, ...), light and
  *   dark, inside `@layer assistant` so the app's own unlayered rules still win;
  * - the shell's checkboxes, radios, switches, sliders and picker buttons (lib/controls.css), in the same layer;
- * - `<assistant-beni mood="steady" size="48">`: Beni, the mascot, as a custom element (shadow DOM, so
+ * - `<assistant-pingo mood="steady" size="48">`: Pingo, the mascot, as a custom element (shadow DOM, so
  *   its SVG ids and styles never clash with the app). Moods: idle, steady, charged, tired, asleep.
- *   `accessory="book"` dresses it (beni-accessories.ts); without the attribute it wears the app's own
- *   (`window.assistantBeni.accessory`, from the manifest). It covers its eyes by itself while a password
+ *   `accessory="book"` dresses it (pingo-accessories.ts); without the attribute it wears the app's own
+ *   (`window.assistantPingo.accessory`, from the manifest). It covers its eyes by itself while a password
  *   field has focus; `shy` (or `shy="peek"`) forces that.
  *
  * Native extensions get the same look from the shell itself (`$shell/ui`, the classes in app.css).
  */
 import appCss from '../../app.css?raw';
 import controlsCss from '../controls.css?raw';
-import pipSvg from '../../../static/beni.svg?raw';
-import { ACCESSORY_IDS, accessorySvg, SHY_SVG, type Accessory } from '../beni-accessories';
+import pipSvg from '../../../static/pingo.svg?raw';
+import { ACCESSORY_IDS, accessorySvg, SHY_SVG, type Accessory } from '../pingo-accessories';
 
 /** The token part of app.css: everything before the first element rule (`*,`). */
 export function tokensOf(css: string): string {
@@ -25,7 +25,7 @@ export function tokensOf(css: string): string {
   return head.replace(/\/\*[\s\S]*?\*\//g, '').trim();
 }
 
-/** Beni's static drawing without the title, the fixed size and the headband (an accessory now). */
+/** Pingo's static drawing without the title, the fixed size and the headband (an accessory now). */
 export function pipMarkup(svg: string): string {
   return svg
     .replace(/<title>[\s\S]*?<\/title>/, '')
@@ -67,7 +67,7 @@ function dressing(): string {
   return parts.join('') + `<g class="cover">${SHY_SVG}</g>`;
 }
 
-/** Script defining <assistant-beni>; `svg` is Beni's markup. */
+/** Script defining <assistant-pingo>; `svg` is Pingo's markup. */
 export function pipElementScript(svg: string): string {
   // Wrap the drawing in .body and the eyes (white + pupils + glints) in .eyes for the mood styles.
   const drawn = svg
@@ -78,9 +78,9 @@ export function pipElementScript(svg: string): string {
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e');
   return `(function () {
-  if (!window.customElements || customElements.get('assistant-beni')) return;
+  if (!window.customElements || customElements.get('assistant-pingo')) return;
   var html = ${template};
-  var own = (window.assistantBeni && window.assistantBeni.accessory) || 'none';
+  var own = (window.assistantPingo && window.assistantPingo.accessory) || 'none';
   // Cover the eyes while a password field has focus; peek when it is revealed (type flipped to text).
   function secrecy() {
     var el = document.activeElement;
@@ -91,7 +91,7 @@ export function pipElementScript(svg: string): string {
   }
   function check() {
     var s = secrecy();
-    var all = document.querySelectorAll('assistant-beni');
+    var all = document.querySelectorAll('assistant-pingo');
     for (var i = 0; i < all.length; i++) {
       if (s) all[i].setAttribute('covering', s === 'peek' ? 'peek' : ''); else all[i].removeAttribute('covering');
     }
@@ -100,7 +100,7 @@ export function pipElementScript(svg: string): string {
   document.addEventListener('focusout', function () { setTimeout(check, 0); });
   if (window.MutationObserver)
     new MutationObserver(check).observe(document.documentElement, { subtree: true, attributeFilter: ['type'] });
-  customElements.define('assistant-beni', class extends HTMLElement {
+  customElements.define('assistant-pingo', class extends HTMLElement {
     static get observedAttributes() { return ['size', 'label']; }
     connectedCallback() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' }).innerHTML = html;
@@ -125,7 +125,7 @@ export function themeTags(css = appCss, svg = pipSvg, accessory: Accessory = 'no
   const look = controls.replace(/\/\*[\s\S]*?\*\//g, '').trim().replace(/<\/style/gi, '<\\/style');
   return (
     `<style id="assistant-theme">@layer assistant { ${tokens} ${look} }</style>` +
-    `<script>window.assistantBeni = Object.freeze({ accessory: ${JSON.stringify(accessory)} });` +
+    `<script>window.assistantPingo = Object.freeze({ accessory: ${JSON.stringify(accessory)} });` +
     `${pipElementScript(pipMarkup(svg))}</script>`
   );
 }

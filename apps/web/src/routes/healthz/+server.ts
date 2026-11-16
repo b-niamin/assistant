@@ -1,5 +1,5 @@
 /**
- * Liveness for compose, beni.sh status and the updater: 200 "ok" when the app answers and the database
+ * Liveness for compose, pingo.sh status and the updater: 200 "ok" when the app answers and the database
  * does (SELECT 1 within 3 s), 503 otherwise.
  */
 import { db } from '#lib/server/db.ts';

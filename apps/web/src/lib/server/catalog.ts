@@ -17,7 +17,7 @@ export interface CatalogExtension {
   /** Brings a background service: `./install.sh` on the host starts it. */
   service: boolean;
   needs?: string;
-  /** What Beni wears for it (its manifest "accessory"). */
+  /** What Pingo wears for it (its manifest "accessory"). */
   accessory?: Accessory;
   /** Name, description and needs in other languages (spec 007): {"pl": {"name": ..., "description": ...}}. */
   i18n?: CatalogTexts;

@@ -99,7 +99,7 @@ describe('shell quoting', () => {
 describe('change prompt', () => {
   it('names the extension folder', () => {
     expect(buildChangePrompt('gym', 'Gym', 'add a rest timer')).toBe(
-      'Change the Gym extension (extensions/gym, new-extension skill): add a rest timer. Keep our design system and Beni, run the checks.'
+      'Change the Gym extension (extensions/gym, new-extension skill): add a rest timer. Keep our design system and Pingo, run the checks.'
     );
   });
 });

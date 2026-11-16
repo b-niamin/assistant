@@ -276,7 +276,7 @@ services:
   # one folder per day under BACKUP_DIR, a host folder OUTSIDE the checkout (the terminal sees the
   # checkout; a backup holds .env). Default: next to the checkout, e.g. /volume1/docker/assistant-backups,
   # where the host's own backup (Synology Hyper Backup, Time Machine) can pick it up.
-  # Restore: sudo ./beni.sh restore <BACKUP_DIR>/beni-<day>. Status: /logs/backup-status.json.
+  # Restore: sudo ./pingo.sh restore <BACKUP_DIR>/pingo-<day>. Status: /logs/backup-status.json.
   backup:
     logging: *logging
     image: postgres:18-alpine

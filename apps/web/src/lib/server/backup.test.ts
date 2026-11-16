@@ -4,8 +4,8 @@ import { parseBackupStatus } from './backup';
 describe('backup status', () => {
   const now = Date.parse('2026-11-12T12:00:00Z');
   it('reads the status the backup service writes', () => {
-    const s = parseBackupStatus('{"status":"ok","at":"2026-11-12T02:00:00Z","message":"ok","lastOk":"2026-11-12T02:00:00Z","lastName":"beni-2026-11-12_0300","count":9,"hour":3}', now);
-    expect(s).toMatchObject({ status: 'ok', lastName: 'beni-2026-11-12_0300', count: 9, stale: false });
+    const s = parseBackupStatus('{"status":"ok","at":"2026-11-12T02:00:00Z","message":"ok","lastOk":"2026-11-12T02:00:00Z","lastName":"pingo-2026-11-12_0300","count":9,"hour":3}', now);
+    expect(s).toMatchObject({ status: 'ok', lastName: 'pingo-2026-11-12_0300', count: 9, stale: false });
   });
   it('calls a backup older than 36 hours, or none, stale', () => {
     expect(parseBackupStatus('{"status":"failed","at":"x","message":"dump failed","lastOk":"2026-11-10T02:00:00Z","count":3}', now)?.stale).toBe(true);

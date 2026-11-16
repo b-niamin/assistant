@@ -89,7 +89,7 @@
     <Mascot mood="asleep" size={44} decorative />
     <p class="muted">
       {t('The worker has not reported yet. It is built and started by the next update of the app (System settings -> Updates), or by')}
-      <code>sudo ./beni.sh install</code> {t('on the host.')}
+      <code>sudo ./pingo.sh install</code> {t('on the host.')}
     </p>
   </div>
 {:else}

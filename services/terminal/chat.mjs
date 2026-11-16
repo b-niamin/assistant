@@ -4,12 +4,12 @@
  *
  *   claude -p --input-format stream-json --output-format stream-json --permission-prompt-tool stdio
  *
- * in /workspace, the same as in the terminal: same managed settings, same beni-guard. What the guard answers
+ * in /workspace, the same as in the terminal: same managed settings, same pingo-guard. What the guard answers
  * "ask" for (a critical change) comes back here as a `can_use_tool` request, and the chat shows it as a card
  * the owner allows or denies. AskUserQuestion comes the same way, as questions with options.
  *
  * A chat's process stays up between messages and quits after IDLE_MS; the next message resumes the same
- * Claude session (`--resume`). The chat list and each chat's events live in ~/.beni/chats (agent-home volume).
+ * Claude session (`--resume`). The chat list and each chat's events live in ~/.pingo/chats (agent-home volume).
  *
  * HTTP (only with a valid single-use "chat" ticket in x-ticket, minted by the web app for a session):
  *   GET    /chat                      -> {chats: [...]}
@@ -33,7 +33,7 @@ const MAX_TEXT = 100_000;
 const ID_RE = /^[a-f0-9]{16}$/;
 
 const SYSTEM = [
-  'You are running inside the Beni Assistant app, in its chat window (not a terminal).',
+  'You are running inside the Pingo Assistant app, in its chat window (not a terminal).',
   'The owner reads your replies as chat messages rendered from Markdown; keep them short and plain.',
   'A critical change you try (see AGENTS.md) shows the owner an Allow/Deny card in the chat and waits for it.'
 ].join(' ');
@@ -359,4 +359,4 @@ export async function handleChat(chats, req, res, allowed) {
   return reply(404, { error: 'not found' }), true;
 }
 
-export const chatsDir = (home) => path.join(home, '.beni', 'chats');
+export const chatsDir = (home) => path.join(home, '.pingo', 'chats');

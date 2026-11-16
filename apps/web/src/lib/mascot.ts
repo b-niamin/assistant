@@ -1,10 +1,10 @@
 /**
- * Beni, the app's mascot. Its mood follows today's Training Readiness, so the hero card reads at a
+ * Pingo, the app's mascot. Its mood follows today's Training Readiness, so the hero card reads at a
  * glance even before the number does. Pure logic here; the drawing is in Mascot.svelte.
  */
-import { isAccessory, type Accessory } from './beni-accessories';
+import { isAccessory, type Accessory } from './pingo-accessories';
 
-export { ACCESSORY_IDS, isAccessory, type Accessory } from './beni-accessories';
+export { ACCESSORY_IDS, isAccessory, type Accessory } from './pingo-accessories';
 
 export type Mood = 'charged' | 'steady' | 'tired' | 'asleep' | 'idle';
 
@@ -16,7 +16,7 @@ export function moodFor(readiness: number | null | undefined): Mood {
   return 'asleep';
 }
 
-/** Beni's mood by the local hour, for places with no readiness to go on (dashboard greeting). */
+/** Pingo's mood by the local hour, for places with no readiness to go on (dashboard greeting). */
 export function moodForHour(hour: number): Mood {
   if (hour < 6) return 'asleep';
   if (hour < 12) return 'charged';
@@ -41,7 +41,7 @@ export function lineFor(mood: Mood, day: string): string {
 }
 
 
-/** Words in an extension's id or name that tell what Beni should wear there, first match wins. */
+/** Words in an extension's id or name that tell what Pingo should wear there, first match wins. */
 const GUESSES: [RegExp, Accessory][] = [
   [/gym|workout|fitness|sport|run|train|exercise|cycl|swim|strength|yoga/, 'headband'],
   [/health|medic|doctor|clinic|symptom|pill|vital/, 'stethoscope'],
@@ -76,7 +76,7 @@ export function accessoryOf(ext: AccessorySource): Accessory {
   return isAccessory(ext.accessory) ? ext.accessory : guessAccessory(ext.id, ext.name);
 }
 
-/** What Beni wears on a page: tools in settings, the app's own in an app. */
+/** What Pingo wears on a page: tools in settings, the app's own in an app. */
 export function accessoryFor(pathname: string, extensions: AccessorySource[] = []): Accessory {
   const [first = ''] = pathname.split('/').filter(Boolean);
   if (first === 'settings') return 'wrench';

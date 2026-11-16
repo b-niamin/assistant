@@ -56,7 +56,7 @@
     <p>{t('Copy the backup folder off this machine too (Hyper Backup, Time Machine).')}</p>
     <details class="tech">
       <summary>{t('Technical details')}</summary>
-      <p class="meta">{t('Data, .env and apps, in BACKUP_DIR. Copy that folder off this machine too. Restore: sudo ./beni.sh restore <folder>.')}</p>
+      <p class="meta">{t('Data, .env and apps, in BACKUP_DIR. Copy that folder off this machine too. Restore: sudo ./pingo.sh restore <folder>.')}</p>
     </details>
   </div>
 </section>

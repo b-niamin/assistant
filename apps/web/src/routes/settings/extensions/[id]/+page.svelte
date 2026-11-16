@@ -168,7 +168,7 @@
     <ul class="works">
       {#each data.suggestions as s (s.id)}
         <li class="card suggest" style="--hue: {hueFor(s.id)}">
-          <span class="beni" aria-hidden="true"><Mascot mood="steady" size={36} accessory={isAccessory(s.accessory) ? s.accessory : guessAccessory(s.id, s.name)} decorative /></span>
+          <span class="pingo" aria-hidden="true"><Mascot mood="steady" size={36} accessory={isAccessory(s.accessory) ? s.accessory : guessAccessory(s.id, s.name)} decorative /></span>
           <div class="what">
             <strong>{s.name}</strong>
             <span class="small">{s.why}</span>
@@ -362,7 +362,7 @@
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
   }
-  .beni {
+  .pingo {
     flex: none;
     display: grid;
     place-items: center;

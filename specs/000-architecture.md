@@ -80,9 +80,9 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
 - Sign in once from System settings -> Terminal and AI (`claude` + `/login`, `codex login`, `gh auth login`).
   The CLIs run only in the dock's shell, started by hand or by the app (Update, Build it, Install); nothing
   keeps them running in the background. From outside, Claude uses the Claude connector instead.
-- Data chat: `beni-db` (= `psql "$CLAUDE_RO_DATABASE_URL"`). `claude_ro` has `SELECT` on core and extension schemas,
+- Data chat: `pingo-db` (= `psql "$CLAUDE_RO_DATABASE_URL"`). `claude_ro` has `SELECT` on core and extension schemas,
   `default_transaction_read_only = on`, a 30 s statement timeout, and no access to `secrets` or to an
-  extension's `secret_*` tables. The agents in the terminal also write data with `beni-db --write`
+  extension's `secret_*` tables. The agents in the terminal also write data with `pingo-db --write`
   (role `agent_rw`: rows only, no DDL, same exclusions); deletes ask the owner first (spec 004).
 
 ## Keeping Claude from breaking things
@@ -96,6 +96,6 @@ Ready-made extensions live in [assistant-extensions](https://github.com/b-niamin
    broken shell scripts and failing tests. Undo is `git revert`; with `CLAUDE_GITHUB_TOKEN` set, commits
    are pushed, so history also lives off the machine.
 4. **Read-only data access** for conversations. Schema changes go through new migration files.
-5. **Daily backups** (dump, `.env`, extensions; 7 days, 4 weeks, 6 months) in `BACKUP_DIR` next to the checkout; `beni.sh restore` brings one back (docs/install.md).
+5. **Daily backups** (dump, `.env`, extensions; 7 days, 4 weeks, 6 months) in `BACKUP_DIR` next to the checkout; `pingo.sh restore` brings one back (docs/install.md).
 6. **`AGENTS.md` + `.claude/settings.json`**: profile, extension and migration rules, deny rules for
    `.env`, force pushes, `--no-verify`, `docker`.

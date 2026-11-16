@@ -18,7 +18,7 @@ was run through its validator against both chart surfaces (`#fcfcfb` light, `#1a
 | Chart chrome | `--grid` hairline gridlines, `--axis` baseline and de-emphasis lines, `--ring` 1px card border |
 | Data | `--accent` (single series), `--accent-wash` (10 % area fill), `--accent-ink` (links, text-safe step) |
 | Status | `--good`, `--warning`, `--serious`, `--critical` (dots); `--good-ink` for good text |
-| Metric hues | `--hue-blue/orange/aqua/yellow/magenta/green/violet/red` (validated categorical slots, own dark steps); `--brand` = Beni's orange |
+| Metric hues | `--hue-blue/orange/aqua/yellow/magenta/green/violet/red` (validated categorical slots, own dark steps); `--brand` = Pingo's orange |
 | Spacing | `--space-1..7` = 4, 8, 12, 16, 24, 32, 48 px |
 
 Dark mode is its own set of steps (not an inversion), applied by `prefers-color-scheme` and by
@@ -54,30 +54,30 @@ Battery green, resting HR red, stress magenta, steps blue. The hue shows on the 
 its sparkline's latest point and its trend line, so the colour always means the same thing. Training
 load bars are orange (effort). Text keeps ink tokens.
 
-## Mascot: Beni
+## Mascot: Pingo
 
 `lib/Mascot.svelte` is a jelly-bean runner, pure SVG + CSS. Its mood follows today's
 Training Readiness (`lib/mascot.ts`): charged (75+, hops and sparkles), steady (50-74, breathes),
 tired (25-49, half-closed eyes, sways), asleep (<25, closed eyes, floating z's), idle (no data). It
 says one short line per mood, fixed for the day. Pupils follow the pointer; a click makes it bounce.
-A small decorative Beni is the brand mark in the header; the login page shows a charged one.
+A small decorative Pingo is the brand mark in the header; the login page shows a charged one.
 
-Beni is the app's face everywhere, so a screen without data never feels broken:
+Pingo is the app's face everywhere, so a screen without data never feels broken:
 
 - **Icons**: `static/favicon.svg` (cropped, no shadow), `apple-touch-icon.png` and `icon-192/512.png`
-  (Beni on a warm tile) via `manifest.webmanifest`; theme colour is Beni's orange. `static/beni.svg` is
-  the full static Beni, used by the README. Regenerate the PNGs from the SVG if Beni's look changes.
-- **Dashboard**: Beni greets next to the greeting, mood by time of day (`moodForHour`: asleep before
+  (Pingo on a warm tile) via `manifest.webmanifest`; theme colour is Pingo's orange. `static/pingo.svg` is
+  the full static Pingo, used by the README. Regenerate the PNGs from the SVG if Pingo's look changes.
+- **Dashboard**: Pingo greets next to the greeting, mood by time of day (`moodForHour`: asleep before
   6, charged in the morning, steady until 22, tired late).
-- **Empty and error states**: a small decorative Beni (idle for "no data yet", tired for "unavailable",
+- **Empty and error states**: a small decorative Pingo (idle for "no data yet", tired for "unavailable",
   asleep for a closed terminal) sits beside the message: dashboard tiles, the empty dashboard, the
   settings extension list, the terminal veil, health charts, and `+error.svelte` (404 and errors).
 - Extensions reuse it through `$shell/ui` (`Mascot`, `moodFor`, `moodForHour`, `accessoryFor`).
 
-### What Beni wears
+### What Pingo wears
 
-Beni dresses for what you are doing. The drawings are SVG fragments in `lib/beni-accessories.ts`, shared
-by `Mascot.svelte` and `<assistant-beni>`, so every Beni in the app (and in onefile apps) can wear them:
+Pingo dresses for what you are doing. The drawings are SVG fragments in `lib/pingo-accessories.ts`, shared
+by `Mascot.svelte` and `<assistant-pingo>`, so every Pingo in the app (and in onefile apps) can wear them:
 
 | Accessory | Where |
 |---|---|
@@ -93,33 +93,33 @@ by `Mascot.svelte` and `<assistant-beni>`, so every Beni in the app (and in onef
 | `coin` | money, budget |
 | `umbrella` | weather |
 | `party-hat` | celebrations: a record, a goal hit |
-| `nightcap` | sleep; any asleep Beni with nothing else on |
+| `nightcap` | sleep; any asleep Pingo with nothing else on |
 
 `accessoryFor(pathname, extensions)` picks it from the page: the dashboard has none, `/settings` the
 wrench, `/<id>` the extension's manifest `"accessory"` or, without one, a
 guess from its id and name (`guessAccessory`). Every `Mascot` without an `accessory` prop follows the
-page; dashboard tiles dress Beni for the app they come from, "Extend the system" for each catalog entry.
+page; dashboard tiles dress Pingo for the app they come from, "Extend the system" for each catalog entry.
 Pass `accessory="party-hat"` (or `"none"`) to choose yourself.
 
 **Eyes covered.** While a password field has focus (`type="password"`, or one marked with
-`autocomplete="*-password"` / `data-secret`), every Beni on the page covers its eyes with both hands; when
-the field is revealed (type flipped to `text`), it peeks through one. `lib/beni-watch.svelte.ts` holds the
+`autocomplete="*-password"` / `data-secret`), every Pingo on the page covers its eyes with both hands; when
+the field is revealed (type flipped to `text`), it peeks through one. `lib/pingo-watch.svelte.ts` holds the
 one document-wide listener; `shy` forces it (`true`, `"peek"`, `false`).
 
 ## Extensions wear this look (required)
 
-Every extension, however it was inspired, uses this layout and has Beni: the tokens above (light and
-dark), the shell's classes, and Beni in its header and in every empty or error state, with a mood that
+Every extension, however it was inspired, uses this layout and has Pingo: the tokens above (light and
+dark), the shell's classes, and Pingo in its header and in every empty or error state, with a mood that
 fits. The source's own palette, fonts and logo are dropped.
 
 - Native extensions render inside the shell, so `app.css` and `$shell/ui` are there already.
 - Onefile apps run in a sandboxed iframe that cannot load the shell's files. The host injects
   (`src/lib/extensions/theme.ts`) the token blocks of `app.css` and the form controls of `controls.css` as
-  `@layer assistant`, so the app's own unlayered rules still win, and defines `<assistant-beni mood size label accessory shy>`: Beni as a custom
+  `@layer assistant`, so the app's own unlayered rules still win, and defines `<assistant-pingo mood size label accessory shy>`: Pingo as a custom
   element in shadow DOM, with the same moods (breathing, hop, sway, closed eyes; still under reduced
-  motion). Without `accessory` it wears the app's own (`window.assistantBeni.accessory`), and it covers
+  motion). Without `accessory` it wears the app's own (`window.assistantPingo.accessory`), and it covers
   its eyes on password fields by itself.
-- `node scripts/ext.mjs check` prints `look:` warnings: Beni missing, no shell tokens, raw hex in native
+- `node scripts/ext.mjs check` prints `look:` warnings: Pingo missing, no shell tokens, raw hex in native
   pages. A new extension must have none; older ones are warned only.
 
 ## Motion
@@ -128,11 +128,11 @@ fits. The source's own palette, fonts and logo are dropped.
 - The readiness number counts up; sparklines and the trend line draw in, the wash fades in after.
 - Training load bars grow from the left; tiles lift 2 px on hover.
 - Only `transform` and `opacity` (plus SVG dash offset) are animated, so it stays cheap.
-- `prefers-reduced-motion: reduce` turns every animation off, including Beni and the count-up.
+- `prefers-reduced-motion: reduce` turns every animation off, including Pingo and the count-up.
 
 ## Dock and terminal
 
-The header reads `[Beni] [extensions nav] <spacer> [update state] [lock] [avatar]`. The avatar
+The header reads `[Pingo] [extensions nav] <spacer> [update state] [lock] [avatar]`. The avatar
 (`lib/user-menu/UserMenu.svelte`) is a pill with the profile's initials in its own hue (`hueFor`) and, on wide
 screens, its name. Its menu leads to Profile settings, MCP connector and System settings, switches profiles,
 picks the theme (Light, Dark, System as icons: the `theme` cookie, written by the server as `data-theme` on
@@ -151,7 +151,7 @@ A page starts with `PageHead` (title, one line, an action); cards, rows and choi
 ## First run
 
 `install.sh` asks only where and how it runs (folder, ports, Tailscale, start, updates) and prints an address and a setup code. The wizard at `/setup` (`lib/setup/steps.ts`)
-has four steps with a progress row and Beni: you (code, password, name, language), apps (catalog, installed in
+has four steps with a progress row and Pingo: you (code, password, name, language), apps (catalog, installed in
 the dock's terminal), updates and Claude (update mode and the updater's schedule, MCP on the internet) and done (what is next).
 
 The lock (`lib/dock/LockMenu.svelte`) shows whether this session is unlocked: the app's one unlock (the
@@ -185,7 +185,7 @@ The terminal is a dark window in both themes, like a code block in an editor.
 
 - Font: JetBrains Mono (variable), bundled in `lib/terminal/fonts` (OFL) because the CSP allows no font
   CDN. ANSI colours are the categorical hues, lifted for a dark background (`lib/terminal/theme.ts`);
-  the cursor is Beni's orange. `services/terminal/tmux.conf` gives tmux a matching quiet status line.
+  the cursor is Pingo's orange. `services/terminal/tmux.conf` gives tmux a matching quiet status line.
 - Window chrome: connection status (dot plus word, pulsing while connecting), session name and size,
   then text size A−/A+ (remembered per device), reconnect and full screen. When the socket is not open
   a veil over the screen says why and offers Reconnect; the page reconnects by itself when a phone

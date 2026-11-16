@@ -22,7 +22,7 @@ const MAX_BODY = 1024 * 1024;
 
 async function callerFor(request: Request, endpointId: string | null): Promise<Caller | null> {
   const auth = request.headers.get('authorization');
-  if (!endpointId && request.headers.get('x-beni-public') !== '1' && claudeTokenMatches(auth))
+  if (!endpointId && request.headers.get('x-pingo-public') !== '1' && claudeTokenMatches(auth))
     return { kind: 'terminal', profileId: await defaultProfile() };
   if (!auth?.startsWith('Bearer ')) return null;
   const grant = await verifyAccess(auth.slice(7).trim());

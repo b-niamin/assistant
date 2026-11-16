@@ -12,7 +12,7 @@
  *
  * A second listener, MCP_PORT (3001), is the public one: Tailscale Funnel publishes it to the internet when
  * the Claude connector is on (spec 005). It answers only the MCP server and its OAuth paths (paths.js),
- * marks those requests (x-beni-public, stripped on the main listener) and has no WebSocket proxy.
+ * marks those requests (x-pingo-public, stripped on the main listener) and has no WebSocket proxy.
  */
 import { createServer } from 'node:http';
 import { connect } from 'node:net';
@@ -54,7 +54,7 @@ function fixOrigin(req) {
 }
 
 const server = createServer((req, res) => {
-  delete req.headers['x-beni-public'];
+  delete req.headers['x-pingo-public'];
   fixOrigin(req);
   handler(req, res);
 });
@@ -66,7 +66,7 @@ const publicServer = createServer((req, res) => {
     res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
     return;
   }
-  req.headers['x-beni-public'] = '1';
+  req.headers['x-pingo-public'] = '1';
   fixOrigin(req);
   handler(req, res);
 });

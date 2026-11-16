@@ -1,6 +1,6 @@
 ---
 name: add-extension
-description: Add an app (extension) to the assistant from an idea, a repo, an app or a link used as inspiration - Claude builds it fresh in extensions/, adapted to this instance, in the assistant's layout with Beni the mascot, with its settings panel and tools. Use when the owner asks to add, install, connect or set up an app, a data source or an integration.
+description: Add an app (extension) to the assistant from an idea, a repo, an app or a link used as inspiration - Claude builds it fresh in extensions/, adapted to this instance, in the assistant's layout with Pingo the mascot, with its settings panel and tools. Use when the owner asks to add, install, connect or set up an app, a data source or an integration.
 ---
 
 # Adding an extension
@@ -50,7 +50,7 @@ migrations, checks).
 
 ## 4. Make it ours (required)
 
-Every extension wears the assistant's layout and has Beni, the mascot, woven in. The source's own look
+Every extension wears the assistant's layout and has Pingo, the mascot, woven in. The source's own look
 (colours, fonts, logo, layout) does not come along: keep what it does, redraw how it looks.
 
 - **Layout and tokens** (`specs/001-design.md`): colours, spacing and radii only from the shell tokens
@@ -58,15 +58,15 @@ Every extension wears the assistant's layout and has Beni, the mascot, woven in.
   `--hue-*`, `--space-1..7`, `--radius`), light and dark. One system sans, `h1` page title, content in
   `.card`s, buttons `.btn` / `.btn-primary`, statuses as dot plus word, charts by the dataviz rules.
   No UI libraries, no web fonts, no raw hex.
-- **Beni**: at least in the page header and in every empty or error state, with a fitting mood (`idle`
+- **Pingo**: at least in the page header and in every empty or error state, with a fitting mood (`idle`
   no data yet, `steady` normal, `charged` a goal hit or a good day, `tired` something is off, `asleep`
-  closed or paused). Where it fits, let Beni say one short line, like on the dashboard. Give Beni the
+  closed or paused). Where it fits, let Pingo say one short line, like on the dashboard. Give Pingo the
   accessory that fits the app in `extension.json` (`"accessory": "book"`, list in `specs/001-design.md`):
-  the shell then dresses every Beni on its pages; use `party-hat` for a record or a goal hit.
+  the shell then dresses every Pingo on its pages; use `party-hat` for a record or a goal hit.
 - **native**: `import { Mascot, moodFor, moodForHour, countUp } from '$shell/ui'`; the shell's classes
   and tokens are already on the page.
 - **onefile**: inside the shell the iframe gets the tokens injected (as `@layer assistant`) and a
-  `<assistant-beni mood="steady" size="40">` element. Use `var(--page, <fallback>)` so the file still works
+  `<assistant-pingo mood="steady" size="40">` element. Use `var(--page, <fallback>)` so the file still works
   on its own, and drop the app's own palette and fonts.
 - `node scripts/ext.mjs check <id>` prints `look:` warnings; a new extension leaves it with none.
 
@@ -101,7 +101,7 @@ Every extension wears the assistant's layout and has Beni, the mascot, woven in.
 ## 6. Check and hand over
 
 1. `node scripts/ext.mjs check <id>` (no `look:`, `i18n:` or `tools:` warnings) and `cd apps/web && npm test && npm run check`.
-   Open `/<id>` in light and dark: it must look like the rest of the app, with Beni.
+   Open `/<id>` in light and dark: it must look like the rest of the app, with Pingo.
 2. Migrations apply by themselves within ~15 s (`/logs/ext-migrate.log`); the web app rebuilds
    (`build ok` in `/logs/web.log`).
 3. Call the `assistant` MCP server: `extensions` lists it, and `<id>__overview` answers.

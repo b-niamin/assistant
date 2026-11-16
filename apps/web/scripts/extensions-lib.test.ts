@@ -4,7 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain JS module without types
 import * as lib from './extensions-lib.mjs';
-import { ACCESSORY_IDS } from '../src/lib/beni-accessories';
+import { ACCESSORY_IDS } from '../src/lib/pingo-accessories';
 
 const manifest = (over = {}) => ({
   id: 'notes',
@@ -42,7 +42,7 @@ describe('manifest validation', () => {
     expect(lib.validateManifest(manifest({ kind: 'onefile' }), 'notes').join()).toMatch(/"entry"/));
   it('wants secrets as settings fields (spec 004)', () =>
     expect(lib.validateManifest(manifest({ secrets: ['token'] }), 'notes').join()).toMatch(/"type": "secret"/));
-  it('checks what Beni wears against the drawings the shell has', () => {
+  it('checks what Pingo wears against the drawings the shell has', () => {
     expect(lib.ACCESSORIES).toEqual([...ACCESSORY_IDS]);
     expect(lib.validateManifest(manifest({ accessory: 'book' }), 'notes')).toEqual([]);
     expect(lib.validateManifest(manifest({ accessory: 'cape' }), 'notes').join()).toMatch(/"accessory"/);
@@ -191,10 +191,10 @@ describe('look', () => {
     return root;
   };
 
-  it('asks a native extension for Beni and tokens, not hex', () => {
+  it('asks a native extension for Pingo and tokens, not hex', () => {
     const bare = ext({ 'web/routes/+page.svelte': '<h1 style="color:#123456">Hi</h1>' });
     expect(lib.lookWarnings(bare, { kind: 'native' }, 'x')).toEqual([
-      expect.stringMatching(/Beni is missing/),
+      expect.stringMatching(/Pingo is missing/),
       expect.stringMatching(/raw hex/)
     ]);
     const ours = ext({
@@ -203,10 +203,10 @@ describe('look', () => {
     expect(lib.lookWarnings(ours, { kind: 'native' }, 'x')).toEqual([]);
   });
 
-  it('asks a onefile app for <assistant-beni> and the shell tokens', () => {
+  it('asks a onefile app for <assistant-pingo> and the shell tokens', () => {
     const bare = ext({ 'app.html': '<style>body{color:#000}</style>' });
     expect(lib.lookWarnings(bare, { kind: 'onefile', entry: 'app.html' }, 'x')).toHaveLength(2);
-    const ours = ext({ 'app.html': '<style>body{background:var(--page,#fff)}</style><assistant-beni mood="idle"></assistant-beni>' });
+    const ours = ext({ 'app.html': '<style>body{background:var(--page,#fff)}</style><assistant-pingo mood="idle"></assistant-pingo>' });
     expect(lib.lookWarnings(ours, { kind: 'onefile', entry: 'app.html' }, 'x')).toEqual([]);
   });
 });

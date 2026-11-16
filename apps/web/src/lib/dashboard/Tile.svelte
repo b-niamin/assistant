@@ -30,7 +30,7 @@
 
   /** The whole card is one link (stretched title link); an action button sits above it. */
   const linkOf = (r: Result | null) => (r?.ok && r.data.href ? r.data.href : href);
-  /** Beni in the tile wears the accessory of the app the tile comes from. */
+  /** Pingo in the tile wears the accessory of the app the tile comes from. */
   const worn = $derived(accessoryFor(href, page.data?.extensions ?? []));
   let resolved = $state<Result | null>(null);
   $effect(() => {

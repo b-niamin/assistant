@@ -4,7 +4,7 @@ import { pipElementScript, pipMarkup, themeTags, tokensOf } from './theme';
 
 // Vitest turns CSS imports (even ?raw) into empty strings, so the tests read the real files.
 const css = readFileSync(new URL('../../app.css', import.meta.url), 'utf8');
-const svg = readFileSync(new URL('../../../static/beni.svg', import.meta.url), 'utf8');
+const svg = readFileSync(new URL('../../../static/pingo.svg', import.meta.url), 'utf8');
 const controls = readFileSync(new URL('../controls.css', import.meta.url), 'utf8');
 
 describe('onefile theme', () => {
@@ -28,9 +28,9 @@ describe('onefile theme', () => {
     expect(themeTags(css, svg, 'none', controls)).toContain("input[type='checkbox'][role='switch']");
   });
 
-  it('defines <assistant-beni> with the eyes wrapped for moods and no raw tags in the script', () => {
-    const script = pipElementScript(pipMarkup('<svg viewBox="0 0 64 64" width="256" height="256"><title>Beni</title><circle fill="#fff" cx="24.6" cy="35" r="6.2"/><g fill="#fff"><circle cx="1"/></g></svg>'));
-    expect(script).toContain("customElements.define('assistant-beni'");
+  it('defines <assistant-pingo> with the eyes wrapped for moods and no raw tags in the script', () => {
+    const script = pipElementScript(pipMarkup('<svg viewBox="0 0 64 64" width="256" height="256"><title>Pingo</title><circle fill="#fff" cx="24.6" cy="35" r="6.2"/><g fill="#fff"><circle cx="1"/></g></svg>'));
+    expect(script).toContain("customElements.define('assistant-pingo'");
     expect(script).not.toMatch(/<\/?(svg|style|script)/);
     const html = JSON.parse(/var html = (".*");/.exec(script)![1]);
     expect(html).toContain('<g class="body">');
@@ -39,7 +39,7 @@ describe('onefile theme', () => {
     expect(html).not.toContain('<title>');
   });
 
-  it('wraps the eyes of the real Beni too', () => {
+  it('wraps the eyes of the real Pingo too', () => {
     const tags = themeTags(css, svg);
     expect(tags).toContain('class=\\"eyes\\"');
     expect(tags).toContain('width=\\"64\\"'); // the headband rect keeps its size
@@ -48,7 +48,7 @@ describe('onefile theme', () => {
   it('turns the headband into one accessory among many and passes the own accessory of the app', () => {
     expect(pipMarkup(svg)).not.toContain('y="21"');
     const tags = themeTags(css, svg, 'book');
-    expect(tags).toContain('window.assistantBeni = Object.freeze({ accessory: "book" })');
+    expect(tags).toContain('window.assistantPingo = Object.freeze({ accessory: "book" })');
     expect(tags).toContain('acc-headband');
     expect(tags).toContain('acc-stethoscope');
     expect(tags).toContain("class=\\\"cover\\\"");

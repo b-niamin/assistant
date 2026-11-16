@@ -1,11 +1,11 @@
 /**
- * Beni pulls a sleep mask over its eyes while you type a password, and peeks when you reveal it. One document-wide
+ * Pingo pulls a sleep mask over its eyes while you type a password, and peeks when you reveal it. One document-wide
  * listener, installed by the first mascot that mounts; nothing runs on the server.
  */
 
 export type Secrecy = 'none' | 'hidden' | 'shown';
 
-export const beniWatch = $state<{ secrecy: Secrecy }>({ secrecy: 'none' });
+export const pingoWatch = $state<{ secrecy: Secrecy }>({ secrecy: 'none' });
 
 /** A field holding a secret: a password input, or one marked so (autocomplete *-password, data-secret). */
 export function secrecyOf(el: Element | null): Secrecy {
@@ -21,7 +21,7 @@ export function watchSecrets(): void {
   if (installed || typeof document === 'undefined') return;
   installed = true;
   const check = () => {
-    beniWatch.secrecy = secrecyOf(document.activeElement);
+    pingoWatch.secrecy = secrecyOf(document.activeElement);
   };
   document.addEventListener('focusin', check);
   document.addEventListener('focusout', () => setTimeout(check, 0));

@@ -1,4 +1,4 @@
-# Small helpers the shell scripts share (audit R6-R8): beni.sh and install.sh source it from the checkout,
+# Small helpers the shell scripts share (audit R6-R8): pingo.sh and install.sh source it from the checkout,
 # migrate.sh from the migrate image (docker/migrate copies it next to itself), backup.sh from its mount.
 # POSIX sh, no side effects. scripts/update.sh keeps its own copies on purpose: it runs from the updater's
 # home, a single file away from any checkout.

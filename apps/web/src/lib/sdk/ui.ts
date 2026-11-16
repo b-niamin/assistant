@@ -1,6 +1,6 @@
-/** Shell UI an extension may reuse: Beni, charts, the empty state, small helpers. Styles: the tokens and classes in app.css. */
+/** Shell UI an extension may reuse: Pingo, charts, the empty state, small helpers. Styles: the tokens and classes in app.css. */
 export { default as Mascot } from '#lib/Mascot.svelte';
-/** Since shell 2: a line chart with tooltip, keys and table twin; a trend glyph; Beni's "nothing here yet". */
+/** Since shell 2: a line chart with tooltip, keys and table twin; a trend glyph; Pingo's "nothing here yet". */
 export { default as LineChart } from '#lib/charts/LineChart.svelte';
 export { default as Sparkline } from '#lib/charts/Sparkline.svelte';
 export { default as EmptyState } from '#lib/EmptyState.svelte';

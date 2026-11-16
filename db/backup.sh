@@ -1,6 +1,6 @@
 #!/bin/sh
 # Backups (spec 004, docs/install.md "Backups"). Runs in the `backup` service; `sh /backup.sh now` makes
-# one at once (beni.sh backup), and so does a /logs/backup-request file (System settings, Back up now). Each backup is one folder in /backups (BACKUP_DIR on the host, outside
+# one at once (pingo.sh backup), and so does a /logs/backup-request file (System settings, Back up now). Each backup is one folder in /backups (BACKUP_DIR on the host, outside
 # the checkout), enough to bring the instance back on a new machine:
 #   db.dump          pg_dump -Fc, checked with pg_restore --list before it counts
 #   env              the instance's .env (the keys that decrypt stored secrets live only there)
@@ -9,7 +9,7 @@
 # A backup is written under .tmp-<stamp> and renamed only when complete, so a folder that exists is whole.
 # Kept: the last BACKUP_KEEP_DAILY days, BACKUP_KEEP_WEEKLY Sundays, BACKUP_KEEP_MONTHLY 1sts; old ones go
 # only after a backup succeeded, so failures never eat the good copies. Every run writes
-# /logs/backup-status.json (read by the app and beni.sh doctor) and appends to /logs/backup.log.
+# /logs/backup-status.json (read by the app and pingo.sh doctor) and appends to /logs/backup.log.
 set -u
 # installed_ids, iso, json_str (db/lib.sh, mounted next to this file).
 . "$(dirname "$0")/lib.sh"
@@ -29,7 +29,7 @@ status() { # $1 = ok|failed|running, $2 = message, $3 = backup name (ok only)
   prev_name=$(sed -n 's/.*"lastName": *"\([^"]*\)".*/\1/p' "$LOGS/backup-status.json" 2>/dev/null)
   last_ok=$prev_ok; last_name=$prev_name
   if [ "$1" = ok ]; then last_ok=$(iso); last_name=$3; fi
-  count=$(find "$OUT" -maxdepth 1 -type d -name 'beni-*' 2>/dev/null | wc -l | tr -d ' ')
+  count=$(find "$OUT" -maxdepth 1 -type d -name 'pingo-*' 2>/dev/null | wc -l | tr -d ' ')
   st_tmp="$LOGS/.backup-status.$$"
   rm -f "$st_tmp"
   printf '{"status":"%s","at":"%s","message":%s,"lastOk":"%s","lastName":"%s","count":%s,"hour":%s}\n' \
@@ -38,7 +38,7 @@ status() { # $1 = ok|failed|running, $2 = message, $3 = backup name (ok only)
 
 backup_once() {
   stamp=$(date +%Y-%m-%d_%H%M)
-  name="beni-$stamp"
+  name="pingo-$stamp"
   tmp="$OUT/.tmp-$stamp"
   mkdir -p "$OUT" || { log "FAILED: cannot create $OUT"; status failed "cannot create the backup folder"; return 1; }
   rm -rf "$tmp" && mkdir "$tmp" || { log "FAILED: cannot write to $OUT"; status failed "cannot write to the backup folder"; return 1; }
@@ -72,13 +72,13 @@ backup_once() {
 # Keep: the newest KEEP_DAILY backups of distinct days, KEEP_WEEKLY Sundays, KEEP_MONTHLY 1sts.
 prune() {
   keep=$(mktemp)
-  ls -1 "$OUT" 2>/dev/null | grep -E '^beni-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}$' | sort -r > "$keep.all"
+  ls -1 "$OUT" 2>/dev/null | grep -E '^pingo-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}$' | sort -r > "$keep.all"
   # newest per day
   awk -F'[-_]' '!seen[$2"-"$3"-"$4]++' "$keep.all" > "$keep.days"
   head -n "$KEEP_DAILY" "$keep.days" >> "$keep"
   n_week=0; n_month=0
   while read -r b; do
-    d=$(echo "$b" | sed -E 's/^beni-([0-9-]{10})_.*/\1/')
+    d=$(echo "$b" | sed -E 's/^pingo-([0-9-]{10})_.*/\1/')
     if [ "$n_week" -lt "$KEEP_WEEKLY" ] && [ "$(date -d "$d" +%u 2>/dev/null)" = 7 ]; then echo "$b" >> "$keep"; n_week=$((n_week + 1)); fi
     if [ "$n_month" -lt "$KEEP_MONTHLY" ] && [ "${d##*-}" = 01 ]; then echo "$b" >> "$keep"; n_month=$((n_month + 1)); fi
   done < "$keep.days"
@@ -113,7 +113,7 @@ until_next() {
 
 # The last good backup is older than a day (or there is none): make one now, not at the next hour.
 overdue() {
-  last=$(ls -1 "$OUT" 2>/dev/null | grep -E '^beni-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}$' | sort | tail -n 1)
+  last=$(ls -1 "$OUT" 2>/dev/null | grep -E '^pingo-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}$' | sort | tail -n 1)
   [ -z "$last" ] && return 0
   [ -n "$(find "$OUT/$last" -maxdepth 0 -mmin +1500 2>/dev/null)" ]
 }

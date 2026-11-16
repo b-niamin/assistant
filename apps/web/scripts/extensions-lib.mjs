@@ -22,10 +22,10 @@ export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)
 /**
  * The SDK contract version (spec 002). It grows by additions only: an extension declares the version it
  * was written for and builds on that core or any newer one. 2 = shared charts, EmptyState, EN, ticks;
- * 3 = `import beni` for Python services (docker/worker/lib); 4 = `ext-run` in the app's terminal, and a
+ * 3 = `import pingo` for Python services (docker/worker/lib); 4 = `ext-run` in the app's terminal, and a
  * source's `command` run there by its button.
  */
-export const SHELL_API = 5;
+export const SHELL_API = 6;
 /** First path segments the shell owns; an extension id can never take one. */
 export const RESERVED_IDS = new Set([
   'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',
@@ -79,7 +79,7 @@ export function validateEntry(e) {
   return errors;
 }
 
-/** What Beni can wear (manifest "accessory"); the drawings are in src/lib/beni-accessories.ts. */
+/** What Pingo can wear (manifest "accessory"); the drawings are in src/lib/pingo-accessories.ts. */
 export const ACCESSORIES = [
   'none',
   'headband',
@@ -138,7 +138,7 @@ export function validateManifest(m, dirName, root) {
   if (m.secrets !== undefined) errors.push(`${dirName}/extension.json: declare secrets as "settings" fields with "type": "secret"`);
   // Its settings panel in System settings (spec 002, "Settings"): fields the shell renders.
   if (m.settings !== undefined) errors.push(...settingsProblems(m.settings, m.kind, dirName));
-  // What Beni wears on its pages; left out, the shell guesses from the id and name.
+  // What Pingo wears on its pages; left out, the shell guesses from the id and name.
   if (m.accessory !== undefined && !ACCESSORIES.includes(m.accessory))
     errors.push(`${dirName}/extension.json: "accessory" must be one of ${ACCESSORIES.join(', ')}`);
   // Other extensions it works better with (spec 002, "Works with"): its settings panel suggests installing them.
@@ -691,7 +691,7 @@ const ALLOWED_SHELL_IMPORTS = /^(\$shell(\/.*)?|\$app\/.*|@sveltejs\/kit|svelte(
  */
 /**
  * The look every extension must have (spec 001, add-extension skill): the shell's layout and tokens, and
- * Beni woven in. Returned as warnings, not errors, so an older extension still builds; a new one must
+ * Pingo woven in. Returned as warnings, not errors, so an older extension still builds; a new one must
  * come out of `ext check` without any.
  */
 export function lookWarnings(root, manifest, id) {
@@ -699,8 +699,8 @@ export function lookWarnings(root, manifest, id) {
   if (manifest.kind === 'onefile') {
     const file = manifest.entry && path.join(root, manifest.entry);
     const html = file && existsSync(file) ? readFileSync(file, 'utf8') : '';
-    if (!/<assistant-beni\b|createElement\(\s*['"]assistant-beni['"]/.test(html))
-      warnings.push(`${id}: Beni is missing (use <assistant-beni mood="..."> in its header or empty states)`);
+    if (!/<assistant-pingo\b|createElement\(\s*['"]assistant-pingo['"]/.test(html))
+      warnings.push(`${id}: Pingo is missing (use <assistant-pingo mood="..."> in its header or empty states)`);
     if (!/var\(--(page|surface|ink|accent)\b/.test(html))
       warnings.push(`${id}: does not use the shell tokens (var(--page), var(--surface), var(--ink), var(--accent), ...)`);
   } else {
@@ -708,7 +708,7 @@ export function lookWarnings(root, manifest, id) {
     const files = existsSync(web) ? walk(web).filter((/** @type {string} */ f) => /\.(svelte|ts)$/.test(f)) : [];
     const src = files.map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
     if (!/import\s*\{[^}]*\bMascot\b[^}]*\}\s*from\s*['"]\$shell\/ui['"]/.test(src))
-      warnings.push(`${id}: Beni is missing (import { Mascot } from '$shell/ui' for its header or empty states)`);
+      warnings.push(`${id}: Pingo is missing (import { Mascot } from '$shell/ui' for its header or empty states)`);
     const pages = files.filter((f) => f.endsWith('.svelte')).map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
     if (/#[0-9a-fA-F]{6}\b/.test(pages))
       warnings.push(`${id}: raw hex colours in its pages (use the shell tokens: --ink, --accent, --hue-*, ...)`);

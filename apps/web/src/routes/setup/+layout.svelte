@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** The wizard's frame: Beni, the steps so far, and the step's page in one column. */
+  /** The wizard's frame: Pingo, the steps so far, and the step's page in one column. */
   import { page } from '$app/state';
   import { SETUP_STEPS, stepIndex } from '#lib/setup/steps.ts';
   import { tFor, useT } from '#lib/i18n/index.ts';

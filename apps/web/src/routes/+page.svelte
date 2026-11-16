@@ -38,7 +38,7 @@
 
 <div class="head">
   <div class="hello">
-    <Mascot mood={clock.mood} size={56} label={t('Beni, the assistant mascot. Click me.')} />
+    <Mascot mood={clock.mood} size={56} label={t('Pingo, the assistant mascot. Click me.')} />
     <div>
       <p class="eyebrow">{clock.today}</p>
       <h1>{clock.greeting}, {profileName}</h1>

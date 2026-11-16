@@ -6,7 +6,7 @@
 </script>
 
 <form method="POST" class="card login rise">
-  <div class="pip"><Mascot mood="charged" size={84} label={t('Beni, the assistant mascot. Click me.')} /></div>
+  <div class="pip"><Mascot mood="charged" size={84} label={t('Pingo, the assistant mascot. Click me.')} /></div>
   <div>
     <h1>{t('Assistant')}</h1>
     <p class="muted">{t('Enter the app password to continue.')}</p>
@@ -14,7 +14,7 @@
   <label>
     <span class="eyebrow">{t('Password')}</span>
     <!-- Password managers file a password under a user name: give them one they can keep. -->
-    <input class="sr" type="text" name="username" value="Beni Assistant" autocomplete="username" tabindex="-1" aria-hidden="true" readonly />
+    <input class="sr" type="text" name="username" value="Pingo Assistant" autocomplete="username" tabindex="-1" aria-hidden="true" readonly />
     <!-- svelte-ignore a11y_autofocus -->
     <input type="password" name="password" autocomplete="current-password" required autofocus />
   </label>

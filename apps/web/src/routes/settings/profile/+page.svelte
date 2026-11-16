@@ -44,7 +44,7 @@
       <a class="btn-ghost" href="/settings/profiles">{t('All profiles')}</a>
     </div>
   {/if}
-  <span class="beni"><Mascot mood="steady" size={56} decorative /></span>
+  <span class="pingo"><Mascot mood="steady" size={56} decorative /></span>
 </div>
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
@@ -117,7 +117,7 @@
     gap: var(--space-2);
     margin-right: 64px;
   }
-  .beni {
+  .pingo {
     position: absolute;
     right: var(--space-4);
     bottom: -10px;
@@ -201,7 +201,7 @@
     .me .acts {
       margin-right: 0;
     }
-    .beni {
+    .pingo {
       display: none;
     }
     .pref {

@@ -45,8 +45,8 @@ itself) becomes a new extension: see the `add-extension` and `new-extension` ski
 ## Talking to the data
 
 ```sh
-beni-db -c 'SELECT ...'                 # read-only role claude_ro, 30 s statement timeout
-beni-db --write -c 'UPDATE ...'         # read-write role agent_rw: rows of core and every extension
+pingo-db -c 'SELECT ...'                 # read-only role claude_ro, 30 s statement timeout
+pingo-db --write -c 'UPDATE ...'         # read-write role agent_rw: rows of core and every extension
 ```
 
 `agent_rw` cannot change the schema or roles, truncate, or see secrets, sessions or connector tokens.
@@ -75,7 +75,7 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AG
    points at is only inspiration (`add-extension` skill). `extensions/` is git-ignored in this repo: it
    is this instance's own state. Its settings live in its panel in
    System settings (manifest `"settings"`). It must wear the app's layout (shell tokens, `specs/001-design.md`)
-   and have Beni, the mascot, woven in (`$shell/ui` or `<assistant-beni>` for onefile apps). It speaks every
+   and have Pingo, the mascot, woven in (`$shell/ui` or `<assistant-pingo>` for onefile apps). It speaks every
    language of the app (spec 007).
 4. Edits to `apps/web` and `extensions/` are rebuilt within seconds; a failed build leaves the previous build serving, so check
    `/logs/web.log` for `build ok` after a change. Before committing web changes run
@@ -88,7 +88,7 @@ Each extension's tables live in its own schema (`<id>` with `-` -> `_`); its `AG
 ## What needs the owner's approval
 
 You may do everything in the terminal without asking, except critical changes, which the terminal makes
-you ask for (Claude Code: `beni-guard.mjs`; Codex: `beni.rules`; list in `docker/terminal/README.md`): a
+you ask for (Claude Code: `pingo-guard.mjs`; Codex: `pingo.rules`; list in `docker/terminal/README.md`): a
 push that can reach `main`, force pushes and branch deletions, merging a PR, deleting data or changing the
 schema in SQL, `git reset --hard`/`clean -f`, `rm -r` outside scratch folders, removing an extension, and
 changing your own permission settings. Ask in words first, say what and why, then run it.

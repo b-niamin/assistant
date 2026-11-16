@@ -10,8 +10,8 @@
 <svelte:head><title>{missing ? t('Not found') : t('Error')} · {t('Assistant')}</title></svelte:head>
 
 <section class="card oops rise">
-  <Mascot mood={missing ? 'tired' : 'asleep'} size={96} label={t('Beni, the assistant mascot. Click me.')} />
-  <h1>{missing ? t('Beni looked everywhere') : t('Something went wrong')}</h1>
+  <Mascot mood={missing ? 'tired' : 'asleep'} size={96} label={t('Pingo, the assistant mascot. Click me.')} />
+  <h1>{missing ? t('Pingo looked everywhere') : t('Something went wrong')}</h1>
   <p class="muted">
     {missing ? t('There is no page at this address.') : page.error?.message ? t(page.error.message) : t('Try again in a moment.')}
   </p>

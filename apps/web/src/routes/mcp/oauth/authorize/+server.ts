@@ -8,13 +8,13 @@
  * listener does not serve.
  */
 import type { RequestHandler } from './$types';
-import beniSvg from '../../../../../static/favicon.svg?raw';
+import pingoSvg from '../../../../../static/favicon.svg?raw';
 import { endpointOfResource, escapeHtml, knownScope, redirectWith, REQUEST_TTL_S, validRedirectUri } from '#lib/mcp/oauth.ts';
 import { getEndpoint } from '#lib/mcp/endpoints.server.ts';
 import { allowedRedirectHosts, fileRequest, getClient, OAuthError, requestState, type OAuthClient } from '#lib/mcp/oauth.server.ts';
 
-const BENI = `data:image/svg+xml;base64,${Buffer.from(beniSvg).toString('base64')}`;
-const COOKIE = 'beni_oauth_request';
+const PINGO = `data:image/svg+xml;base64,${Buffer.from(pingoSvg).toString('base64')}`;
+const COOKIE = 'pingo_oauth_request';
 
 interface Ask {
   client: OAuthClient;
@@ -45,7 +45,7 @@ async function readAsk(p: URLSearchParams): Promise<Ask | string> {
 function page(body: string, refresh = 0, headers: Record<string, string> = {}): Response {
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer">${refresh ? `<meta http-equiv="refresh" content="${refresh}">` : ''}<title>Connect to Beni Assistant</title>
+<meta name="referrer" content="no-referrer">${refresh ? `<meta http-equiv="refresh" content="${refresh}">` : ''}<title>Connect to Pingo Assistant</title>
 <style>
 :root{--page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#5b5b57;--ring:#e3e2dc;--accent:#2a78d6;--critical:#d03b3b;color-scheme:light dark}
 @media (prefers-color-scheme:dark){:root{--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink-2:#a7a59e;--ring:#2e2d2a;--accent:#3987e5;--critical:#f06b6b}}
@@ -57,7 +57,7 @@ input,select{font:inherit;padding:9px 11px;border-radius:9px;border:1px solid va
 .row{display:flex;gap:10px;justify-content:flex-end}button{font:inherit;font-weight:600;padding:9px 16px;border-radius:9px;border:1px solid var(--ring);background:var(--surface);color:var(--ink);cursor:pointer}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff}.bad{color:var(--critical)}.small{font-size:.8125rem}.code{font:600 1.5rem/1.2 ui-monospace,monospace;letter-spacing:.08em;color:var(--ink);text-align:center;margin:18px 0}
 </style></head><body><main>
-<div class="top"><img src="${BENI}" width="44" height="40" alt=""><h1>Connect to Beni Assistant</h1></div>
+<div class="top"><img src="${PINGO}" width="44" height="40" alt=""><h1>Connect to Pingo Assistant</h1></div>
 ${body}
 </main></body></html>`;
   return new Response(html, {
@@ -77,7 +77,7 @@ const appOrigin = () => (process.env.ORIGIN ?? '').replace(/\/$/, '');
 const back = (uri: string, params: Record<string, string>) => new Response(null, { status: 303, headers: { location: redirectWith(uri, params), 'cache-control': 'no-store' } });
 
 function cookieOf(request: Request): string {
-  const m = /(?:^|;\s*)beni_oauth_request=([A-Za-z0-9_-]+)/.exec(request.headers.get('cookie') ?? '');
+  const m = /(?:^|;\s*)pingo_oauth_request=([A-Za-z0-9_-]+)/.exec(request.headers.get('cookie') ?? '');
   return m?.[1] ?? '';
 }
 

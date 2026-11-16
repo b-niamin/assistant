@@ -1,7 +1,7 @@
 # Install and run
 
 The details behind the quick install in the [README](../README.md): what the installer does, a
-Synology walkthrough, the everyday `beni.sh` commands, extensions and development.
+Synology walkthrough, the everyday `pingo.sh` commands, extensions and development.
 
 ## What the installer does
 
@@ -75,40 +75,40 @@ Replacing an older install: stop it first (`docker compose down` in its folder, 
 Scheduler entry). The new install has its own compose project, so fresh volumes, and the old data stays
 until you remove it (`docker compose down -v` in the old folder).
 
-## Everyday: `beni.sh`
+## Everyday: `pingo.sh`
 
 One command for the host (Synology: `sudo` in front):
 
 ```sh
-./beni.sh status                 # containers and whether the app answers
-./beni.sh doctor                 # checks permissions, git, .env, the database password; says what to run
-./beni.sh start | stop | restart # the whole stack, or one service
-./beni.sh logs web               # follow a service's log
-./beni.sh update                 # update to GitHub main now, with a progress bar (--status, --cancel)
-./beni.sh ext available          # extensions: available, install <id>, update <id>, list
-./beni.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
-./beni.sh fix-db-password        # the database keeps its data, takes the password in .env
-./beni.sh move <new-folder>      # move the install elsewhere, data kept
-./beni.sh backup [--list]        # make a backup now | list them
-./beni.sh restore <backup>       # bring one back (also on a new machine, after the installer)
-./beni.sh uninstall              # remove everything (see below)
+./pingo.sh status                 # containers and whether the app answers
+./pingo.sh doctor                 # checks permissions, git, .env, the database password; says what to run
+./pingo.sh start | stop | restart # the whole stack, or one service
+./pingo.sh logs web               # follow a service's log
+./pingo.sh update                 # update to GitHub main now, with a progress bar (--status, --cancel)
+./pingo.sh ext available          # extensions: available, install <id>, update <id>, list
+./pingo.sh fix-permissions        # owner, Synology ACLs and modes in the checkout
+./pingo.sh fix-db-password        # the database keeps its data, takes the password in .env
+./pingo.sh move <new-folder>      # move the install elsewhere, data kept
+./pingo.sh backup [--list]        # make a backup now | list them
+./pingo.sh restore <backup>       # bring one back (also on a new machine, after the installer)
+./pingo.sh uninstall              # remove everything (see below)
 ```
 
 Run `git` in the checkout as yourself, not with sudo: files git writes as root stop the containers
-and your next `git pull`. `sudo ./beni.sh update` updates as the checkout's owner and repairs what an
+and your next `git pull`. `sudo ./pingo.sh update` updates as the checkout's owner and repairs what an
 earlier `sudo git pull` left behind. It is the same update the scheduled task runs (and System settings
 → Updates shows): run it again, or click Resume, if one was interrupted ([spec 006](../specs/006-auto-update.md)).
 
 A database volume keeps the password it was created with. A new `.env` next to an old volume (a fresh
 clone into the same folder name) makes the installer stop instead of failing later with "password
-authentication failed": put the old `.env` back, run `sudo ./beni.sh fix-db-password`, or remove the
+authentication failed": put the old `.env` back, run `sudo ./pingo.sh fix-db-password`, or remove the
 `<project>_db-data` volume to start empty.
 
 ## Removing it
 
 ```sh
-sudo ./beni.sh uninstall                  # asks you to type the project name
-sudo ./beni.sh uninstall --keep-backups   # the same, but the backups stay
+sudo ./pingo.sh uninstall                  # asks you to type the project name
+sudo ./pingo.sh uninstall --keep-backups   # the same, but the backups stay
 ```
 
 It removes everything the installer made, also from an install that was interrupted halfway: the
@@ -124,7 +124,7 @@ or your own `BACKUP_DIR`) stay. On a Synology, delete the Task Scheduler entry y
 The `backup` service makes one backup a day (at `BACKUP_HOUR`, 3:00 by default, local time; at once when
 the last one is more than a day old) into `BACKUP_DIR`, a host folder next to the checkout
 (`../<folder>-backups`, e.g. `/volume1/docker/assistant-backups`; never inside the checkout, which the
-terminal sees; installs before 2026-11-12 without `BACKUP_DIR` in `.env` use `../assistant-backups`). Each backup is a folder `beni-<day>_<time>` with everything a new machine needs:
+terminal sees; installs before 2026-11-12 without `BACKUP_DIR` in `.env` use `../assistant-backups`). Each backup is a folder `pingo-<day>_<time>` with everything a new machine needs:
 
 | File | What |
 | --- | --- |
@@ -135,7 +135,7 @@ terminal sees; installs before 2026-11-12 without `BACKUP_DIR` in `.env` use `..
 
 Kept: the last 7 days, 4 Sundays and 6 first-of-the-months (`BACKUP_KEEP_DAILY`, `_WEEKLY`, `_MONTHLY`).
 Old ones go only after a backup succeeded. The files belong to root and only root can read them.
-System settings → Backups shows the last good one and has Back up now; `./beni.sh doctor` warns when the
+System settings → Backups shows the last good one and has Back up now; `./pingo.sh doctor` warns when the
 last one is more than 36 hours old.
 
 A backup on the same disk does not survive the disk: let the host copy `BACKUP_DIR` elsewhere (Synology
@@ -145,7 +145,7 @@ so encrypt that copy.
 Restore, on this machine or a new one (after `install.sh` there):
 
 ```sh
-sudo ./beni.sh restore /volume1/docker/assistant-backups/beni-2026-11-12_0300
+sudo ./pingo.sh restore /volume1/docker/assistant-backups/pingo-2026-11-12_0300
 ```
 
 It backs up the current state first, takes the keys from the backup's `env` (this machine keeps its own
@@ -157,20 +157,20 @@ CPU types (NAS, Mac, Raspberry Pi): the dump is logical.
 
 A new Postgres major (the `db` image) cannot read an older one's files, so the database moves through its
 daily dump. When `db` stops with "This volume holds a Postgres <old> database", make sure the last backup is
-recent (`./beni.sh doctor`), keep the old files aside and restore into a new volume (`<project>` is
+recent (`./pingo.sh doctor`), keep the old files aside and restore into a new volume (`<project>` is
 `COMPOSE_PROJECT_NAME` in `.env`):
 
 ```sh
-sudo ./beni.sh stop
+sudo ./pingo.sh stop
 sudo docker volume create <project>_db-data-old
 sudo docker run --rm -v <project>_db-data:/a -v <project>_db-data-old:/b alpine cp -a /a/. /b/
 sudo docker compose -p <project> rm -f db && sudo docker volume rm <project>_db-data
-sudo ./beni.sh restore <BACKUP_DIR>/beni-<latest>
+sudo ./pingo.sh restore <BACKUP_DIR>/pingo-<latest>
 ```
 
 Once the app works, remove the old files: `sudo docker volume rm <project>_db-data-old`.
 
-`install.sh` stays the first-time command (`curl ... | sudo sh`); `./beni.sh install` runs it again.
+`install.sh` stays the first-time command (`curl ... | sudo sh`); `./pingo.sh install` runs it again.
 Its tool output goes to `install.log`; only the tail is shown when a step fails.
 
 ## MCP connector (claude.ai, the Claude apps)

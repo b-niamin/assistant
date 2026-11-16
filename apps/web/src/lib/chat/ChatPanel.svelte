@@ -30,8 +30,10 @@
   let text = $state('');
   let sending = $state(false);
   let problem = $state('');
-  /** The terminal container answers /chat with 404: it still runs a version from before the chat. */
-  let outdated = $state(false);
+  /** The terminal container answered /chat with a bare 404 (no JSON): it runs a version from before the chat. */
+  let bare404 = $state(false);
+  /** "Restart the terminal" was clicked: the host's updater restarts it within a minute. */
+  let restarting = $state(false);
   let showList = $state(false);
   let panel = $state<HTMLElement>();
   let scroller = $state<HTMLElement>();
@@ -42,6 +44,8 @@
   const canAct = $derived(unlocked());
   const title = $derived(chats.find((c) => c.id === current)?.title ?? '');
   const status = $derived(dock.status);
+  /** The terminal runs a version from before the chat: it says so in its status, or answers the chat with a bare 404. */
+  const outdated = $derived((!!status?.reachable && status.chat === false) || bare404);
 
   async function api(path: string, init?: { method?: string; body?: unknown }): Promise<Response | null> {
     const res = await fetch(`/chat/api${path}`, {
@@ -49,7 +53,7 @@
       headers: init?.body ? { 'content-type': 'application/json' } : undefined,
       body: init?.body ? JSON.stringify(init.body) : undefined
     }).catch(() => null);
-    outdated = res?.status === 404;
+    bare404 = res?.status === 404 && !(await res.clone().text().catch(() => '')).trim();
     if (res?.status === 403) {
       problem = '';
       refreshDock();
@@ -130,6 +134,32 @@
     await api(`/${id}`, { method: 'DELETE' });
     if (id === current) chatPanel.current = '';
     loadList();
+  }
+
+  /** Asks the host's updater to restart the terminal, then follows its status until it serves the chat. */
+  async function restartTerminal() {
+    const res = await fetch('/settings/infrastructure/restart', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ service: 'terminal' })
+    }).catch(() => null);
+    if (!res?.ok) {
+      problem = t('The restart could not be requested ({status}).', { status: res?.status ?? 0 });
+      return;
+    }
+    restarting = true;
+    const until = Date.now() + 4 * 60_000;
+    const timer = setInterval(async () => {
+      await refreshDock();
+      if (dock.status?.chat || Date.now() > until) {
+        clearInterval(timer);
+        restarting = false;
+        if (dock.status?.chat) {
+          bare404 = false;
+          loadList();
+        }
+      }
+    }, 5000);
   }
 
   function unlock() {
@@ -319,10 +349,17 @@
     <form class="composer" onsubmit={(e) => (e.preventDefault(), send())}>
       {#if problem}<p class="note bad small" role="alert">{problem}</p>{/if}
       {#if outdated}
-        <p class="note bad small" role="alert">
-          {t('The terminal container still runs a version without the chat. Restart it to use the chat.')}
-          <a href="/settings/updates" onclick={closeChat}>{t('Updates')}</a>
-        </p>
+        <div class="note bad small outdated" role="alert">
+          <p>{t('The terminal container still runs a version without the chat. Restart it to use the chat.')}</p>
+          <p class="row">
+            {#if restarting}
+              <span>{t('Restarting the terminal: the host\'s updater takes it within a minute.')}</span>
+            {:else if canAct}
+              <button type="button" class="btn btn-primary" onclick={restartTerminal}>{t('Restart the terminal')}</button>
+            {/if}
+            <a href="/settings/infrastructure?part=terminal" onclick={closeChat}>{t('Infrastructure')}</a>
+          </p>
+        </div>
       {/if}
       {#if !canAct}
         <p class="note small">{t('Claude acts with full access: unlock first (the lock in the header).')} <button type="button" class="btn" onclick={unlock}>{t('Unlock')}</button></p>
@@ -807,6 +844,19 @@
   }
   .note.bad {
     border-left-color: var(--critical);
+  }
+  .outdated {
+    display: grid;
+    gap: var(--space-2);
+  }
+  .outdated p {
+    margin: 0;
+  }
+  .outdated .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
   }
   .small {
     font-size: var(--text-sm);

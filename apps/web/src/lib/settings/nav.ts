@@ -12,6 +12,7 @@ export type NavId =
   | 'language'
   | 'connector'
   | 'ai'
+  | 'infrastructure'
   | 'updates'
   | 'backups'
   | 'worker'
@@ -83,6 +84,12 @@ export const SETTINGS_NAV: NavGroup[] = [
   {
     label: 'This server',
     items: [
+      {
+        id: 'infrastructure',
+        href: '/settings/infrastructure',
+        label: 'Infrastructure',
+        icon: ['M7.5 3h5v4h-5zM3 13h5v4H3zM12 13h5v4h-5z', 'M10 7v3M5.5 13v-3h9v3']
+      },
       { id: 'updates', href: '/settings/updates', label: 'Updates', icon: ['M16 10a6 6 0 1 1-1.8-4.3', 'M16 3.5v3.5h-3.5'] },
       {
         id: 'connector',

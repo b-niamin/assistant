@@ -20,16 +20,18 @@ export interface LoginStatus {
   claude: boolean;
   codex: boolean;
   gh: boolean;
+  /** The terminal serves the chat (false: it still runs a version from before the chat, and needs a restart). */
+  chat: boolean;
 }
 
 /** Which CLIs are signed in in the terminal container: booleans only. */
 export async function terminalStatus(): Promise<LoginStatus> {
   try {
     const res = await fetch(`http://${terminalAddr()}/status`, { signal: AbortSignal.timeout(1500) });
-    const body = (await res.json()) as { claude?: unknown; codex?: unknown; gh?: unknown };
-    return { reachable: true, claude: body.claude === true, codex: body.codex === true, gh: body.gh === true };
+    const body = (await res.json()) as { claude?: unknown; codex?: unknown; gh?: unknown; chat?: unknown };
+    return { reachable: true, claude: body.claude === true, codex: body.codex === true, gh: body.gh === true, chat: body.chat === true };
   } catch {
-    return { reachable: false, claude: false, codex: false, gh: false };
+    return { reachable: false, claude: false, codex: false, gh: false, chat: false };
   }
 }
 

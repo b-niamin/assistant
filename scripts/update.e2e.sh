@@ -204,6 +204,21 @@ sh "$UH/update.sh" run --restart "$CO" < /dev/null > "$T/out" 2>&1 || fail "--re
 [ "$(llm_img)" != "$imgB" ] && [ -z "$(st pendingRestart)" ] || fail "--restart did not restart terminal"
 ok "restarts asked first: terminal waits for Restart now (app) or --restart (host), the rest is updated"
 
+# One service's "Restart" (System settings -> Infrastructure): restarted as it is, once per click, echoed
+# back; a service the app may not restart is refused.
+started() { docker inspect -f '{{.State.StartedAt}}' "$(dc ps -q "$1")"; }
+w0=$(started web); t0=$(started terminal); i0=$(llm_img)
+printf 'mode=auto\nrestarts=ask\nrestart=x1\nrestart-service=web@s1\n' > "$CTL"
+run; [ "$RC" = 0 ] && grep -q 'restarted web' "$T/out" || fail "service restart not done"
+[ "$(started web)" != "$w0" ] && [ "$(started terminal)" = "$t0" ] || fail "service restart: web not restarted, or terminal touched"
+[ "$(st serviceRestart)" = web@s1 ] && [ "$(st serviceRestartResult)" = ok ] && [ "$(st status)" = ok ] || fail "service restart not echoed: $(cat "$UH/status.json")"
+w1=$(started web); run; [ ! -s "$T/out" ] && [ "$(started web)" = "$w1" ] || fail "service restart handled twice"
+printf 'mode=auto\nrestarts=ask\nrestart=x1\nrestart-service=terminal@s2\n' > "$CTL"
+run; [ "$(started terminal)" != "$t0" ] && [ "$(llm_img)" = "$i0" ] && [ "$(st serviceRestartResult)" = ok ] || fail "terminal restart"
+printf 'mode=auto\nrestarts=ask\nrestart=x1\nrestart-service=db@s3\n' > "$CTL"
+run; grep -q 'refused' "$T/out" && [ "$(st serviceRestart)" = db@s3 ] && [ "$(st serviceRestartResult)" = failed ] || fail "db restart not refused"
+ok "service restart from the app: once per click, echoed, only the allowed services"
+
 # A terminal: the bare command updates now, with a progress bar, and asks before restarting terminal.
 asown sh -c "echo v5 > '$T/work/apps/web/page.txt'"; dockerfile 'LABEL v=5'; commit J
 imgC=$(llm_img)

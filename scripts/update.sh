@@ -42,6 +42,9 @@ MAX_ATTEMPTS=3                                    # an interrupted or failed upd
 # Recreating or restarting these ends what runs in them (the terminal and the Claude or Codex sessions in it):
 # with restarts=ask (the default, System settings -> Updates) the update leaves them to a confirmed restart.
 HELD=${ASSISTANT_HELD_SERVICES:-terminal}
+# The services the app may restart one by one (System settings -> Infrastructure, `restart-service=<svc>@<id>`).
+# Not the database, nor the one-shot migrate: a restart of those is the host's call.
+RESTARTABLE="web terminal browser worker backup ext-migrate"
 
 say() { printf '[update] %s\n' "$*"; }
 # An error also lands in <home>/last-error and the app's updater.log: a scheduled task's output is
@@ -241,6 +244,7 @@ write_status() {
     printf '"at":%s,"step":%s,"steps":%s,"startedAt":%s,' "$(json_str "$(iso)")" "$STEP_NO" "$STEP_TOTAL" "$(json_str "$STARTED_AT")"
     printf '"attempt":%s,"request":%s,"pid":%s,"branch":%s,' "$ATTEMPT" "$(json_str "${HANDLED:-}")" "$$" "$(json_str "$BRANCH")"
     printf '"pendingRestart":%s,"restartRequest":%s,' "$(json_str "$(pending_services)")" "$(json_str "${S_restarted:-}")"
+    printf '"serviceRestart":%s,"serviceRestartResult":%s,' "$(json_str "${S_svc_restarted:-}")" "$(json_str "${S_svc_result:-}")"
     # Where this updater lives and what schedules it: the app shows the exact command for the schedule.
     sched=cron; [ -f /etc/synoinfo.conf ] && sched=synology
     printf '"home":%s,"schedule":%s,' "$(json_str "$HOME_DIR")" "$(json_str "$sched")"
@@ -251,7 +255,7 @@ write_status() {
 }
 
 # --- state: what is deployed, what failed, and the journal of the update in progress ---------------
-STATE_KEYS="deployed deployed_at failed fail_count failed_at note handled cancelled target base done attempt last_fetch pending restarted"
+STATE_KEYS="deployed deployed_at failed fail_count failed_at note handled cancelled target base done attempt last_fetch pending restarted svc_restarted svc_result"
 state_load() {
   for k in $STATE_KEYS; do
     v=$(sed -n "s/^$k=//p" "$STATE" 2>/dev/null | head -n 1)
@@ -267,12 +271,13 @@ state_save() {
 
 # The app's choice (System settings -> Updates): `mode=auto|manual`, `restarts=ask|auto`, `funnel=on|off`
 # (the Claude connector, see funnel_apply), and the clicks: `request=<id>` ("Update now", "Resume"),
-# `cancel=<id>` ("Cancel"), `restart=<id>` ("Restart now"). In the `updater-control` volume, which only web
+# `cancel=<id>` ("Cancel"), `restart=<id>` ("Restart now"), `restart-service=<svc>@<id>` (one service's
+# "Restart" on the Infrastructure page). In the `updater-control` volume, which only web
 # mounts (the other containers write `logs`, and must not turn Funnel on). Read as data, never run, and
 # only from a plain file.
 control_file() { [ -z "$CONTROL_MP" ] || echo "$CONTROL_MP/control"; }
 read_control() {
-  MODE=auto REQUEST="" CANCEL="" RESTARTS="" RESTART_REQ="" FUNNEL=""
+  MODE=auto REQUEST="" CANCEL="" RESTARTS="" RESTART_REQ="" SVC_REQ="" FUNNEL=""
   f=$(control_file)
   if [ -n "$f" ] && [ -f "$f" ] && [ ! -L "$f" ] && [ -r "$f" ]; then
     FUNNEL=$(sed -n 's/^funnel=//p' "$f" | grep -x -e on -e off | tail -n 1)
@@ -281,6 +286,7 @@ read_control() {
     REQUEST=$(sed -n 's/^request=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
     CANCEL=$(sed -n 's/^cancel=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
     RESTART_REQ=$(sed -n 's/^restart=\([A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
+    SVC_REQ=$(sed -n 's/^restart-service=\([a-z][a-z0-9-]\{0,40\}@[A-Za-z0-9:._-]\{1,64\}\)$/\1/p' "$f" | tail -n 1)
   fi
   [ -n "$MODE" ] || MODE=auto
   [ -n "$RESTARTS" ] || RESTARTS=${ASSISTANT_RESTARTS:-ask}
@@ -653,6 +659,41 @@ restart_now() {
   [ "$TTY" != 1 ] || printf '\r\033[K'
 }
 
+# restart_service <svc>@<id>: one service's "Restart" from the app. A held service that waits for a newer
+# version gets it (restart_now); any other is restarted as it is (`docker compose restart`, which also re-runs
+# the code it takes from the checkout). The state the updater was in stays; the result goes to
+# serviceRestart / serviceRestartResult in the status.
+restart_service() {
+  svc=${1%@*}
+  S_svc_restarted=$1 S_svc_result=failed
+  prev=$(sed -n 's/^{"status":"\([a-z]*\)".*/\1/p' "$HOME_DIR/status.json" 2>/dev/null)
+  case $prev in ok | failed | blocked | available) ;; *) prev=ok ;; esac
+  case " $RESTARTABLE " in
+    *" $svc "*) ;;
+    *) log "restart of $svc refused: the app may restart only $RESTARTABLE"; write_status "$prev" "restart of $svc refused"; state_save; flush_log; return 0 ;;
+  esac
+  if [ -z "$(project_containers "$svc")" ]; then
+    log "restart of $svc: no such container"; write_status "$prev" "restart of $svc: it does not run here"; state_save; flush_log; return 0
+  fi
+  case " $(pending_services) " in
+    *" $svc "*)
+      restart_now "asked in the app for $svc"
+      if [ -z "$S_pending" ]; then S_svc_result=ok; write_status ok "restarted $TOUCHED at $(short "$DEPLOYED")"
+      else write_status failed "$FAIL_MSG"; fi
+      state_save
+      return 0 ;;
+  esac
+  BUILD_LOG=$(build_log_path)
+  printf '%s restart of %s (asked in the app)\n' "$(iso)" "$svc" > "$BUILD_LOG" 2>/dev/null || BUILD_LOG=/dev/null
+  log "restarting $svc (asked in the app)"
+  if dc restart "$svc" >> "$BUILD_LOG" 2>&1; then
+    S_svc_result=ok; log "restarted $svc"; write_status "$prev" "restarted $svc"
+  else
+    log "restart of $svc FAILED (see the build log)"; write_status "$prev" "restart of $svc failed"
+  fi
+  state_save; flush_log
+}
+
 # docker/, db/ and docker-compose.yml of $SHA, from the mirror: the only build contexts and compose file used.
 export_src() {
   [ -z "$SRC" ] || [ ! -f "$SRC/.sha" ] || [ "$(cat "$SRC/.sha")" != "$SHA" ] || return 0
@@ -887,6 +928,8 @@ cmd_run() {
     if [ -n "$S_pending" ]; then restart_now "$restart_why"
     else state_save; write_status ok "nothing waits for a restart"; fi
   fi
+  # One service's "Restart" on the Infrastructure page (once per click).
+  if [ -n "$SVC_REQ" ] && [ "$SVC_REQ" != "$S_svc_restarted" ]; then restart_service "$SVC_REQ"; fi
 
   # A journal without a live lock: the update before this one died (reboot, killed, crash).
   resumed=0

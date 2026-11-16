@@ -21,6 +21,8 @@ export interface DockStatus {
   claude: boolean;
   codex: boolean;
   gh: boolean;
+  /** The terminal serves the chat (false: it runs a version from before the chat until it restarts). */
+  chat?: boolean;
   defaultAgent?: Agent;
   update: { state: string; sha: string; actions: string; step: number; steps: number; pendingRestart: string } | null;
 }

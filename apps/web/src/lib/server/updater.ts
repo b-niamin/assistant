@@ -30,6 +30,9 @@ export interface UpdaterStatus {
   pendingRestart: string;
   /** The app's last "Restart now" the updater took. */
   restartRequest: string;
+  /** The app's last restart of one service (`<service>@<id>`, Infrastructure page) the updater took, and how it went. */
+  serviceRestart: string;
+  serviceRestartResult: 'ok' | 'failed' | '';
   /** The repo the updater follows (no credentials), '' when unknown. */
   repo: string;
   /** The updater's folder on the host ('' when unknown) and what runs it: DSM's Task Scheduler or cron. */
@@ -63,6 +66,8 @@ export function parseUpdaterStatus(raw: string): UpdaterStatus | null {
     request: text(j.request, 64),
     pendingRestart: text(j.pendingRestart, 200),
     restartRequest: text(j.restartRequest, 64),
+    serviceRestart: text(j.serviceRestart, 110),
+    serviceRestartResult: j.serviceRestartResult === 'ok' || j.serviceRestartResult === 'failed' ? j.serviceRestartResult : '',
     repo: text(j.repo, 300),
     home: /^\/[A-Za-z0-9._/@+-]{1,250}$/.test(String(j.home ?? '')) ? String(j.home) : '',
     schedule: j.schedule === 'synology' || j.schedule === 'cron' ? j.schedule : ''
@@ -125,6 +130,8 @@ export interface UpdaterControl {
   restarts?: 'ask' | 'auto';
   /** When "Restart now" was last clicked (ISO), '' if never. */
   restart?: string;
+  /** The last restart of one service asked on the Infrastructure page: `<service>@<ISO time>`, '' if never. */
+  service?: string;
   /** The Claude connector (spec 005): the updater turns Tailscale Funnel on or off for the public MCP listener. */
   funnel?: 'on' | 'off';
 }
@@ -141,6 +148,7 @@ export function parseControl(raw: string): UpdaterControl {
     cancel: id(get('cancel')),
     restarts: get('restarts') === 'auto' ? 'auto' : 'ask',
     restart: id(get('restart')),
+    service: /^[a-z][a-z0-9-]{0,40}@[A-Za-z0-9:._-]{1,64}$/.test(get('restart-service')) ? get('restart-service') : '',
     funnel: get('funnel') === 'on' ? 'on' : 'off'
   };
 }
@@ -156,6 +164,7 @@ export async function setUpdaterControl(c: UpdaterControl, target = CONTROL_FILE
     c.request && `request=${c.request}`,
     c.cancel && `cancel=${c.cancel}`,
     c.restart && `restart=${c.restart}`,
+    c.service && `restart-service=${c.service}`,
     `funnel=${c.funnel === 'on' ? 'on' : 'off'}`
   ].filter(Boolean);
   await writeAtomic(target, `${lines.join('\n')}\n`);

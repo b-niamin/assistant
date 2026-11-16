@@ -73,6 +73,15 @@ builds their images and does everything else, then leaves their `up`/`restart` i
 "Restart now" (`restart=<id>` in the control file), `sudo ./beni.sh update --restart`, or "y" at the
 prompt of `sudo ./beni.sh update` in a terminal recreates them from the deployed commit's compose file.
 
+**One part restarted on request** (System settings → Infrastructure, and the chat's "Restart the terminal"
+when the terminal still runs a version from before the chat): `restart-service=<service>@<id>` in the
+control file. The next run restarts that one service (`docker compose restart`, which also re-runs the code
+it takes from the checkout), once per id, only `web`, `terminal`, `browser`, `worker`, `backup` and
+`ext-migrate` (never the database or the one-shot `migrate`). A held service that waits for a newer version
+gets it (as "Restart now"). The updater keeps its own state and echoes `serviceRestart` (the request) and
+`serviceRestartResult` (`ok` or `failed`) in the status. The terminal's `/status` says `"chat": true`, so the
+app tells a terminal from before the chat without guessing from a 404.
+
 Before step 1 the same throwaway container checks that the checkout can take main at all (on `main`, no
 local commits, no local changes in files the update changes); otherwise the update is paused ("blocked")
 and nothing is built. Every step runs under a time limit (90 minutes for a build, 15 for the rest): a hung

@@ -79,7 +79,9 @@ const server = createServer(async (req, res) => {
         // .claude.json appears on the first run, before any login: only an oauthAccount in it counts.
         claude: nonEmpty(path.join(HOME, '.claude/.credentials.json')) || mentions(path.join(HOME, '.claude.json'), '"oauthAccount"'),
         codex: nonEmpty(path.join(process.env.CODEX_HOME || path.join(HOME, '.codex'), 'auth.json')),
-        gh: nonEmpty(path.join(HOME, '.config/gh/hosts.yml'))
+        gh: nonEmpty(path.join(HOME, '.config/gh/hosts.yml')),
+        // What this version serves: the app tells a terminal from before the chat by its absence.
+        chat: true
       })
     );
     return;

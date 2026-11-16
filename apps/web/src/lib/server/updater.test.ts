@@ -16,7 +16,7 @@ const sample = {
 };
 
 it('reads what update.sh writes', () => {
-  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '', step: 0, steps: 0, startedAt: '', attempt: 0, request: '', pendingRestart: '', restartRequest: '', repo: '', home: '', schedule: '' });
+  expect(parseUpdaterStatus(JSON.stringify(sample))).toEqual({ ...sample, checkedAt: '', step: 0, steps: 0, startedAt: '', attempt: 0, request: '', pendingRestart: '', restartRequest: '', serviceRestart: '', serviceRestartResult: '', repo: '', home: '', schedule: '' });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, attempt: 2, request: 'r1', pid: 5 }))).toMatchObject({ attempt: 2, request: 'r1' });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, status: 'updating', step: 2, steps: 5, startedAt: 'x' }))).toMatchObject({ step: 2, steps: 5 });
   expect(parseUpdaterStatus(JSON.stringify({ ...sample, step: -1, steps: '9' }))).toMatchObject({ step: 0, steps: 0 });
@@ -52,11 +52,16 @@ it('reads the heartbeat next to the status and tells a stopped updater', async (
 it('keeps the manual mode and the update request for the host', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'upd-'));
   const file = path.join(dir, 'control');
-  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '', cancel: '', restarts: 'ask', restart: '', funnel: 'off' });
-  const c = { mode: 'manual' as const, request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z', restarts: 'auto' as const, restart: '2026-11-09T15:50:00.000Z', funnel: 'on' as const };
+  expect(await updaterControl(file)).toEqual({ mode: 'auto', request: '', cancel: '', restarts: 'ask', restart: '', service: '', funnel: 'off' });
+  const c = { mode: 'manual' as const, request: '2026-11-09T15:30:00.000Z', cancel: '2026-11-09T15:40:00.000Z', restarts: 'auto' as const, restart: '2026-11-09T15:50:00.000Z', service: 'terminal@2026-11-09T16:00:00.000Z', funnel: 'on' as const };
   await setUpdaterControl(c, file);
   expect(await updaterControl(file)).toEqual(c);
-  expect(parseControl('mode=manual\nrequest=$(reboot)\nrestart=;rm\nfunnel=yes\n')).toEqual({ mode: 'manual', request: '', cancel: '', restarts: 'ask', restart: '', funnel: 'off' });
+  expect(parseControl('mode=manual\nrequest=$(reboot)\nrestart=;rm\nrestart-service=db;x@1\nfunnel=yes\n')).toEqual({ mode: 'manual', request: '', cancel: '', restarts: 'ask', restart: '', service: '', funnel: 'off' });
+});
+
+it('reads the echo of a restart of one service', () => {
+  expect(parseUpdaterStatus(JSON.stringify({ ...sample, serviceRestart: 'web@x', serviceRestartResult: 'ok' }))).toMatchObject({ serviceRestart: 'web@x', serviceRestartResult: 'ok' });
+  expect(parseUpdaterStatus(JSON.stringify({ ...sample, serviceRestartResult: 'maybe' }))?.serviceRestartResult).toBe('');
 });
 
 it('reads the Claude connector state the updater applied, and nothing else', () => {

@@ -65,7 +65,7 @@ test('server: rejects without ticket, runs a shell with one', async (t) => {
   mkdirSync(path.join(TMUX_TMPDIR, '.config/gh'), { recursive: true });
   writeFileSync(path.join(TMUX_TMPDIR, '.config/gh/hosts.yml'), 'github.com:\n');
   const status = await (await fetch(`http://127.0.0.1:${port}/status`)).json();
-  assert.deepEqual(status, { claude: false, codex: false, gh: true });
+  assert.deepEqual(status, { claude: false, codex: false, gh: true, chat: true });
   // Remote Control is gone: its old endpoints answer 404.
   assert.equal((await fetch(`http://127.0.0.1:${port}/remote?agent=claude`, { method: 'POST' })).status, 404);
 

@@ -19,11 +19,12 @@ export type PartId =
   | 'backup'
   | 'ext-migrate';
 
-/** Outside this machine, on the host itself, or a container of the compose project. */
-export type PartKind = 'outside' | 'host' | 'container';
+/** Outside this machine, on the host itself, a container of the compose project, or an installed app (extension). */
+export type PartKind = 'outside' | 'host' | 'container' | 'app';
 
 export interface Part {
-  id: PartId;
+  /** A core part's id, or `app:<extension id>` for an installed app. */
+  id: string;
   name: string;
   /** A shorter name for the diagram's box, when the name does not fit. */
   short?: string;
@@ -40,7 +41,7 @@ export interface Part {
   service?: string;
   /** What a restart ends, when it ends something (shown before the click). */
   restartNote?: string;
-  /** Position on the diagram's 900 x 560 grid (top-left corner). */
+  /** Position on the diagram's grid, VIEW_W wide (top-left corner). */
   x: number;
   y: number;
 }
@@ -48,10 +49,13 @@ export interface Part {
 export const NODE_W = 172;
 export const NODE_H = 60;
 export const VIEW_W = 900;
-export const VIEW_H = 560;
+/** Where the row of installed apps starts, below the containers; each further row of APPS_PER_ROW is ROW_H lower. */
+export const APPS_Y = 650;
+export const APPS_PER_ROW = 4;
+export const ROW_H = 92;
 
 export const PARTS: Part[] = [
-  { id: 'you', icon: ['M6 4h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', 'M9 13.5h2'], name: 'You', what: 'Your browser or phone, on your tailnet.', kind: 'outside', x: 8, y: 120 },
+  { id: 'you', icon: ['M6 4h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', 'M9 13.5h2'], name: 'You', what: 'Your browser or phone, on your tailnet.', kind: 'outside', x: 60, y: 40 },
   {
     id: 'claude',
     icon: ['M10 3v14M3.9 6.5l12.2 7M3.9 13.5l12.2-7'],
@@ -59,8 +63,8 @@ export const PARTS: Part[] = [
     what: 'Claude on the web and in its apps: reaches the apps\' tools through the connector.',
     kind: 'outside',
     href: '/settings/connector',
-    x: 8,
-    y: 250
+    x: 364,
+    y: 40
   },
   {
     id: 'github',
@@ -69,8 +73,8 @@ export const PARTS: Part[] = [
     what: 'Holds main: the version this server runs.',
     kind: 'outside',
     href: '/settings/updates',
-    x: 8,
-    y: 460
+    x: 668,
+    y: 40
   },
   {
     id: 'connector',
@@ -80,8 +84,8 @@ export const PARTS: Part[] = [
     what: 'Tailscale Funnel on the host: opens only /mcp of the app to the internet, with sign-in.',
     kind: 'host',
     href: '/settings/connector',
-    x: 212,
-    y: 250
+    x: 364,
+    y: 160
   },
   {
     id: 'updater',
@@ -91,8 +95,8 @@ export const PARTS: Part[] = [
     kind: 'host',
     href: '/settings/updates',
     log: 'updater.log',
-    x: 212,
-    y: 460
+    x: 668,
+    y: 160
   },
   {
     id: 'web',
@@ -104,8 +108,8 @@ export const PARTS: Part[] = [
     log: 'web.log',
     service: 'web',
     restartNote: 'The page reloads; nothing is lost.',
-    x: 470,
-    y: 120
+    x: 364,
+    y: 300
   },
   {
     id: 'db',
@@ -114,8 +118,8 @@ export const PARTS: Part[] = [
     what: 'PostgreSQL: the data of the app and of every installed app, each in its own schema.',
     kind: 'container',
     href: '/settings/backups',
-    x: 470,
-    y: 400
+    x: 364,
+    y: 520
   },
   {
     id: 'terminal',
@@ -126,8 +130,8 @@ export const PARTS: Part[] = [
     href: '/settings/ai',
     service: 'terminal',
     restartNote: 'Ends the Claude and Codex sessions and the terminal running there.',
-    x: 712,
-    y: 30
+    x: 60,
+    y: 300
   },
   {
     id: 'browser',
@@ -138,8 +142,8 @@ export const PARTS: Part[] = [
     href: '/settings/browser',
     service: 'browser',
     restartNote: 'Closes its open tabs; sign-ins stay.',
-    x: 712,
-    y: 130
+    x: 60,
+    y: 410
   },
   {
     id: 'worker',
@@ -151,8 +155,8 @@ export const PARTS: Part[] = [
     log: 'worker.log',
     service: 'worker',
     restartNote: 'Its services start again; scheduled jobs keep their history.',
-    x: 712,
-    y: 250
+    x: 668,
+    y: 300
   },
   {
     id: 'backup',
@@ -163,8 +167,8 @@ export const PARTS: Part[] = [
     href: '/settings/backups',
     log: 'backup.log',
     service: 'backup',
-    x: 712,
-    y: 360
+    x: 60,
+    y: 520
   },
   {
     id: 'ext-migrate',
@@ -175,14 +179,14 @@ export const PARTS: Part[] = [
     href: '/settings/apps',
     log: 'ext-migrate.log',
     service: 'ext-migrate',
-    x: 712,
-    y: 470
+    x: 668,
+    y: 520
   }
 ];
 
 export interface Link {
-  from: PartId;
-  to: PartId;
+  from: string;
+  to: string;
   /** What goes over it, one short phrase. */
   label: string;
   /** Drawn dashed: control, not data (the updater deploying). */
@@ -204,33 +208,81 @@ export const LINKS: Link[] = [
   { from: 'ext-migrate', to: 'db', label: 'migrations' }
 ];
 
-export const partById = (id: string): Part | undefined => PARTS.find((p) => p.id === id);
+/** An installed app as the diagram knows it: from the registry and the worker's status, nothing hard-coded. */
+export interface AppInfo {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  kind: 'native' | 'onefile';
+  href: string;
+  enabled: boolean;
+  /** Services and jobs it runs in the worker, and how many of them fail. */
+  units: number;
+  failed: number;
+}
+
+const APP_ICON = ['M4 4h4.5v4.5H4zM11.5 4H16v4.5h-4.5zM4 11.5h4.5V16H4z', 'M13.75 11.5v4.5M11.5 13.75H16'];
+
+/** The installed apps as parts of the diagram: a grid of rows under the containers. */
+export function appParts(apps: AppInfo[]): Part[] {
+  const gap = (VIEW_W - 2 * 60 - APPS_PER_ROW * NODE_W) / (APPS_PER_ROW - 1);
+  return apps.map((a, i) => ({
+    id: `app:${a.id}`,
+    name: a.name,
+    what: a.description,
+    kind: 'app' as const,
+    icon: APP_ICON,
+    href: `/settings/extensions/${a.id}`,
+    x: 60 + (i % APPS_PER_ROW) * (NODE_W + gap),
+    y: APPS_Y + Math.floor(i / APPS_PER_ROW) * ROW_H
+  }));
+}
+
+/** An app keeps its data in the database (its own schema, or the app's key-value store) and, when it runs
+ * services or jobs, the worker runs them. The app serves its pages, which the detail card says. */
+export function appLinks(apps: AppInfo[]): Link[] {
+  return apps.flatMap((a) => [
+    { from: `app:${a.id}`, to: 'db', label: 'its data' },
+    ...(a.units ? [{ from: 'worker', to: `app:${a.id}`, label: 'runs its services', dashed: true }] : [])
+  ]);
+}
+
+/** How tall the diagram is with this many apps. */
+export const viewHeight = (apps: number): number => (apps ? APPS_Y + Math.ceil(apps / APPS_PER_ROW) * ROW_H - ROW_H + NODE_H + 22 : 604);
 
 /** The parts a part uses (it needs them) and the parts that use it. */
-export function neighbours(id: PartId): { uses: PartId[]; usedBy: PartId[] } {
+export function neighbours(id: string, links: Link[] = LINKS): { uses: string[]; usedBy: string[] } {
   return {
-    uses: LINKS.filter((l) => l.from === id).map((l) => l.to),
-    usedBy: LINKS.filter((l) => l.to === id).map((l) => l.from)
+    uses: links.filter((l) => l.from === id).map((l) => l.to),
+    usedBy: links.filter((l) => l.to === id).map((l) => l.from)
   };
 }
 
-/** An SVG path from one part to another: a curve between facing sides, or straight down a column. */
+/**
+ * An SVG path from one part to another. A part in a lower row: a vertical S-curve from the bottom of the
+ * upper one to the top of the lower one. The same row: a straight line between facing sides. From the
+ * worker down to an app: along the diagram's right edge, past the containers below it.
+ */
 export function linkPath(a: Part, b: Part): string {
   const ax = a.x + NODE_W / 2;
   const bx = b.x + NODE_W / 2;
-  if (Math.abs(ax - bx) < NODE_W) {
+  if (a.id === 'worker' && b.kind === 'app') {
+    const x = VIEW_W - 14;
+    const y1 = a.y + NODE_H / 2;
+    const top = b.y - 18;
+    return `M${a.x + NODE_W} ${y1} C${x} ${y1} ${x} ${y1} ${x} ${y1 + 30} L${x} ${top - 20} C${x} ${top} ${bx} ${top - 12} ${bx} ${b.y}`;
+  }
+  if (b.y >= a.y + NODE_H || a.y >= b.y + NODE_H) {
     const down = b.y > a.y;
     const y1 = down ? a.y + NODE_H : a.y;
     const y2 = down ? b.y : b.y + NODE_H;
-    return `M${ax} ${y1} L${bx} ${y2}`;
+    if (Math.abs(ax - bx) < 2) return `M${ax} ${y1} L${bx} ${y2}`;
+    const mid = (y1 + y2) / 2;
+    return `M${ax} ${y1} C${ax} ${mid} ${bx} ${mid} ${bx} ${y2}`;
   }
   const right = bx > ax;
-  const x1 = right ? a.x + NODE_W : a.x;
-  const x2 = right ? b.x : b.x + NODE_W;
-  const y1 = a.y + NODE_H / 2;
-  const y2 = b.y + NODE_H / 2;
-  const mid = (x1 + x2) / 2;
-  return `M${x1} ${y1} C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`;
+  return `M${right ? a.x + NODE_W : a.x} ${a.y + NODE_H / 2} L${right ? b.x : b.x + NODE_W} ${b.y + NODE_H / 2}`;
 }
 
 /** The live state of a part (lib/server/infrastructure.ts). `state` picks the words the page shows. */

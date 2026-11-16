@@ -1000,5 +1000,12 @@
   "opens the app over the tailnet": "otwiera aplikację przez tailnet",
   "screen": "ekran",
   "Needed by": "Potrzebują jej",
-  "Internet MCP": "MCP w sieci"
+  "Internet MCP": "MCP w sieci",
+  "Switched off": "Wyłączona",
+  "Pages and data only": "Tylko strony i dane",
+  "Its pages are served by the App; its data lives in the Database.": "Jej strony serwuje Aplikacja, a dane trzyma Baza danych.",
+  "The Worker runs its services and jobs: restart them on the Worker page.": "Jej usługi i zadania uruchamia Worker: zrestartujesz je na stronie Workera.",
+  "Installed app": "Zainstalowana aplikacja",
+  "its data": "jej dane",
+  "runs its services": "uruchamia jej usługi"
 }

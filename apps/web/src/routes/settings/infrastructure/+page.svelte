@@ -9,17 +9,52 @@
   import { enhance } from '#lib/forms.ts';
   import Mascot from '#lib/Mascot.svelte';
   import PageHead from '#lib/settings/PageHead.svelte';
-  import { LINKS, linkPath, NODE_H, NODE_W, neighbours, PARTS, partById, VIEW_H, VIEW_W, type Health, type Part, type PartId } from '#lib/settings/infrastructure.ts';
+  import {
+    appLinks,
+    appParts,
+    APPS_Y,
+    LINKS,
+    linkPath,
+    NODE_H,
+    NODE_W,
+    neighbours,
+    PARTS,
+    VIEW_W,
+    viewHeight,
+    type AppInfo,
+    type Health,
+    type Part,
+    type PartId,
+    type PartState
+  } from '#lib/settings/infrastructure.ts';
   import { useT } from '#lib/i18n/index.ts';
 
   let { data, form } = $props();
   const t = useT();
 
-  const fromUrl = page.url.searchParams.get('part');
-  let selected = $state<PartId>(partById(fromUrl ?? '')?.id ?? 'web');
-  const sel = $derived(partById(selected)!);
-  const near = $derived(neighbours(selected));
-  const st = (id: PartId) => data.states[id];
+  // The core parts, then the installed apps (read live, never named in core) in rows below the containers.
+  const nodes = $derived([...PARTS, ...appParts(data.apps)]);
+  const links = $derived([...LINKS, ...appLinks(data.apps)]);
+  const byId = $derived(new Map(nodes.map((n) => [n.id, n])));
+  const appOf = (id: string): AppInfo | undefined => data.apps.find((a) => `app:${a.id}` === id);
+  const height = $derived(viewHeight(data.apps.length));
+
+  let selected = $state<string>(page.url.searchParams.get('part') ?? 'web');
+  const sel = $derived(byId.get(selected) ?? byId.get('web')!);
+  const near = $derived(neighbours(sel.id, links));
+
+  /** An app's state: off when switched off, else from its services and jobs in the worker. */
+  function appState(a: AppInfo): PartState {
+    if (!a.enabled) return { health: 'off', state: 'disabled', detail: '' };
+    if (a.failed) return { health: 'warning', state: 'units-failed', detail: String(a.failed) };
+    return { health: 'good', state: a.units ? 'units' : 'no-units', detail: String(a.units) };
+  }
+  const st = (id: string): PartState => {
+    const a = appOf(id);
+    return a ? appState(a) : data.states[id as PartId];
+  };
+  /** Core texts are English and translated here; an app's name and description come translated already. */
+  const nm = (p: Part) => (p.kind === 'app' ? p.name : t(p.name));
 
   // A restart on its way: follow it every 5 seconds; otherwise refresh the states every 30.
   const waiting = $derived(data.restart?.state === 'pending');
@@ -28,12 +63,27 @@
     return () => clearInterval(timer);
   });
 
-  const KIND: Record<Part['kind'], string> = { outside: 'Outside this server', host: 'On the host', container: 'Container' };
+  const KIND: Record<Part['kind'], string> = { outside: 'Outside this server', host: 'On the host', container: 'Container', app: 'Installed app' };
+  const GROUPS: { kind: Part['kind']; label: string }[] = [
+    { kind: 'outside', label: 'Outside this server' },
+    { kind: 'host', label: 'On the host' },
+    { kind: 'container', label: 'Containers' },
+    { kind: 'app', label: 'Apps' }
+  ];
 
   /** The state of a part in words. */
-  function stateText(id: PartId): string {
+  function stateText(id: string): string {
     const s = st(id);
     const n = Number(s.detail) || 0;
+    if (appOf(id))
+      return (
+        {
+          disabled: t('Switched off'),
+          'units-failed': t.n(n, '{n} failing', '{n} failing'),
+          units: t.n(n, '{n} service or job', '{n} services and jobs'),
+          'no-units': t('Pages and data only')
+        }[s.state] ?? s.state
+      );
     const common: Record<string, string> = {
       running: t('Running'),
       down: t('Not answering'),
@@ -63,12 +113,14 @@
       backup: { ok: t('Up to date'), 'backing-up': t('Backing up'), failed: t('Last backup failed'), stale: t('Out of date') },
       'ext-migrate': { watching: t('Watching for new migrations'), failed: t('Last migration failed'), 'no-status': t('No log yet') }
     };
-    return own[id]?.[s.state] ?? common[s.state] ?? s.state;
+    return own[id as PartId]?.[s.state] ?? common[s.state] ?? s.state;
   }
   const HEALTH: Record<Health, string> = { good: 'OK', warning: 'Needs attention', critical: 'Not working', off: 'Off' };
-  const shortText = (id: PartId) => (id === 'you' ? t('You are here') : t(HEALTH[st(id).health]));
+  const shortText = (id: string) => (id === 'you' ? t('You are here') : t(HEALTH[st(id).health]));
+  /** A name that fits the box: a long app name is cut. */
+  const fit = (text: string) => (text.length > 17 ? `${text.slice(0, 16)}…` : text);
 
-  const attention = $derived(PARTS.filter((p) => st(p.id).health === 'warning' || st(p.id).health === 'critical'));
+  const attention = $derived(nodes.filter((p) => st(p.id).health === 'warning' || st(p.id).health === 'critical'));
   const broken = $derived(attention.some((p) => st(p.id).health === 'critical'));
 
   const restartFor = (p: Part) => (data.restart && data.restart.service === p.service ? data.restart : null);
@@ -78,13 +130,13 @@
     return at ? new Date(at).toLocaleString(t.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '';
   }
 
-  function pick(id: PartId) {
+  function pick(id: string) {
     selected = id;
     const u = new URL(location.href);
     u.searchParams.set('part', id);
     history.replaceState(history.state, '', u);
   }
-  function onKey(e: KeyboardEvent, id: PartId) {
+  function onKey(e: KeyboardEvent, id: string) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       pick(id);
@@ -92,8 +144,11 @@
   }
   const s = $derived(st(sel.id));
   const r = $derived(restartFor(sel));
-  const touches = (l: { from: PartId; to: PartId }) => l.from === selected || l.to === selected;
-  const mid = (a: Part, b: Part) => ({ x: (a.x + b.x + NODE_W) / 2, y: (a.y + b.y + NODE_H) / 2 });
+  const selApp = $derived(appOf(sel.id));
+  const touches = (l: { from: string; to: string }) => l.from === sel.id || l.to === sel.id;
+  /** Where a link's label goes: between the two parts; for the worker's links to apps, on the right edge. */
+  const mid = (a: Part, b: Part) =>
+    a.id === 'worker' && b.kind === 'app' ? { x: VIEW_W - 26, y: APPS_Y - 22, anchor: 'end' } : { x: (a.x + b.x + NODE_W) / 2, y: (a.y + b.y + NODE_H) / 2, anchor: 'middle' };
 </script>
 
 <svelte:head><title>{t('Infrastructure')} · {t('System settings')}</title></svelte:head>
@@ -110,7 +165,7 @@
       <strong class="big">{attention.length ? t.n(attention.length, '{n} part needs attention', '{n} parts need attention') : t('Every part runs')}</strong>
       <span class="meta">
         {#if attention.length}
-          {#each attention as p, i (p.id)}{i ? ', ' : ''}<button type="button" class="linkish" onclick={() => pick(p.id)}>{t(p.name)}</button>{/each}
+          {#each attention as p, i (p.id)}{i ? ', ' : ''}<button type="button" class="linkish" onclick={() => pick(p.id)}>{nm(p)}</button>{/each}
         {:else}
           {t('Running')} {#if data.deployedSha}<code>{data.deployedSha}</code>{/if}
         {/if}
@@ -126,7 +181,7 @@
 
 <section class="sec" aria-label={t('Diagram')}>
   <div class="card diagram">
-    <svg viewBox="0 0 {VIEW_W} {VIEW_H}" role="group" aria-label={t('Parts of this server and their links')}>
+    <svg viewBox="0 0 {VIEW_W} {height}" role="group" aria-label={t('Parts of this server and their links')}>
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0 0 L10 5 L0 10 z" class="tip" />
@@ -136,34 +191,37 @@
         </marker>
       </defs>
       <g class="frames" aria-hidden="true">
-        <text x="10" y="92">{t('Outside')}</text>
-        <rect x="200" y="230" width="196" height="310" rx="14" />
-        <text x="212" y="222">{t('On the host')}</text>
-        <rect x="454" y="10" width="442" height="540" rx="14" />
-        <text x="470" y="40">{t('Containers')}</text>
+        <rect x="20" y="10" width="860" height="104" rx="14" />
+        <text x="36" y="30">{t('Outside')}</text>
+        <rect x="344" y="130" width="536" height="104" rx="14" />
+        <text x="360" y="150">{t('On the host')}</text>
+        <rect x="20" y="270" width="860" height="324" rx="14" />
+        <text x="36" y="290">{t('Containers')}</text>
+        {#if data.apps.length}
+          <rect x="20" y={APPS_Y - 30} width="860" height={height - APPS_Y + 20} rx="14" />
+          <text x="36" y={APPS_Y - 10}>{t('Apps')}</text>
+        {/if}
       </g>
       <g class="links" aria-hidden="true">
-        {#each LINKS as l (l.from + l.to)}
-          {@const a = partById(l.from)!}
-          {@const b = partById(l.to)!}
-          <path d={linkPath(a, b)} class:dashed={l.dashed} class:on={touches(l)} class:dim={!touches(l)} marker-end={touches(l) ? 'url(#arrow-on)' : 'url(#arrow)'} />
+        {#each links as l (l.from + l.to)}
+          <path d={linkPath(byId.get(l.from)!, byId.get(l.to)!)} class:dashed={l.dashed} class:on={touches(l)} class:dim={!touches(l)} class:faint={!touches(l) && (l.from.startsWith('app:') || l.to.startsWith('app:'))} marker-end={touches(l) ? 'url(#arrow-on)' : 'url(#arrow)'} />
         {/each}
-        {#each LINKS.filter(touches) as l (l.from + l.to)}
-          {@const m = mid(partById(l.from)!, partById(l.to)!)}
-          <text class="ltext" x={m.x} y={m.y - 6} text-anchor="middle">{t(l.label)}</text>
+        {#each links.filter(touches) as l (l.from + l.to)}
+          {@const m = mid(byId.get(l.from)!, byId.get(l.to)!)}
+          <text class="ltext" x={m.x} y={m.y - 6} text-anchor={m.anchor}>{t(l.label)}</text>
         {/each}
       </g>
-      {#each PARTS as p (p.id)}
+      {#each nodes as p (p.id)}
         {@const s = st(p.id)}
         <g
           class="node {p.kind} {s.health}"
-          class:sel={p.id === selected}
+          class:sel={p.id === sel.id}
           class:near={near.uses.includes(p.id) || near.usedBy.includes(p.id)}
           transform="translate({p.x} {p.y})"
           role="button"
           tabindex="0"
-          aria-pressed={p.id === selected}
-          aria-label="{t(p.name)}: {stateText(p.id)}"
+          aria-pressed={p.id === sel.id}
+          aria-label="{nm(p)}: {stateText(p.id)}"
           onclick={() => pick(p.id)}
           onkeydown={(e) => onKey(e, p.id)}
         >
@@ -171,7 +229,7 @@
           <rect x="10" y="12" width="36" height="36" rx="10" class="badge" />
           <g class="icon" transform="translate(18 20)">{#each p.icon as d}<path {d} />{/each}</g>
           <circle cx="42" cy="16" r="5.5" class="dot ring {s.health}" />
-          <text x="56" y="28" class="name">{t(p.short ?? p.name)}</text>
+          <text x="56" y="28" class="name">{p.kind === 'app' ? fit(p.name) : t(p.short ?? p.name)}</text>
           <text x="56" y="45" class="state">{shortText(p.id)}</text>
         </g>
       {/each}
@@ -179,14 +237,14 @@
 
     <!-- A phone: the same parts as a list, grouped where they run. -->
     <div class="plist">
-      {#each ['outside', 'host', 'container'] as k (k)}
-        <p class="glabel">{t(KIND[k as Part['kind']])}</p>
+      {#each GROUPS.filter((g) => nodes.some((p) => p.kind === g.kind)) as g (g.kind)}
+        <p class="glabel">{t(g.label)}</p>
         <ul>
-          {#each PARTS.filter((p) => p.kind === k) as p (p.id)}
+          {#each nodes.filter((p) => p.kind === g.kind) as p (p.id)}
             <li>
-              <button type="button" class:sel={p.id === selected} onclick={() => pick(p.id)}>
+              <button type="button" class:sel={p.id === sel.id} onclick={() => pick(p.id)}>
                 <span class="dot {st(p.id).health}"></span>
-                <span class="pname">{t(p.name)}</span>
+                <span class="pname">{nm(p)}</span>
                 <span class="meta pstate">{stateText(p.id)}</span>
               </button>
             </li>
@@ -202,17 +260,22 @@
     <div class="dhead">
       <span class="dot big-dot {s.health}" aria-hidden="true"></span>
       <div class="what">
-        <h2 id="part-h">{t(sel.name)}</h2>
-        <span class="meta">{t(KIND[sel.kind])}{sel.service ? ` · ${sel.service}` : ''}</span>
+        <h2 id="part-h">{nm(sel)}</h2>
+        <span class="meta">{t(KIND[sel.kind])}{sel.service ? ` · ${sel.service}` : ''}{selApp ? ` · ${selApp.kind} · ${selApp.version}` : ''}</span>
       </div>
       <div class="acts">
+        {#if selApp?.enabled}<a class="btn" href={selApp.href}>{t('Open')}</a>{/if}
         {#if sel.href}<a class="btn" href={sel.href}>{t('Settings')}</a>{/if}
+        {#if selApp?.units}<a class="btn" href="/settings/worker">{t('Worker')}</a>{/if}
         {#if sel.log}<a class="btn" href="/settings/logs?file={sel.log}">{t('Log')}</a>{/if}
       </div>
     </div>
 
     <p class="state-line"><strong>{stateText(sel.id)}</strong>{#if s.detail && !/^\d+$/.test(s.detail) && sel.id !== 'github'}<span class="meta"> · {s.detail}</span>{/if}</p>
-    <p class="meta">{t(sel.what)}</p>
+    {#if sel.what}<p class="meta">{sel.kind === 'app' ? sel.what : t(sel.what)}</p>{/if}
+    {#if selApp}
+      <p class="meta">{t('Its pages are served by the App; its data lives in the Database.')}{selApp.units ? ` ${t('The Worker runs its services and jobs: restart them on the Worker page.')}` : ''}</p>
+    {/if}
     {#if sel.id === 'terminal' && s.state !== 'not-set-up'}
       <p class="meta">{t('Signed in:')} {(['claude', 'codex', 'gh'] as const).filter((k) => data.terminal[k]).map((k) => ({ claude: 'Claude Code', codex: 'Codex', gh: 'GitHub CLI' })[k]).join(', ') || t('nobody yet')}</p>
     {/if}
@@ -222,7 +285,7 @@
         <div>
           <span class="meta">{t('Uses')}</span>
           <ul class="chips">
-            {#each near.uses as id (id)}<li><button type="button" class="chip" onclick={() => pick(id)}><span class="dot {st(id).health}"></span>{t(partById(id)!.name)}</button></li>{/each}
+            {#each near.uses as id (id)}<li><button type="button" class="chip" onclick={() => pick(id)}><span class="dot {st(id).health}"></span>{nm(byId.get(id)!)}</button></li>{/each}
           </ul>
         </div>
       {/if}
@@ -230,7 +293,7 @@
         <div>
           <span class="meta">{t('Needed by')}</span>
           <ul class="chips">
-            {#each near.usedBy as id (id)}<li><button type="button" class="chip" onclick={() => pick(id)}><span class="dot {st(id).health}"></span>{t(partById(id)!.name)}</button></li>{/each}
+            {#each near.usedBy as id (id)}<li><button type="button" class="chip" onclick={() => pick(id)}><span class="dot {st(id).health}"></span>{nm(byId.get(id)!)}</button></li>{/each}
           </ul>
         </div>
       {/if}
@@ -408,6 +471,9 @@
   }
   .links path.dim {
     opacity: 0.55;
+  }
+  .links path.faint {
+    opacity: 0.3;
   }
   .tip {
     fill: var(--axis);

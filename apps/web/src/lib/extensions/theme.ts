@@ -4,6 +4,7 @@
  *
  * - the design tokens of app.css (`--page`, `--surface`, `--ink`, `--accent`, `--space-*`, ...), light and
  *   dark, inside `@layer assistant` so the app's own unlayered rules still win;
+ * - the shell's checkboxes, radios, switches, sliders and picker buttons (lib/controls.css), in the same layer;
  * - `<assistant-beni mood="steady" size="48">`: Beni, the mascot, as a custom element (shadow DOM, so
  *   its SVG ids and styles never clash with the app). Moods: idle, steady, charged, tired, asleep.
  *   `accessory="book"` dresses it (beni-accessories.ts); without the attribute it wears the app's own
@@ -13,6 +14,7 @@
  * Native extensions get the same look from the shell itself (`$shell/ui`, the classes in app.css).
  */
 import appCss from '../../app.css?raw';
+import controlsCss from '../controls.css?raw';
 import pipSvg from '../../../static/beni.svg?raw';
 import { ACCESSORY_IDS, accessorySvg, SHY_SVG, type Accessory } from '../beni-accessories';
 
@@ -118,10 +120,11 @@ export function pipElementScript(svg: string): string {
 }
 
 /** Everything a onefile app gets in front of its own code: a <style> and a <script>. */
-export function themeTags(css = appCss, svg = pipSvg, accessory: Accessory = 'none'): string {
+export function themeTags(css = appCss, svg = pipSvg, accessory: Accessory = 'none', controls = controlsCss): string {
   const tokens = tokensOf(css).replace(/<\/style/gi, '<\\/style');
+  const look = controls.replace(/\/\*[\s\S]*?\*\//g, '').trim().replace(/<\/style/gi, '<\\/style');
   return (
-    `<style id="assistant-theme">@layer assistant { ${tokens} }</style>` +
+    `<style id="assistant-theme">@layer assistant { ${tokens} ${look} }</style>` +
     `<script>window.assistantBeni = Object.freeze({ accessory: ${JSON.stringify(accessory)} });` +
     `${pipElementScript(pipMarkup(svg))}</script>`
   );

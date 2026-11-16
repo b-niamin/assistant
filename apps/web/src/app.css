@@ -182,8 +182,9 @@ button {
   font: inherit;
   color: var(--ink);
 }
+/* Checkboxes, radios, sliders and file fields have their own look: lib/controls.css. */
 select,
-input,
+input:where(:not([type='checkbox'], [type='radio'], [type='range'], [type='file'])),
 textarea {
   height: 34px;
   padding: 0 10px;

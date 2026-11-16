@@ -40,6 +40,12 @@ Dark mode is its own set of steps (not an inversion), applied by `prefers-color-
 - Text never wears a series colour. Bars and lines carry colour; labels use ink tokens.
 - Controls: range presets are a segmented control built from links (works without JS); one quiet
   style for select/input/button.
+- Form controls stay native elements (labels, keyboard, form posts, screen readers) and wear the shell's
+  look from `src/lib/controls.css`: checkboxes, radios, sliders (`--fill` shows the filled part),
+  date/time/search picker buttons, file buttons, focus and disabled states, and the open list of a select
+  where the browser allows it (Chromium's `appearance: base-select`; elsewhere its own list). An on/off
+  setting is a switch: `<input type="checkbox" role="switch">`. A checkbox or radio with its text goes in
+  `<label class="check">`. No component or class is needed; extensions get it as they are.
 
 ## Colour per metric
 
@@ -108,8 +114,8 @@ fits. The source's own palette, fonts and logo are dropped.
 
 - Native extensions render inside the shell, so `app.css` and `$shell/ui` are there already.
 - Onefile apps run in a sandboxed iframe that cannot load the shell's files. The host injects
-  (`src/lib/extensions/theme.ts`) the token blocks of `app.css` as `@layer assistant`, so the app's own
-  unlayered rules still win, and defines `<assistant-beni mood size label accessory shy>`: Beni as a custom
+  (`src/lib/extensions/theme.ts`) the token blocks of `app.css` and the form controls of `controls.css` as
+  `@layer assistant`, so the app's own unlayered rules still win, and defines `<assistant-beni mood size label accessory shy>`: Beni as a custom
   element in shadow DOM, with the same moods (breathing, hop, sway, closed eyes; still under reduced
   motion). Without `accessory` it wears the app's own (`window.assistantBeni.accessory`), and it covers
   its eyes on password fields by itself.

@@ -49,7 +49,7 @@
   </nav>
   <div class="tools">
     <input type="search" placeholder={t('Filter')} bind:value={query} aria-label={t('Filter lines')} />
-    <label class="check"><input type="checkbox" bind:checked={follow} /> {t('Follow')}</label>
+    <label class="check"><input type="checkbox" role="switch" bind:checked={follow} /> {t('Follow')}</label>
     <button type="button" class="btn" onclick={() => invalidateAll()}>{t('Refresh')}</button>
   </div>
 </div>

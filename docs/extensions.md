@@ -81,6 +81,7 @@ Use the tokens and classes of `apps/web/src/app.css` (spec 001), never raw colou
 | Colours | `--page`, `--surface`, `--surface-2`, `--ink`, `--ink-2`, `--ink-3` (secondary text), `--ink-4` (non-text marks), `--accent`, `--accent-ink` (links), `--accent-fill` (filled buttons), `--field-border`, `--good`, `--warning`, `--serious`, `--critical`, `--critical-ink` (error text), `--hue-*` (chart series) |
 | Space and shape | `--space-1` to `--space-7`, `--radius`, `--radius-sm`, `--font`, `--mono` |
 | Classes | `.card`, `.btn`, `.btn-primary` (one per screen), `.btn-ghost`, `.eyebrow`, `.muted`, `.num` (tabular figures), `.segmented`, `.status` + `good`/`warning`/`serious`/`critical` (a dot and a word, never colour alone), `.sr` (screen readers only), `.rise` (entrance) |
+| Form controls | plain `<input>`, `<select>`, `<textarea>`: the shell styles them (`src/lib/controls.css`, also in onefile apps). `<label class="check"><input type="checkbox"> Text</label>`; an on/off setting: `<input type="checkbox" role="switch">` |
 
 ## Calendar entries: `web/calendar.server.ts`
 

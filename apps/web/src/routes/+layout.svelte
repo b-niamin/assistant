@@ -1,5 +1,6 @@
 <script lang="ts">
   import '../app.css';
+  import '#lib/controls.css';
   import Mascot from '#lib/Mascot.svelte';
   import Dock from '#lib/dock/Dock.svelte';
   import LockMenu from '#lib/dock/LockMenu.svelte';

@@ -74,7 +74,7 @@
 <section>
   <h2>{t('Availability')}</h2>
   <form method="POST" action="?/switches" class="card stack" use:enhance>
-    <label class="check"><input type="checkbox" name="enabled" checked={ext.enabled} /> {t('On')} <span class="muted">{t('(off hides it everywhere; its data stays)')}</span></label>
+    <label class="check"><input type="checkbox" role="switch" name="enabled" checked={ext.enabled} /> {t('On')} <span class="muted">{t('(off hides it everywhere; its data stays)')}</span></label>
     <fieldset>
       <legend>{t('Who sees it')}</legend>
       <label class="check"><input type="checkbox" name="everyone" checked={ext.profiles === null} /> {t('Everyone')}</label>
@@ -93,7 +93,7 @@
       {#each plain as f (f.name)}
         {@const v = data.values[f.name]}
         {#if f.type === 'boolean'}
-          <label class="check"><input type="checkbox" name="field:{f.name}" checked={v === true} /> {f.label}</label>
+          <label class="check"><input type="checkbox" role="switch" name="field:{f.name}" checked={v === true} /> {f.label}</label>
         {:else}
           <label class="field">
             <span>{f.label}</span>

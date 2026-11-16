@@ -68,7 +68,7 @@
         <li class:off={d.hidden}>
           <input type="hidden" name="order" value={d.key} />
           <label class="show">
-            <input type="checkbox" checked={!d.hidden} onchange={(e) => (d.hidden = !e.currentTarget.checked)} />
+            <input type="checkbox" role="switch" checked={!d.hidden} onchange={(e) => (d.hidden = !e.currentTarget.checked)} />
             <span><strong>{d.title}</strong> <span class="muted">{d.source}</span></span>
           </label>
           {#if d.hidden}<input type="hidden" name="hidden" value={d.key} />{/if}

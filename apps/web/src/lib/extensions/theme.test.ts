@@ -5,6 +5,7 @@ import { pipElementScript, pipMarkup, themeTags, tokensOf } from './theme';
 // Vitest turns CSS imports (even ?raw) into empty strings, so the tests read the real files.
 const css = readFileSync(new URL('../../app.css', import.meta.url), 'utf8');
 const svg = readFileSync(new URL('../../../static/beni.svg', import.meta.url), 'utf8');
+const controls = readFileSync(new URL('../controls.css', import.meta.url), 'utf8');
 
 describe('onefile theme', () => {
   it('takes only the token blocks of app.css', () => {
@@ -18,6 +19,13 @@ describe('onefile theme', () => {
     expect(tags).toContain('--accent:');
     expect(tags).toContain("[data-theme='dark']");
     expect(tags).not.toContain('box-sizing');
+  });
+
+  it('gives onefile apps the shell checkboxes in the same layer, without comments', () => {
+    const tags = themeTags(css, svg, 'none', ":where(input[type='checkbox']) { appearance: none; } /* zz-comment */");
+    expect(tags).toContain(":where(input[type='checkbox']) { appearance: none; } }</style>");
+    expect(tags).not.toContain('zz-comment');
+    expect(themeTags(css, svg, 'none', controls)).toContain("input[type='checkbox'][role='switch']");
   });
 
   it('defines <assistant-beni> with the eyes wrapped for moods and no raw tags in the script', () => {

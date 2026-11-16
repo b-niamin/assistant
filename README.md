@@ -10,7 +10,7 @@ Runs on Linux or a Synology NAS with Docker Compose. You reach it over your Tail
 
 [Install](#quick-start) · [Screenshots](#screenshots) · [Extensions](https://github.com/b-niamin/assistant-extensions) · [Docs](#docs)
 
-<img src="docs/screenshots/tour.gif" alt="A tour of the app: dashboard, Training &amp; Health, an activity, the gym tracker, Home, the system monitor, System settings, profile settings and the terminal" width="900" />
+<img src="docs/screenshots/tour.gif" alt="A tour of the app: the empty dashboard after setup, the dashboard with every extension, Training &amp; Health, the training plan, the calendar, Home, the system monitor and the apps in System settings" width="900" />
 
 </div>
 
@@ -57,16 +57,16 @@ Synology steps, installer options and `pingo.sh` commands: [docs/install.md](doc
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Dashboard with tiles from the extensions" /><p align="center"><b>Dashboard</b>: tiles from the installed extensions</p></td>
-    <td width="50%"><img src="docs/screenshots/home.png" alt="The Home extension: weather, lights, doors and today's calendar" /><p align="center"><b>Home</b>: an extension, Home Assistant data and weather</p></td>
+    <td width="50%"><img src="docs/screenshots/empty.png" alt="The dashboard right after setup: no apps yet" /><p align="center"><b>After setup</b>: an empty workspace, no apps</p></td>
+    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="The dashboard with tiles from the calendar, Training &amp; Health, Home, the system monitor and the training plan" /><p align="center"><b>What you can build</b>: every ready-made extension installed</p></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/settings.png" alt="System settings: a sidebar of sections and an overview of updates, backups, MCP on the internet, the terminal, the worker and the apps" /><p align="center"><b>System settings</b>: apps, updates, backups, the worker</p></td>
-    <td><img src="docs/screenshots/terminal.png" alt="The terminal docked at the bottom of a page" /><p align="center"><b>Terminal</b>: a shell with Claude Code and Codex</p></td>
+    <td><img src="docs/screenshots/apps.png" alt="System settings, Apps: the installed extensions with their state and who sees them" /><p align="center"><b>System settings</b>: the installed apps</p></td>
+    <td><img src="docs/screenshots/dashboard-dark.png" alt="The same dashboard in the dark theme" /><p align="center"><b>Dark theme</b></p></td>
   </tr>
 </table>
 
-<p align="center">Light and dark theme (<a href="docs/screenshots/dashboard-dark.png">dark dashboard</a>). Screenshots use demo data.</p>
+<p align="center">Screenshots use demo data. More per extension in <a href="https://github.com/b-niamin/assistant-extensions">assistant-extensions</a>.</p>
 
 ## How it works
 

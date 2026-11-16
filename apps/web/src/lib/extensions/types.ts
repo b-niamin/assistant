@@ -22,10 +22,20 @@ export interface ExtensionInfo {
   secrets: string[];
   /** What Beni wears on its pages (manifest "accessory", beni-accessories.ts); null = guessed from id and name. */
   accessory: string | null;
+  /**
+   * Other extensions it works better with (manifest "worksWith", spec 002): the id and what it adds, in
+   * English (translated through the extension's i18n). Its settings panel suggests installing missing ones.
+   */
+  worksWith?: WorksWith[];
   /** Languages it has translations for (spec 007): always "en", plus each extensions/<id>/i18n/<lang>.json. */
   languages: string[];
   /** Switched off in System settings: gone from nav, routes and APIs, data kept. */
   enabled: boolean;
+}
+
+export interface WorksWith {
+  id: string;
+  why: string;
 }
 
 /** One field of an extension's settings panel (manifest "settings"). */

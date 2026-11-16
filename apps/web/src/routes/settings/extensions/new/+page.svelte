@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import Mascot from '#lib/Mascot.svelte';
   import { askAgent, runInDock } from '#lib/dock/dock.svelte.ts';
-  import { hueFor, installCommand } from '#lib/settings/guide.ts';
+  import { hueFor, installPrompt } from '#lib/settings/guide.ts';
   import { guessAccessory } from '#lib/mascot.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -89,11 +89,7 @@
           <h3>{e.name}</h3>
           <p class="meta grow">{e.description}</p>
           <button type="button" class="btn btn-primary"
-            onclick={() =>
-              askAgent(
-                `Install the ready-made extension ${e.id}: run ${installCommand(e.id)}; if it lacks one of the app's languages, ` +
-                  `translate it (add-extension skill); then tell me what to set up.`
-              )}>
+            onclick={() => askAgent(installPrompt(e.id))}>
             {t('Install')}
           </button>
           {#if e.service}<p class="meta small">{t('Then')} <code>sudo ./install.sh</code> {t('on the host, once.')}</p>{/if}

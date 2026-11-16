@@ -10,7 +10,7 @@
  */
 import { getContext, setContext } from 'svelte';
 import { EXTENSION_MESSAGES } from '#lib/extensions/generated/i18n.ts';
-import type { ExtensionInfo, SettingField } from '#lib/extensions/types.ts';
+import type { ExtensionInfo, SettingField, WorksWith } from '#lib/extensions/types.ts';
 import { BASE_LANG, localeOf } from './languages';
 import { makeT, type Messages, type Translate } from './translate';
 
@@ -37,7 +37,7 @@ export function tFor(lang: string, extensionId?: string): Translate {
 }
 
 /** An extension's name, description and settings labels in a language (its i18n/<lang>.json). */
-export function localizeExtension<T extends Pick<ExtensionInfo, 'id' | 'name' | 'description'> & { settings?: SettingField[] }>(
+export function localizeExtension<T extends Pick<ExtensionInfo, 'id' | 'name' | 'description'> & { settings?: SettingField[]; worksWith?: WorksWith[] }>(
   ext: T,
   lang: string
 ): T {
@@ -49,7 +49,8 @@ export function localizeExtension<T extends Pick<ExtensionInfo, 'id' | 'name' | 
     description: t(ext.description),
     ...(ext.settings
       ? { settings: ext.settings.map((f) => ({ ...f, label: t(f.label), ...(f.help ? { help: t(f.help) } : {}) })) }
-      : {})
+      : {}),
+    ...(ext.worksWith ? { worksWith: ext.worksWith.map((w) => ({ ...w, why: t(w.why) })) } : {})
   };
 }
 

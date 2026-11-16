@@ -179,6 +179,11 @@ export const claudeCommand = (prompt: string): string => agentCommand('claude', 
 /** Install ready-made extensions from the extensions repo (the same CLI Claude uses). */
 export const installCommand = (id: string): string => `node scripts/ext.mjs install ${id}`;
 
+/** What "Install" asks the terminal's agent: install a ready-made extension and finish it for this instance. */
+export const installPrompt = (id: string): string =>
+  `Install the ready-made extension ${id}: run ${installCommand(id)}; if it lacks one of the app's languages, ` +
+  `translate it (add-extension skill); then tell me what to set up.`;
+
 /** The prompt for changing an installed extension (its panel's "Ask Claude to change it"). */
 export function buildChangePrompt(id: string, name: string, change: string): string {
   return `Change the ${name} extension (extensions/${id}, new-extension skill): ${oneLine(change).replace(/[.!?]?$/, '.')} Keep our design system and Beni, run the checks.`;

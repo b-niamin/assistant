@@ -6,11 +6,14 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { readSettings, saveSettings } from '#lib/extensions/config.server.ts';
 import { runSourceAction, saveSourceFields, secretItemHints, sourcesOf } from '#lib/extensions/sources.server.ts';
-import { extensionById, saveExtensionSwitches } from '#lib/extensions/registry.server.ts';
+import { allExtensions, extensionById, saveExtensionSwitches } from '#lib/extensions/registry.server.ts';
+import { catalog, localizeEntry } from '#lib/server/catalog.ts';
+import { suggestionsFor } from '#lib/settings/works-with.ts';
 import { deleteSecret, listSecretSlots, secretsAvailable, setSecret } from '#lib/server/extension-secrets.ts';
 import { isElevated, listProfiles, SESSION_COOKIE } from '#lib/server/session.ts';
 import { localizeExtension, tFor } from '#lib/i18n/index.ts';
 import { claimedFields } from '#lib/extensions/sources.ts';
+import type { ExtensionInfo } from '#lib/extensions/types.ts';
 
 async function guard(sid: string | undefined, id?: string) {
   if (!(await isElevated(sid))) throw redirect(303, id ? `/settings?next=extensions/${encodeURIComponent(id)}` : '/settings');
@@ -20,6 +23,15 @@ async function extOf(id: string) {
   const ext = await extensionById(id);
   if (!ext) throw error(404, 'Not found');
   return ext;
+}
+
+/** The extensions it works better with that are missing or off; the catalog is read only when one is missing. */
+async function suggestionsOf(worksWith: ExtensionInfo['worksWith'], lang: string) {
+  if (!worksWith?.length) return [];
+  const installed = (await allExtensions()).map((e) => localizeExtension(e, lang));
+  const missing = worksWith.some((w) => !installed.some((e) => e.id === w.id));
+  const offered = missing ? (await catalog()).extensions.map((e) => localizeEntry(e, lang)) : [];
+  return suggestionsFor(worksWith, installed, offered);
 }
 
 export const load: PageServerLoad = async ({ params, cookies, locals }) => {
@@ -32,9 +44,11 @@ export const load: PageServerLoad = async ({ params, cookies, locals }) => {
     sourcesOf(ext, { locals }),
     secretsAvailable() ? secretItemHints(ext) : {}
   ]);
+  const local = localizeExtension(ext, locals.lang);
   return {
     // Name, description and field labels in the page's language (the extension's i18n/<lang>.json).
-    ext: localizeExtension(ext, locals.lang),
+    ext: local,
+    suggestions: await suggestionsOf(local.worksWith, locals.lang),
     values,
     secrets,
     profiles,

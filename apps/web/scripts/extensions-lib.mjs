@@ -100,6 +100,22 @@ export const ACCESSORIES = [
 /** A secret name: lowercase, digits, underscores, e.g. "api_token". */
 export const SECRET_RE = FIELD_NAME_RE;
 
+/** Manifest "worksWith": at most 5 other extensions, each with a short reason in English (translated in i18n). */
+export function worksWithProblems(list, ownId, dirName) {
+  const where = `${dirName}/extension.json: "worksWith"`;
+  if (!Array.isArray(list) || list.length > 5) return [`${where} must be a list of at most 5 { "id", "why" }`];
+  const errors = [];
+  const seen = new Set();
+  for (const w of list) {
+    if (!w || typeof w !== 'object' || !ID_RE.test(w.id ?? '') || w.id === ownId || seen.has(w.id))
+      errors.push(`${where}: each item needs the "id" of another extension, once`);
+    else if (typeof w.why !== 'string' || !w.why.trim() || w.why.length > 160)
+      errors.push(`${where}: ${w.id} needs a "why" of 1-160 characters (what it adds)`);
+    if (w && typeof w === 'object') seen.add(w.id);
+  }
+  return errors;
+}
+
 export function validateManifest(m, dirName, root) {
   const errors = [];
   const req = (k, ok) => {
@@ -125,6 +141,8 @@ export function validateManifest(m, dirName, root) {
   // What Beni wears on its pages; left out, the shell guesses from the id and name.
   if (m.accessory !== undefined && !ACCESSORIES.includes(m.accessory))
     errors.push(`${dirName}/extension.json: "accessory" must be one of ${ACCESSORIES.join(', ')}`);
+  // Other extensions it works better with (spec 002, "Works with"): its settings panel suggests installing them.
+  if (m.worksWith !== undefined) errors.push(...worksWithProblems(m.worksWith, m.id, dirName));
   // Languages a onefile app's own UI speaks (it carries its translations inside the HTML; spec 007).
   if (m.languages !== undefined)
     req('languages', Array.isArray(m.languages) && m.languages.length <= 20 && m.languages.every((l) => LANG_RE.test(l)));
@@ -371,6 +389,7 @@ export function infoOf({ entry, manifest, root, messages }) {
     settings: settingsOf(manifest),
     secrets: settingsOf(manifest).filter((f) => f.type === 'secret').map((f) => f.name),
     accessory: manifest.accessory ?? null,
+    worksWith: (manifest.worksWith ?? []).map((w) => ({ id: w.id, why: w.why.trim() })),
     // Languages it has translations for (spec 007); System settings -> Language lists the gaps.
     languages: root ? languagesOf(manifest, root, messages ?? readTranslations(root, manifest.id).messages) : [BASE_LANG],
     enabled: true

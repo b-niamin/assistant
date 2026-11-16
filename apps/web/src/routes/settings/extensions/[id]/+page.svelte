@@ -1,10 +1,12 @@
 <script lang="ts">
   import { enhance } from '#lib/forms.ts';
-  import { AGENT_NAMES, draftForAgent, pickAgent } from '#lib/dock/dock.svelte.ts';
+  import { AGENT_NAMES, askAgent, draftForAgent, pickAgent } from '#lib/dock/dock.svelte.ts';
+  import Mascot from '#lib/Mascot.svelte';
+  import { guessAccessory, isAccessory } from '#lib/mascot.ts';
   import SourcesPanel from '#lib/settings/SourcesPanel.svelte';
   import RemoveExtension from '#lib/settings/RemoveExtension.svelte';
   import { claimedFields } from '#lib/extensions/sources.ts';
-  import { hueFor, initials } from '#lib/settings/guide.ts';
+  import { hueFor, initials, installPrompt } from '#lib/settings/guide.ts';
   import { languageInfo, tFor, useT } from '#lib/i18n/index.ts';
   let { data, form } = $props();
   const t = useT();
@@ -158,6 +160,28 @@
 
 {#if !plain.length && !secretNames.length && !ext.settingsPage && !data.sources}
   <p class="muted">{t('{name} has no settings of its own.', { name: ext.name })}</p>
+{/if}
+
+{#if data.suggestions.length}
+  <section aria-labelledby="works-h">
+    <h2 id="works-h">{t('Works better with')}</h2>
+    <ul class="works">
+      {#each data.suggestions as s (s.id)}
+        <li class="card suggest" style="--hue: {hueFor(s.id)}">
+          <span class="beni" aria-hidden="true"><Mascot mood="steady" size={36} accessory={isAccessory(s.accessory) ? s.accessory : guessAccessory(s.id, s.name)} decorative /></span>
+          <div class="what">
+            <strong>{s.name}</strong>
+            <span class="small">{s.why}</span>
+          </div>
+          {#if s.state === 'missing'}
+            <button type="button" class="btn" onclick={() => askAgent(installPrompt(s.id))}>{t('Install')}</button>
+          {:else}
+            <a class="btn" href="/settings/extensions/{s.id}">{t('Turn on')}</a>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  </section>
 {/if}
 
 <RemoveExtension id={ext.id} name={ext.name} native={ext.kind === 'native'} />
@@ -324,6 +348,42 @@
   }
   .note.good {
     border-left: 3px solid var(--accent);
+  }
+  .works {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .suggest {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+  }
+  .beni {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--hue) 14%, transparent);
+  }
+  .suggest .btn {
+    flex: none;
+  }
+  @media (max-width: 560px) {
+    .suggest {
+      flex-wrap: wrap;
+    }
+    .suggest .what {
+      flex: 1 1 0;
+    }
+    .suggest .btn {
+      width: 100%;
+    }
   }
   .sr {
     position: absolute;

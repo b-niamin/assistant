@@ -91,6 +91,9 @@ instances is copied into the extensions repo by hand.
   "entry": "app.html",            // onefile only
   "accessory": "stethoscope",     // optional: what Beni wears on its pages (specs/001-design.md); else guessed
   "languages": ["en", "pl"],      // onefile only: the languages its own UI speaks (spec 007)
+  "worksWith": [                  // optional, at most 5: other extensions it does more with (see "Works with")
+    { "id": "calendar", "why": "Shows what is on today on the board." }
+  ],
   "settings": [                   // optional: its panel in System settings (see "Settings")
     { "name": "units", "label": "Units", "type": "select", "options": ["km", "mi"], "default": "km" }
   ],
@@ -120,6 +123,15 @@ translation); every extension ships one for each language of the app. See spec 0
 Order = nav order. `profiles` is who sees it by default (System settings can override); absent =
 everybody. `from` is where `ext install` took it from, `inspiredBy` a link or a note. Every listed id must have a
 folder. A missing `installed.json` means no extensions.
+
+### Works with
+
+An extension may do more when another one is installed (Home shows today's calendar only with Calendar).
+It never requires it: it checks at runtime (e.g. `ctx.calendar` sources) and leaves that part out. Its
+manifest's `"worksWith"` names such extensions with a short English `why` (translated in its `i18n/`); the
+bottom of its System settings panel then suggests each one that is missing from this instance but offered
+by the extensions repo (Install asks the terminal's agent to run `ext install`), or that is installed but
+switched off (a link to turn it on). The core only reads the ids: it knows nothing of what they do.
 
 ### Native extensions
 

@@ -48,6 +48,16 @@ describe('manifest validation', () => {
     expect(lib.validateManifest(manifest({ accessory: 'cape' }), 'notes').join()).toMatch(/"accessory"/);
     expect(lib.infoOf({ entry: { id: 'notes' }, manifest: manifest({ accessory: 'pencil' }), root: null }).accessory).toBe('pencil');
   });
+  it('checks "worksWith": other extensions, once each, with a short why', () => {
+    const ok = [{ id: 'calendar', why: 'Shows today on the board.' }];
+    expect(lib.validateManifest(manifest({ worksWith: ok }), 'notes')).toEqual([]);
+    expect(lib.infoOf({ entry: { id: 'notes' }, manifest: manifest({ worksWith: ok }), root: null }).worksWith).toEqual(ok);
+    expect(lib.infoOf({ entry: { id: 'notes' }, manifest: manifest(), root: null }).worksWith).toEqual([]);
+    expect(lib.validateManifest(manifest({ worksWith: [{ id: 'notes', why: 'x' }] }), 'notes').join()).toMatch(/another extension/);
+    expect(lib.validateManifest(manifest({ worksWith: [...ok, ...ok] }), 'notes').join()).toMatch(/once/);
+    expect(lib.validateManifest(manifest({ worksWith: [{ id: 'calendar' }] }), 'notes').join()).toMatch(/"why"/);
+    expect(lib.validateManifest(manifest({ worksWith: 'calendar' }), 'notes').join()).toMatch(/at most 5/);
+  });
 });
 
 describe('stubs', () => {

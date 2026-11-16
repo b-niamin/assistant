@@ -1007,5 +1007,6 @@
   "The Worker runs its services and jobs: restart them on the Worker page.": "Jej usługi i zadania uruchamia Worker: zrestartujesz je na stronie Workera.",
   "Installed app": "Zainstalowana aplikacja",
   "its data": "jej dane",
-  "runs its services": "uruchamia jej usługi"
+  "runs its services": "uruchamia jej usługi",
+  "Works better with": "Działa lepiej z"
 }

@@ -59,6 +59,9 @@ Native:
 - Languages (required, spec 007): every shown text through `t()` (`useT()` from `$shell/ui`, `ctx.t` on
   the server) and `i18n/<lang>.json` for each language of the app (System settings -> Language). See the
   `add-extension` skill, step 5.
+- Works with (optional): when it does more with another extension installed, it checks at runtime and
+  names that one in `extension.json` `"worksWith": [{ "id", "why" }]` (spec 002, "Works with"); its settings
+  panel then suggests installing it. Never require another extension.
 - Settings and secrets: declare fields in `extension.json` `"settings"` (text, number, boolean, select,
   secret). The shell draws its panel in System settings; read with `ctx.settings.get` / `ctx.secrets.get`.
   Secret values never go in code, KV, chat or the repo: the owner types them in the panel.

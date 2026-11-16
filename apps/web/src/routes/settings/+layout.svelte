@@ -5,7 +5,7 @@
    * other page starts with a way back to it.
    */
   import { page } from '$app/state';
-  import { activeNav, SETTINGS_NAV, type NavId } from '#lib/settings/nav.ts';
+  import { activeNav, SETTINGS_NAV, type NavId, type NavItem } from '#lib/settings/nav.ts';
   import { useT } from '#lib/i18n/index.ts';
   let { data, children } = $props();
   const t = useT();
@@ -27,6 +27,16 @@
   });
 </script>
 
+{#snippet link(item: NavItem)}
+  {@const dot = dots[item.id]}
+  <a href={item.href} aria-current={active === item.id ? 'page' : undefined}>
+    <svg viewBox="0 0 20 20" aria-hidden="true">{#each item.icon as d}<path {d} />{/each}</svg>
+    <span class="label">{t(item.label)}</span>
+    {#if dot}<span class="dot {dot.tone}" title={dot.label}><span class="sr">{dot.label}</span></span>{/if}
+    <span class="chev" aria-hidden="true">›</span>
+  </a>
+{/snippet}
+
 {#if data.unlocked}
   <div class="shell" class:home={active === 'overview'}>
     <nav class="side" aria-label={t('Settings')}>
@@ -35,14 +45,15 @@
           {#if group.label}<p class="glabel">{t(group.label)}</p>{/if}
           <ul>
             {#each group.items as item (item.id)}
-              {@const dot = dots[item.id]}
               <li>
-                <a href={item.href} aria-current={active === item.id ? 'page' : undefined}>
-                  <svg viewBox="0 0 20 20" aria-hidden="true">{#each item.icon as d}<path {d} />{/each}</svg>
-                  <span class="label">{t(item.label)}</span>
-                  {#if dot}<span class="dot {dot.tone}" title={dot.label}><span class="sr">{dot.label}</span></span>{/if}
-                  <span class="chev" aria-hidden="true">›</span>
-                </a>
+                {@render link(item)}
+                {#if item.children}
+                  <ul class="sub">
+                    {#each item.children as child (child.id)}
+                      <li>{@render link(child)}</li>
+                    {/each}
+                  </ul>
+                {/if}
               </li>
             {/each}
           </ul>
@@ -91,6 +102,12 @@
     padding: 0;
     display: grid;
     gap: 1px;
+  }
+  /* The pages nested under an entry hang from it on a thin line. */
+  .sub {
+    margin: 1px 0 0 calc(var(--space-3) + 8px);
+    padding-left: var(--space-2);
+    border-left: 1px solid var(--ring);
   }
   .side a {
     display: flex;
@@ -325,6 +342,15 @@
     }
     .shell.home li + li {
       border-top: 1px solid var(--ring);
+    }
+    .shell.home .sub {
+      margin: 0;
+      padding-left: var(--space-6);
+      border-left: 0;
+      border-top: 1px solid var(--ring);
+      background: none;
+      box-shadow: none;
+      border-radius: 0;
     }
     .shell.home .side a {
       padding: var(--space-3);

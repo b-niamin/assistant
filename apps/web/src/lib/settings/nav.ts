@@ -1,7 +1,8 @@
 /**
  * The settings sidebar (routes/settings/+layout.svelte): one shell for the profile's own settings and the
  * system's. Each entry is a page under /settings; `match` also lights it on pages below it (an app's panel
- * lights Apps). Labels are English and go through t() where they are shown.
+ * lights Apps), and `children` are the pages nested under it (the parts of Infrastructure). Labels are English
+ * and go through t() where they are shown.
  */
 export type NavId =
   | 'overview'
@@ -27,6 +28,7 @@ export interface NavItem {
   /** One or more SVG path `d`s on a 20x20 grid, drawn as 1.7px strokes. */
   icon: string[];
   match?: string[];
+  children?: NavItem[];
 }
 
 export interface NavGroup {
@@ -76,45 +78,42 @@ export const SETTINGS_NAV: NavGroup[] = [
     ]
   },
   {
-    label: 'AI',
-    items: [
-      { id: 'ai', href: '/settings/ai', label: 'Terminal and AI', icon: ['M3.5 4.5h13v11h-13z', 'M6.5 8l2.5 2-2.5 2M10.5 12.5h3'] }
-    ]
-  },
-  {
     label: 'This server',
     items: [
       {
         id: 'infrastructure',
         href: '/settings/infrastructure',
         label: 'Infrastructure',
-        icon: ['M7.5 3h5v4h-5zM3 13h5v4H3zM12 13h5v4h-5z', 'M10 7v3M5.5 13v-3h9v3']
-      },
-      { id: 'updates', href: '/settings/updates', label: 'Updates', icon: ['M16 10a6 6 0 1 1-1.8-4.3', 'M16 3.5v3.5h-3.5'] },
-      {
-        id: 'connector',
-        href: '/settings/connector',
-        label: 'MCP on the internet',
-        icon: ['M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'M3 10h14M10 3c-2 2-2.8 4.4-2.8 7s.8 5 2.8 7c2-2 2.8-4.4 2.8-7S12 5 10 3z']
-      },
-      {
-        id: 'backups',
-        href: '/settings/backups',
-        label: 'Backups',
-        icon: ['M4 5.5c0-1.1 2.7-2 6-2s6 .9 6 2-2.7 2-6 2-6-.9-6-2z', 'M4 5.5v9c0 1.1 2.7 2 6 2s6-.9 6-2v-9M4 10c0 1.1 2.7 2 6 2s6-.9 6-2']
-      },
-      {
-        id: 'worker',
-        href: '/settings/worker',
-        label: 'Worker',
-        icon: ['M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', 'M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4']
-      },
-      { id: 'logs', href: '/settings/logs', label: 'Logs', icon: ['M4 5h12M4 8.5h12M4 12h8M4 15.5h10'] },
-      {
-        id: 'browser',
-        href: '/settings/browser',
-        label: 'Browser',
-        icon: ['M3 5.5A1.5 1.5 0 0 1 4.5 4h11A1.5 1.5 0 0 1 17 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5z', 'M3 8h14M5.5 6h.01M7.5 6h.01']
+        icon: ['M7.5 3h5v4h-5zM3 13h5v4H3zM12 13h5v4h-5z', 'M10 7v3M5.5 13v-3h9v3'],
+        children: [
+          { id: 'updates', href: '/settings/updates', label: 'Updates', icon: ['M16 10a6 6 0 1 1-1.8-4.3', 'M16 3.5v3.5h-3.5'] },
+          {
+            id: 'connector',
+            href: '/settings/connector',
+            label: 'MCP on the internet',
+            icon: ['M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14z', 'M3 10h14M10 3c-2 2-2.8 4.4-2.8 7s.8 5 2.8 7c2-2 2.8-4.4 2.8-7S12 5 10 3z']
+          },
+          {
+            id: 'backups',
+            href: '/settings/backups',
+            label: 'Backups',
+            icon: ['M4 5.5c0-1.1 2.7-2 6-2s6 .9 6 2-2.7 2-6 2-6-.9-6-2z', 'M4 5.5v9c0 1.1 2.7 2 6 2s6-.9 6-2v-9M4 10c0 1.1 2.7 2 6 2s6-.9 6-2']
+          },
+          {
+            id: 'worker',
+            href: '/settings/worker',
+            label: 'Worker',
+            icon: ['M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', 'M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4']
+          },
+          { id: 'logs', href: '/settings/logs', label: 'Logs', icon: ['M4 5h12M4 8.5h12M4 12h8M4 15.5h10'] },
+          {
+            id: 'browser',
+            href: '/settings/browser',
+            label: 'Browser',
+            icon: ['M3 5.5A1.5 1.5 0 0 1 4.5 4h11A1.5 1.5 0 0 1 17 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5z', 'M3 8h14M5.5 6h.01M7.5 6h.01']
+          },
+          { id: 'ai', href: '/settings/ai', label: 'Terminal and AI', icon: ['M3.5 4.5h13v11h-13z', 'M6.5 8l2.5 2-2.5 2M10.5 12.5h3'] }
+        ]
       },
       {
         id: 'security',
@@ -130,7 +129,7 @@ export const SETTINGS_NAV: NavGroup[] = [
 export function activeNav(pathname: string): NavId | null {
   let best: { id: NavId; len: number } | null = null;
   for (const g of SETTINGS_NAV)
-    for (const item of g.items)
+    for (const item of g.items.flatMap((i) => [i, ...(i.children ?? [])]))
       for (const prefix of [item.href, ...(item.match ?? [])]) {
         const hit = prefix === '/settings' ? pathname === '/settings' : pathname === prefix || pathname.startsWith(prefix + '/');
         if (hit && (!best || prefix.length > best.len)) best = { id: item.id, len: prefix.length };

@@ -59,7 +59,8 @@
     position: fixed;
     left: max(12px, env(safe-area-inset-left, 0px));
     right: max(12px, env(safe-area-inset-right, 0px));
-    bottom: calc(10px + var(--dock-h, 0px) + env(safe-area-inset-bottom, 0px));
+    /* Close to the edge like iOS: into the home indicator's area, never closer than 6px. */
+    bottom: calc(var(--dock-h, 0px) + max(6px, env(safe-area-inset-bottom, 0px) - 12px));
     z-index: 30;
     max-width: 520px;
     margin: 0 auto;

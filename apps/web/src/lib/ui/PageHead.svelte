@@ -138,6 +138,30 @@
   .pagenav :global(.segmented) {
     max-width: 560px;
   }
+  /* A phone: like iOS, Pingo and the actions sit on a bar of their own and the large title takes the whole
+     width under it. */
+  @media (max-width: 700px) {
+    .row:has(> .mascot, > .acts) {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: 'mascot . acts' 'text text text';
+      row-gap: var(--space-2);
+    }
+    .mascot {
+      grid-area: mascot;
+      margin: 0;
+    }
+    .mascot :global(svg) {
+      width: 40px;
+      height: 40px;
+    }
+    .acts {
+      grid-area: acts;
+    }
+    .text {
+      grid-area: text;
+    }
+  }
   /* A phone: words only, so three or four pages fit side by side. */
   @media (max-width: 480px) {
     .pagenav :global(.segmented svg) {

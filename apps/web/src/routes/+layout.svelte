@@ -276,7 +276,7 @@
       justify-content: space-between;
     }
     .page.tabbed main {
-      padding-bottom: calc(96px + var(--dock-h, 0px) + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(88px + var(--dock-h, 0px) + env(safe-area-inset-bottom, 0px));
     }
     :global(html[data-focus]) .page.tabbed main {
       padding-bottom: calc(var(--space-7) + var(--dock-h, 0px));

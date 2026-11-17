@@ -40,7 +40,7 @@
 
 <PageHead title={`${clock.greeting}, ${profileName}`} sub={clock.today} mood={clock.mood}>
   {#snippet actions()}
-    {#if !arranging && data.layout.length}<button class="btn-plain btn-sm" onclick={startArrange}>{t('Arrange')}</button>{/if}
+    {#if !arranging && data.layout.length}<button class="btn-glass btn-icon btn-sm" onclick={startArrange} aria-label={t('Arrange')} title={t('Arrange')}><Icon name="apps" size={18} /></button>{/if}
   {/snippet}
 </PageHead>
 

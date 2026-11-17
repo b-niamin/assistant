@@ -30,5 +30,7 @@ export { default as Icon } from '#lib/ui/Icon.svelte';
 export { ICON_NAMES } from '#lib/ui/icons.js';
 /** Since shell 8: swipe through periods (a week, a month): the page follows the finger, with buttons and arrow keys. */
 export { default as Pager } from '#lib/ui/Pager.svelte';
+/** Since shell 9: a yes/no question before a step that matters (an iOS alert): finish, discard, remove. */
+export { default as Confirm } from '#lib/ui/Confirm.svelte';
 /** Since shell 7: the mascot's name, picked in System settings -> Appearance (Pingo by default). */
 export { mascotName } from '#lib/ui/mascot-name.ts';

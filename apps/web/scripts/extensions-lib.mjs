@@ -27,7 +27,7 @@ export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)
  * source's `command` run there by its button; 5 = the shared calendar; 6 = the Pingo rename; 7 = Assistant UI
  * (lib/ui.css classes, PageHead/Segmented/Sheet/Icon in $shell/ui, manifest "icon" and "pages"); 8 = Pager.
  */
-export const SHELL_API = 8;
+export const SHELL_API = 9;
 /** First path segments the shell owns; an extension id can never take one. */
 export const RESERVED_IDS = new Set([
   'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',

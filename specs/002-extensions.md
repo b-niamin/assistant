@@ -171,7 +171,7 @@ export const load = (async ({ url }, ctx) => {
 **The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Pingo the mascot,
 motion helpers, the shared charts and empty state). The CSS tokens from `app.css` and `specs/001-design.md` are global. `ext check` rejects an
 import of anything else from the shell (`$lib` or `#lib`, another extension's files). The contract version is
-`SHELL_API` (now 8: 7 = Assistant UI, 8 = Pager). It grows by additions only: a manifest declares the version it needs (1 to 8), and one that
+`SHELL_API` (now 9: 7 = Assistant UI, 8 = Pager, 9 = Confirm). It grows by additions only: a manifest declares the version it needs (1 to 9), and one that
 needs more than the core has does not build ("update the assistant first").
 
 **Look (required).** Every extension wears the shell's layout and has Pingo, the mascot, woven in: native

@@ -88,7 +88,7 @@ your own:
 | Surfaces and lists | `.card`, `.well`, `.section-head` (a Title 2 and an action), `.list-group` > `.list-row` (`.list-icon`, `.list-text` > `.list-title` + `.list-sub`, `.list-end`; a link row gets a chevron) |
 | Controls | `.segmented` (links with `aria-current` or buttons with `aria-pressed`; `.full`, `.glass`), `.stepper` (− value +), `.chips` > `button.chip` (`aria-pressed`/`aria-checked`), `.chip` (a label), `.status` + `good`/`warning`/`serious`/`critical` (a dot and a word, never colour alone) |
 | Text | `.eyebrow`, `.figure` (the big number of a card, `<small>` for its unit), `.muted`, `.num` (tabular figures), `.sr` (screen readers only), `.rise` (entrance) |
-| Components | `PageHead` (every page starts with it: title, one line, Pingo, actions; `back` for a page further in, `focus` hides the tab bar), `Sheet` (a bottom sheet), `Pager` (swipe through weeks or months, since shell 8), `Icon` (`ICON_NAMES`), `EmptyState`, `Mascot`, `LineChart`, `Sparkline` |
+| Components | `PageHead` (every page starts with it: title, one line, Pingo, actions; `back` for a page further in, `focus` hides the tab bar), `Sheet` (a bottom sheet), `Pager` (swipe through weeks or months, since shell 8), `Confirm` (a yes/no question before a step that matters, since shell 9), `Icon` (`ICON_NAMES`), `EmptyState`, `Mascot`, `LineChart`, `Sparkline` |
 | Form controls | plain `<input>`, `<select>`, `<textarea>`: the shell styles them (`src/lib/controls.css`, also in onefile apps). `<label class="check"><input type="checkbox"> Text</label>`; an on/off setting: `<input type="checkbox" role="switch">` |
 
 The manifest names the app's icon in the tab bar (`"icon"`, from `ICON_NAMES`), a short name for it when the

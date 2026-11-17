@@ -79,7 +79,7 @@ export const seed = (pkg) => {
     return `${pkg}: ${home.version} in ~/.npm-global (image ${image.version})`;
   }
   // Copy next to it, then swap: a crash midway never leaves a half-copied CLI on PATH.
-  const tmp = `${dst}.pingo-tmp`;
+  const tmp = `${dst}.assistant-tmp`;
   rmSync(tmp, { recursive: true, force: true });
   mkdirSync(path.dirname(dst), { recursive: true });
   cpSync(src, tmp, { recursive: true, verbatimSymlinks: true, preserveTimestamps: true });

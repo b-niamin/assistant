@@ -23,8 +23,8 @@ export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)
 /**
  * The SDK contract version (spec 002). It grows by additions only: an extension declares the version it
  * was written for and builds on that core or any newer one. 2 = shared charts, EmptyState, EN, ticks;
- * 3 = `import pingo` for Python services (docker/worker/lib); 4 = `ext-run` in the app's terminal, and a
- * source's `command` run there by its button; 5 = the shared calendar; 6 = the Pingo rename; 7 = Pingo UI
+ * 3 = `import assistant` for Python services (docker/worker/lib); 4 = `ext-run` in the app's terminal, and a
+ * source's `command` run there by its button; 5 = the shared calendar; 6 = the Pingo rename; 7 = Assistant UI
  * (lib/ui.css classes, PageHead/Segmented/Sheet/Icon in $shell/ui, manifest "icon" and "pages").
  */
 export const SHELL_API = 7;
@@ -81,7 +81,7 @@ export function validateEntry(e) {
   return errors;
 }
 
-/** What Pingo can wear (manifest "accessory"); the drawings are in src/lib/pingo-accessories.ts. */
+/** What Pingo can wear (manifest "accessory"); the drawings are in src/lib/mascot-accessories.ts. */
 export const ACCESSORIES = [
   'none',
   'headband',
@@ -732,8 +732,8 @@ export function lookWarnings(root, manifest, id) {
   if (manifest.kind === 'onefile') {
     const file = manifest.entry && path.join(root, manifest.entry);
     const html = file && existsSync(file) ? readFileSync(file, 'utf8') : '';
-    if (!/<assistant-pingo\b|createElement\(\s*['"]assistant-pingo['"]/.test(html))
-      warnings.push(`${id}: Pingo is missing (use <assistant-pingo mood="..."> in its header or empty states)`);
+    if (!/<assistant-mascot\b|createElement\(\s*['"]assistant-mascot['"]/.test(html))
+      warnings.push(`${id}: Pingo is missing (use <assistant-mascot mood="..."> in its header or empty states)`);
     if (!/var\(--(page|surface|ink|accent)\b/.test(html))
       warnings.push(`${id}: does not use the shell tokens (var(--page), var(--surface), var(--ink), var(--accent), ...)`);
   } else {
@@ -743,7 +743,7 @@ export function lookWarnings(root, manifest, id) {
     // PageHead and EmptyState draw Pingo themselves.
     if (!/import\s*\{[^}]*\b(Mascot|PageHead|EmptyState)\b[^}]*\}\s*from\s*['"]\$shell\/ui['"]/.test(src))
       warnings.push(`${id}: Pingo is missing (PageHead or Mascot from '$shell/ui' in its header, EmptyState in empty states)`);
-    // Pingo UI (spec 001): one system font and the shell's page head with its page navigation.
+    // Assistant UI (spec 001): one system font and the shell's page head with its page navigation.
     const styles = walk(web).filter((f) => /\.(css|svelte)$/.test(f)).map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
     if (/@font-face/.test(styles)) warnings.push(`${id}: its own font (@font-face): the app has one system font (var(--font), figures var(--font-rounded))`);
     if (files.some((f) => f.endsWith('.svelte')) && !/\bPageHead\b/.test(src))

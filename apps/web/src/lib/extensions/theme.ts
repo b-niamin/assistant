@@ -6,10 +6,10 @@
  *   dark, inside `@layer assistant` so the app's own unlayered rules still win;
  * - the shell's checkboxes, radios, switches, sliders and picker buttons (lib/controls.css) and its components
  *   (lib/ui.css: .btn*, .card, .list, .segmented, .stepper, .chip, .glass, ...), in the same layer;
- * - `<assistant-pingo mood="steady" size="48">`: Pingo, the mascot, as a custom element (shadow DOM, so
+ * - `<assistant-mascot mood="steady" size="48">`: Pingo, the mascot, as a custom element (shadow DOM, so
  *   its SVG ids and styles never clash with the app). Moods: idle, steady, charged, tired, asleep.
- *   `accessory="book"` dresses it (pingo-accessories.ts); without the attribute it wears the app's own
- *   (`window.assistantPingo.accessory`, from the manifest). It covers its eyes by itself while a password
+ *   `accessory="book"` dresses it (mascot-accessories.ts); without the attribute it wears the app's own
+ *   (`window.assistantMascot.accessory`, from the manifest). It covers its eyes by itself while a password
  *   field has focus; `shy` (or `shy="peek"`) forces that.
  *
  * Native extensions get the same look from the shell itself (`$shell/ui`, the classes in app.css).
@@ -17,8 +17,10 @@
 import appCss from '../../app.css?raw';
 import controlsCss from '../controls.css?raw';
 import uiCss from '../ui.css?raw';
-import pipSvg from '../../../static/pingo.svg?raw';
-import { ACCESSORY_IDS, accessorySvg, SHY_SVG, type Accessory } from '../pingo-accessories';
+import beanSvg from '../../../static/mascot-bean.svg?raw';
+import penguinSvg from '../../../static/mascot-penguin.svg?raw';
+import { DEFAULT_APPEARANCE, type Appearance } from '../appearance';
+import { ACCESSORY_IDS, accessorySvg, SHY_SVG, type Accessory } from '../mascot-accessories';
 
 /** The token part of app.css: everything before the first element rule (`*,`). */
 export function tokensOf(css: string): string {
@@ -69,7 +71,7 @@ function dressing(): string {
   return parts.join('') + `<g class="cover">${SHY_SVG}</g>`;
 }
 
-/** Script defining <assistant-pingo>; `svg` is Pingo's markup. */
+/** Script defining <assistant-mascot>; `svg` is Pingo's markup. */
 export function pipElementScript(svg: string): string {
   // Wrap the drawing in .body and the eyes (white + pupils + glints) in .eyes for the mood styles.
   const drawn = svg
@@ -80,9 +82,9 @@ export function pipElementScript(svg: string): string {
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e');
   return `(function () {
-  if (!window.customElements || customElements.get('assistant-pingo')) return;
+  if (!window.customElements || customElements.get('assistant-mascot')) return;
   var html = ${template};
-  var own = (window.assistantPingo && window.assistantPingo.accessory) || 'none';
+  var own = (window.assistantMascot && window.assistantMascot.accessory) || 'none';
   // Cover the eyes while a password field has focus; peek when it is revealed (type flipped to text).
   function secrecy() {
     var el = document.activeElement;
@@ -93,7 +95,7 @@ export function pipElementScript(svg: string): string {
   }
   function check() {
     var s = secrecy();
-    var all = document.querySelectorAll('assistant-pingo');
+    var all = document.querySelectorAll('assistant-mascot');
     for (var i = 0; i < all.length; i++) {
       if (s) all[i].setAttribute('covering', s === 'peek' ? 'peek' : ''); else all[i].removeAttribute('covering');
     }
@@ -102,7 +104,7 @@ export function pipElementScript(svg: string): string {
   document.addEventListener('focusout', function () { setTimeout(check, 0); });
   if (window.MutationObserver)
     new MutationObserver(check).observe(document.documentElement, { subtree: true, attributeFilter: ['type'] });
-  customElements.define('assistant-pingo', class extends HTMLElement {
+  customElements.define('assistant-mascot', class extends HTMLElement {
     static get observedAttributes() { return ['size', 'label']; }
     connectedCallback() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' }).innerHTML = html;
@@ -121,13 +123,26 @@ export function pipElementScript(svg: string): string {
 })();`;
 }
 
-/** Everything a onefile app gets in front of its own code: a <style> and a <script>. */
-export function themeTags(css = appCss, svg = pipSvg, accessory: Accessory = 'none', controls = controlsCss + '\n' + uiCss): string {
+/** The static drawing of a mascot kind (static/mascot-<kind>.svg). */
+export const mascotSvg = (kind: Appearance['kind']) => (kind === 'bean' ? beanSvg : penguinSvg);
+
+/**
+ * Everything a onefile app gets in front of its own code: a <style> and a <script>. `appearance` (System
+ * settings -> Appearance) picks the mascot's kind and the accent theme (html[data-accent] in the iframe).
+ */
+export function themeTags(
+  css = appCss,
+  appearance: Appearance = DEFAULT_APPEARANCE,
+  accessory: Accessory = 'none',
+  controls = controlsCss + '\n' + uiCss
+): string {
   const tokens = tokensOf(css).replace(/<\/style/gi, '<\\/style');
   const look = controls.replace(/\/\*[\s\S]*?\*\//g, '').trim().replace(/<\/style/gi, '<\\/style');
+  const mascot = { accessory, name: appearance.name, kind: appearance.kind };
+  const accent = appearance.accent === 'lagoon' ? '' : `document.documentElement.setAttribute('data-accent', ${JSON.stringify(appearance.accent)});`;
   return (
     `<style id="assistant-theme">@layer assistant { ${tokens} ${look} }</style>` +
-    `<script>window.assistantPingo = Object.freeze({ accessory: ${JSON.stringify(accessory)} });` +
-    `${pipElementScript(pipMarkup(svg))}</script>`
+    `<script>${accent}window.assistantMascot = Object.freeze(${JSON.stringify(mascot).replace(/</g, '\\u003c')});` +
+    `${pipElementScript(pipMarkup(mascotSvg(appearance.kind)))}</script>`
   );
 }

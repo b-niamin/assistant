@@ -1,5 +1,5 @@
 /*
- * Pingo UI: the shell's components as classes (spec 001). Imported by the root layout for the shell and
+ * Assistant UI: the shell's components as classes (spec 001). Imported by the root layout for the shell and
  * native extensions, and inlined into onefile apps (lib/extensions/theme.ts, @layer assistant), so every
  * page builds from the same buttons, cards, lists and controls. Everything uses the tokens of app.css.
  * Svelte wrappers for the parts with behaviour live in lib/ui (PageHead, Segmented, Stepper, Sheet, Icon).

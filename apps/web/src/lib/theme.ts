@@ -12,8 +12,10 @@ export function parseTheme(value: string | undefined): Theme {
 }
 
 /** The <html> tag for a theme and language; `system` leaves it to `prefers-color-scheme`. */
-export function htmlTag(theme: Theme, lang = 'en', reduceMotion = false): string {
+export function htmlTag(theme: Theme, lang = 'en', reduceMotion = false, accent = 'lagoon'): string {
   const code = /^[a-z]{2}$/.test(lang) ? lang : 'en';
-  const attrs = `lang="${code}"${theme === 'system' ? '' : ` data-theme="${theme}"`}${reduceMotion ? ' data-motion="reduce"' : ''}`;
+  // The accent theme (System settings -> Appearance); lagoon is the tokens' own, so it needs no attribute.
+  const tint = /^[a-z]{1,12}$/.test(accent) && accent !== 'lagoon' ? ` data-accent="${accent}"` : '';
+  const attrs = `lang="${code}"${theme === 'system' ? '' : ` data-theme="${theme}"`}${tint}${reduceMotion ? ' data-motion="reduce"' : ''}`;
   return `<html ${attrs}>`;
 }

@@ -90,7 +90,7 @@ instances is copied into the extensions repo by hand.
   "shell": 1,                     // SDK contract version this extension was written for
   "entry": "app.html",            // onefile only
   "accessory": "stethoscope",     // optional: what Pingo wears on its pages (specs/001-design.md); else guessed
-  "icon": "heart",                // optional: its icon in the phone's tab bar (lib/ui/icons.js, spec 001 Pingo UI)
+  "icon": "heart",                // optional: its icon in the phone's tab bar (lib/ui/icons.js, spec 001 Assistant UI)
   "short": "Health",              // optional: a name of at most 12 characters for the tab bar
   "pages": [                      // optional: 2-5 pages, drawn by the shell under PageHead (spec 001 Navigation)
     { "path": "", "label": "Today", "icon": "heart" },
@@ -171,11 +171,11 @@ export const load = (async ({ url }, ctx) => {
 **The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Pingo the mascot,
 motion helpers, the shared charts and empty state). The CSS tokens from `app.css` and `specs/001-design.md` are global. `ext check` rejects an
 import of anything else from the shell (`$lib` or `#lib`, another extension's files). The contract version is
-`SHELL_API` (now 7: 7 = Pingo UI). It grows by additions only: a manifest declares the version it needs (1 to 7), and one that
+`SHELL_API` (now 7: 7 = Assistant UI). It grows by additions only: a manifest declares the version it needs (1 to 7), and one that
 needs more than the core has does not build ("update the assistant first").
 
 **Look (required).** Every extension wears the shell's layout and has Pingo, the mascot, woven in: native
-pages through the global tokens and `$shell/ui`, onefile apps through the tokens and `<assistant-pingo>`
+pages through the global tokens and `$shell/ui`, onefile apps through the tokens and `<assistant-mascot>`
 that the host injects into their iframe. Details and the `look:` warnings of `ext check`: spec 001,
 "Extensions wear this look".
 
@@ -271,7 +271,7 @@ The manifest declares the work; the worker decides how it runs:
   `WORKER_DATA` (as the extension's uid, again when the file or Python changes); Node runs scripts with
   their own vendored `node_modules`, if any. Logs: `/worker/logs/<id>.<unit>.log` (also in System settings
   -> Logs), each line of the unit's output plus the worker's own notes (started, exited, run took 2 s).
-- **`import pingo`** (shell 6; `docker/worker/lib/pingo`, on every unit's `PYTHONPATH`): what each service
+- **`import assistant`** (shell 7; `docker/worker/lib/assistant`, on every unit's `PYTHONPATH`): what each service
   would otherwise write again: `log()` and `logger()` (one line, the app's time zone), `env()` /
   `env_int()` (settings with bounds), `connect()` (psycopg as the extension's role), `every(seconds, fn)`
   (a loop that survives a failed pass and stops on SIGTERM). Tests outside the worker put

@@ -1,10 +1,10 @@
 """What every extension service needs from the assistant, so none writes it again (audit R12).
 
-The worker puts this on PYTHONPATH of every unit (`import pingo`); an extension's tests get it from the
+The worker puts this on PYTHONPATH of every unit (`import assistant`); an extension's tests get it from the
 core checkout (its CI sets PYTHONPATH=<core>/docker/worker/lib). Standard library only: psycopg is the
 extension's own requirement, imported when `connect()` is first called.
 
-    from pingo import env_int, log, connect, every
+    from assistant import env_int, log, connect, every
 
     log("collector: started")                      # one line, local time (TZ), flushed: /worker/logs/<id>.<unit>.log
     interval = env_int("MONITOR_INTERVAL_SECONDS", 30, minimum=5)

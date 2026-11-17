@@ -23,7 +23,7 @@ This folder is an extension of the assistant shell. Read the shell's `AGENTS.md`
   write (validated like the form), each with `readOnly: true|false`. They reach Claude through the
   `assistant` MCP server, in the terminal and on claude.ai (the Claude connector).
 - Look (required): the shell's layout and tokens (`.card`, `.btn`, `.muted`, `--ink-*`, `--accent`,
-  `--hue-*`, `--space-*`; Pingo UI in the shell's `specs/001-design.md`: `PageHead`, `.btn*`, `.card`, `.list-group`) and Pingo (`PageHead` or `Mascot` from `$shell/ui`) in the
+  `--hue-*`, `--space-*`; Assistant UI in the shell's `specs/001-design.md`: `PageHead`, `.btn*`, `.card`, `.list-group`) and Pingo (`PageHead` or `Mascot` from `$shell/ui`) in the
   header and every empty or error state. No UI libraries, no raw hex.
 - `extensions/` is this instance's own folder (git-ignored in the assistant repo, kept by the daily
   backup): nothing to commit. Before handing it over, run the shell's checks:

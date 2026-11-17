@@ -111,7 +111,7 @@ must be reachable over public HTTPS. The rest of the app must not be.
   `127.0.0.1:${MCP_PORT:-3101}`). It answers only `/mcp`, `/mcp/oauth/*`,
   `/.well-known/oauth-protected-resource[/mcp]` and `/.well-known/oauth-authorization-server`
   (`lib/mcp/paths.js`); everything else is 404, WebSocket upgrades too. It marks its requests
-  (`x-pingo-public`, stripped on the main listener), and `hooks.server.ts` refuses any other path from it.
+  (`x-assistant-public`, stripped on the main listener), and `hooks.server.ts` refuses any other path from it.
 - **Tailscale Funnel** publishes that listener at `https://<machine>.<tailnet>.ts.net` (port 443: claude.ai's
   servers connect to no other port). The app's own address stays tailnet-only (Tailscale Serve), on another
   port (install.sh suggests 8443). When 443 only repeats the app (Serve to WEB_PORT, PUBLIC_ORIGIN on another

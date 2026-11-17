@@ -15,10 +15,12 @@
   --grid: #e1e0d9;
   --axis: #c3c2b7;
   --ring: rgba(11, 11, 11, 0.1);
-  --accent: #2a78d6; /* categorical slot 1, also the single-series colour */
-  --accent-wash: rgba(42, 120, 214, 0.1);
-  --accent-ink: #1c5cab; /* links and selected text: accent step that clears 4.5:1 */
-  --accent-fill: #1f6dc4; /* filled buttons: white text on it clears 4.5:1 in both themes */
+  /* The accent theme (System settings -> Appearance): Lagoon by default, the others under html[data-accent]
+     below. Each step is checked: --accent-ink 4.5:1 or more on the surfaces, white on --accent-fill 5:1. */
+  --accent: #0f8a83; /* the single-series colour, rings, selected marks */
+  --accent-wash: rgba(15, 138, 131, 0.1);
+  --accent-ink: #0a6e68; /* links and selected text */
+  --accent-fill: #0b7a74; /* filled buttons: white text on it */
   --field-border: #8a8984; /* inputs and selects: 3:1 against the page (non-text contrast) */
   --good: #0ca30c;
   --good-ink: #006300;
@@ -31,7 +33,7 @@
   --fill-1: rgba(120, 120, 110, 0.14); /* gray buttons, segmented track, stepper, wells */
   --fill-2: rgba(120, 120, 110, 0.08); /* quieter wells: week days, chips, fields in a sheet */
   --sep: rgba(11, 11, 11, 0.1); /* hairlines between list rows */
-  --accent-tint: rgba(42, 120, 214, 0.13); /* tinted buttons, selected rows */
+  --accent-tint: rgba(15, 138, 131, 0.13); /* tinted buttons, selected rows */
   --critical-tint: rgba(208, 59, 59, 0.12);
   --good-tint: rgba(12, 163, 12, 0.12);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
@@ -115,10 +117,10 @@
     --grid: #2c2c2a;
     --axis: #383835;
     --ring: rgba(255, 255, 255, 0.1);
-    --accent: #3987e5;
-    --accent-wash: rgba(57, 135, 229, 0.14);
-    --accent-ink: #86b6ef;
-    --accent-fill: #1f6dc4;
+    --accent: #14a39a;
+    --accent-wash: rgba(20, 163, 154, 0.14);
+    --accent-ink: #5fd3c8;
+    --accent-fill: #0b7a74;
     --field-border: #75736d;
     --critical-ink: #f06b6b;
     --good-ink: #0ca30c;
@@ -132,7 +134,7 @@
     --fill-1: rgba(120, 120, 128, 0.24);
     --fill-2: rgba(120, 120, 128, 0.14);
     --sep: rgba(255, 255, 255, 0.1);
-    --accent-tint: rgba(57, 135, 229, 0.22);
+    --accent-tint: rgba(20, 163, 154, 0.22);
     --critical-tint: rgba(230, 103, 103, 0.2);
     --good-tint: rgba(12, 163, 12, 0.2);
     --shadow-card: none;
@@ -155,10 +157,10 @@
   --grid: #2c2c2a;
   --axis: #383835;
   --ring: rgba(255, 255, 255, 0.1);
-  --accent: #3987e5;
-  --accent-wash: rgba(57, 135, 229, 0.14);
-  --accent-ink: #86b6ef;
-  --accent-fill: #1f6dc4;
+  --accent: #14a39a;
+  --accent-wash: rgba(20, 163, 154, 0.14);
+  --accent-ink: #5fd3c8;
+  --accent-fill: #0b7a74;
   --field-border: #75736d;
   --critical-ink: #f06b6b;
   --good-ink: #0ca30c;
@@ -172,7 +174,7 @@
   --fill-1: rgba(120, 120, 128, 0.24);
   --fill-2: rgba(120, 120, 128, 0.14);
   --sep: rgba(255, 255, 255, 0.1);
-  --accent-tint: rgba(57, 135, 229, 0.22);
+  --accent-tint: rgba(20, 163, 154, 0.22);
   --critical-tint: rgba(230, 103, 103, 0.2);
   --good-tint: rgba(12, 163, 12, 0.2);
   --shadow-card: none;
@@ -181,6 +183,77 @@
   --glass-hi: rgba(255, 255, 255, 0.14);
   --glass-edge: rgba(255, 255, 255, 0.1);
   --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* The other accent themes (System settings -> Appearance, lib/appearance.ts), light then dark. */
+:root[data-accent='iris'] {
+  --accent: #5b4bdb;
+  --accent-wash: rgba(91, 75, 219, 0.1);
+  --accent-ink: #4a3bc4;
+  --accent-fill: #4a3bc4;
+  --accent-tint: rgba(91, 75, 219, 0.13);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-accent='iris']:not([data-theme='light']) {
+    --accent: #7a6cf0;
+    --accent-wash: rgba(122, 108, 240, 0.14);
+    --accent-ink: #a99cff;
+    --accent-fill: #5b4bdb;
+    --accent-tint: rgba(122, 108, 240, 0.24);
+  }
+}
+:root[data-accent='iris'][data-theme='dark'] {
+  --accent: #7a6cf0;
+  --accent-wash: rgba(122, 108, 240, 0.14);
+  --accent-ink: #a99cff;
+  --accent-fill: #5b4bdb;
+  --accent-tint: rgba(122, 108, 240, 0.24);
+}
+:root[data-accent='plum'] {
+  --accent: #b8327a;
+  --accent-wash: rgba(184, 50, 122, 0.1);
+  --accent-ink: #9c2766;
+  --accent-fill: #a52a6c;
+  --accent-tint: rgba(184, 50, 122, 0.13);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-accent='plum']:not([data-theme='light']) {
+    --accent: #d0458f;
+    --accent-wash: rgba(208, 69, 143, 0.14);
+    --accent-ink: #f08cc0;
+    --accent-fill: #a52a6c;
+    --accent-tint: rgba(208, 69, 143, 0.24);
+  }
+}
+:root[data-accent='plum'][data-theme='dark'] {
+  --accent: #d0458f;
+  --accent-wash: rgba(208, 69, 143, 0.14);
+  --accent-ink: #f08cc0;
+  --accent-fill: #a52a6c;
+  --accent-tint: rgba(208, 69, 143, 0.24);
+}
+:root[data-accent='forest'] {
+  --accent: #2f7d4f;
+  --accent-wash: rgba(47, 125, 79, 0.1);
+  --accent-ink: #226040;
+  --accent-fill: #276b43;
+  --accent-tint: rgba(47, 125, 79, 0.13);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-accent='forest']:not([data-theme='light']) {
+    --accent: #3a9a62;
+    --accent-wash: rgba(58, 154, 98, 0.14);
+    --accent-ink: #7fd3a0;
+    --accent-fill: #276b43;
+    --accent-tint: rgba(58, 154, 98, 0.24);
+  }
+}
+:root[data-accent='forest'][data-theme='dark'] {
+  --accent: #3a9a62;
+  --accent-wash: rgba(58, 154, 98, 0.14);
+  --accent-ink: #7fd3a0;
+  --accent-fill: #276b43;
+  --accent-tint: rgba(58, 154, 98, 0.24);
 }
 
 *,

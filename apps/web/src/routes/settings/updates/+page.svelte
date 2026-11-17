@@ -106,7 +106,7 @@
       {#if v.unanswered}
         <p class="full meta bad">
           {t('Requested {when}, but the updater has not taken it: is its scheduled task running every minute, all day? (In DSM its last run time must be 23:59.)', { when: when(data.updateControl.request) })}
-          {t('On the host,')} <code>sudo ./pingo.sh update</code> {t('updates right away.')}
+          {t('On the host,')} <code>sudo ./assistant.sh update</code> {t('updates right away.')}
         </p>
       {:else if v.pending}
         <p class="full meta">{t('Requested {when}: the updater takes it within a minute.', { when: when(data.updateControl.request) })}</p>
@@ -128,7 +128,7 @@
             {t('A build takes minutes on a NAS; the old containers keep running until then.')}
           {:else}
             {t('Its process stopped (no sign of it since {when}: a restart of the host, or it was killed). The updater\'s next run picks it up where it stopped; Resume asks for that now, and so does', { when: when(u.checkedAt || u.at) })}
-            <code>sudo ./pingo.sh update</code> {t('on the host.')}
+            <code>sudo ./assistant.sh update</code> {t('on the host.')}
           {/if}
         </p>
         {#if data.buildTail.length}
@@ -209,7 +209,7 @@
       </dl>
       <p class="meta">
         {t('The host\'s updater runs every minute, checks {branch} on GitHub every few minutes and rebuilds only what changed.', { branch: u.branch })}
-        {t('On the host the same update is')} <code>sudo ./pingo.sh update</code>.
+        {t('On the host the same update is')} <code>sudo ./assistant.sh update</code>.
         <a href="/settings/logs?file=updater.log">{t('Updater log')}</a>
       </p>
     </div>
@@ -218,7 +218,7 @@
   <div class="card panel empty">
     <Mascot mood="asleep" size={48} decorative />
     <p class="muted">
-      {t('The updater is not set up. On the host,')} <code>sudo ./pingo.sh update</code>
+      {t('The updater is not set up. On the host,')} <code>sudo ./assistant.sh update</code>
       {t('sets it up and updates; it prints the scheduled task to add (spec 006).')}
     </p>
   </div>

@@ -45,7 +45,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# `import pingo` for every unit (lib/pingo: logging, settings, database, the loop).
+# `import assistant` for every unit (lib/assistant: logging, settings, database, the loop).
 LIB = os.path.join(HERE, "lib")
 EXT = os.environ.get("WORKER_EXTENSIONS", "/extensions")
 DATA = os.environ.get("WORKER_DATA_DIR", "/data")
@@ -935,7 +935,7 @@ def unit_main(spec: dict[str, Any], argv: list[str] | None = None) -> None:
     if not os.access(here, os.R_OK | os.X_OK):
         # Python would only say "No module named ..." (the folder cannot be listed).
         sys.exit(f"{iso(time.time())} [worker] cannot read {here} as uid {os.getuid()}: the extension's files must be "
-                 "readable by others. On the host: sudo ./pingo.sh fix-permissions")
+                 "readable by others. On the host: sudo ./assistant.sh fix-permissions")
     req = os.path.join(here, "requirements.txt")
     if os.path.isfile(req):
         venv = os.path.join(env["WORKER_DATA"], "venv", hashlib.sha256(os.getcwd().encode()).hexdigest()[:12])

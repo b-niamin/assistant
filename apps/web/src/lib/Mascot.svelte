@@ -3,11 +3,13 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { accessoryFor, type Accessory, type Mood } from './mascot';
-  import { accessorySvg, SHY_SVG } from './pingo-accessories';
-  import { pingoWatch, watchSecrets } from './pingo-watch.svelte';
+  import { accessorySvg, SHY_SVG } from './mascot-accessories';
+  import { mascotWatch, watchSecrets } from './mascot-watch.svelte';
+  import { DEFAULT_APPEARANCE, type MascotKind } from './appearance';
 
   /**
-   * Pingo: a jelly-bean runner that dresses for the page. Pure SVG + CSS (transform/opacity only), so it costs
+   * The mascot (Pingo by default; name and kind in System settings -> Appearance): a penguin or a jelly bean
+   * that dresses for the page. Pure SVG + CSS (transform/opacity only), so it costs
    * nothing to animate. Mood picks the idle loop; a click makes it bounce; pupils follow the pointer.
    * Everything stands still under prefers-reduced-motion.
    *
@@ -18,20 +20,26 @@
   let {
     mood = 'idle',
     size = 96,
-    label = 'Pingo',
+    label,
     decorative = false,
     accessory = 'auto',
-    shy = 'auto'
+    shy = 'auto',
+    kind
   }: {
     mood?: Mood;
     size?: number;
     label?: string;
+    /** penguin or bean; by default the one picked in System settings -> Appearance. */
+    kind?: MascotKind;
     decorative?: boolean;
     accessory?: Accessory | 'auto';
     shy?: boolean | 'peek' | 'auto';
   } = $props();
 
   const uid = $props.id();
+  const look0 = $derived((page.data?.appearance as { kind?: MascotKind; name?: string } | undefined) ?? DEFAULT_APPEARANCE);
+  const shape = $derived(kind ?? look0.kind ?? 'penguin');
+  const said = $derived(label ?? look0.name ?? DEFAULT_APPEARANCE.name);
   let el: SVGSVGElement;
   let boing = $state(false);
   let look = $state({ x: 0, y: 0 });
@@ -43,7 +51,7 @@
   });
   const covering = $derived.by(() => {
     if (shy !== 'auto') return shy === true ? 'hidden' : shy === 'peek' ? 'shown' : 'none';
-    return pingoWatch.secrecy;
+    return mascotWatch.secrecy;
   });
 
   function poke() {
@@ -76,13 +84,13 @@
 
 <svelte:element
   this={decorative ? 'span' : 'button'}
-  class="pip {mood} wears-{worn}"
+  class="pip {mood} {shape} wears-{worn}"
   class:boing
   class:shy={covering === 'hidden'}
   class:peek={covering === 'shown'}
   onclick={decorative ? undefined : poke}
   onanimationend={() => (boing = false)}
-  aria-label={decorative ? undefined : label}
+  aria-label={decorative ? undefined : said}
   aria-hidden={decorative ? 'true' : undefined}
   type={decorative ? undefined : 'button'}
   role={decorative ? undefined : 'button'}
@@ -103,10 +111,24 @@
     </g>
 
     <g class="body">
+      {#if shape === 'penguin'}
+        <g class="flippers">
+          <path d="M10.5 33c-5.5 4-7 11-4.5 16.5 3.2-1.2 5.6-4.8 6.6-9.5z" />
+          <path d="M53.5 33c5.5 4 7 11 4.5 16.5-3.2-1.2-5.6-4.8-6.6-9.5z" />
+        </g>
+        <g class="feet">
+          <ellipse cx="24.5" cy="56.6" rx="5" ry="2.3" />
+          <ellipse cx="39.5" cy="56.6" rx="5" ry="2.3" />
+        </g>
+      {/if}
       <path class="skin" d="M32 11C47 11 56 26 56 41 56 51.6 46 56 32 56 18 56 8 51.6 8 41 8 26 17 11 32 11Z" />
-      <g clip-path="url(#{uid}-body)">
-        <ellipse class="belly" cx="32" cy="50" rx="17" ry="9" />
-      </g>
+      {#if shape === 'penguin'}
+        <path class="face" d="M32 26.5c3-3.6 8.6-5.4 12.4-2.6 4.4 3.3 5.6 9.6 5.1 15.6C48.9 48.6 42 54.2 32 54.2S15.1 48.6 14.5 39.5c-.5-6 .7-12.3 5.1-15.6 3.8-2.8 9.4-1 12.4 2.6Z" />
+      {:else}
+        <g clip-path="url(#{uid}-body)">
+          <ellipse class="belly" cx="32" cy="50" rx="17" ry="9" />
+        </g>
+      {/if}
       <ellipse class="shine" cx="20.6" cy="17" rx="3.6" ry="1.8" transform="rotate(-35 20.6 17)" />
 
       <g class="eyes">
@@ -137,6 +159,9 @@
       <path class="mouth smile" d="M28 45.2q4 3.4 8 0" />
       <path class="mouth flat" d="M29 46.4h6" />
       <ellipse class="mouth snore" cx="32" cy="46.6" rx="1.8" ry="1.4" />
+      {#if shape === 'penguin'}
+        <path class="beak" d="M27.6 41.2c2.6-1.6 6.2-1.6 8.8 0 .5.3.5 1 .1 1.4l-3.6 3.4c-.5.5-1.3.5-1.8 0l-3.6-3.4c-.4-.4-.4-1.1.1-1.4Z" />
+      {/if}
 
       {#key worn}<g class="acc">{@html accessorySvg(worn, `${uid}-body`)}</g>{/key}
       <g class="cover">{@html SHY_SVG}</g>
@@ -175,12 +200,45 @@
   .skin {
     fill: var(--m);
   }
+  /* The penguin: a navy body, a white face, an orange beak and feet; the same eyes, lids and moods. */
+  .pip.penguin {
+    --m: #263457;
+    --m-ink: #141a2e;
+    --face: #fffaf3;
+    --beak: #ff8a1f;
+  }
+  .face {
+    fill: var(--face);
+  }
+  .flippers {
+    fill: color-mix(in oklch, var(--m), black 25%);
+  }
+  .feet,
+  .beak {
+    fill: var(--beak);
+  }
+  .penguin .white,
+  .penguin .lids rect {
+    fill: var(--face);
+  }
+  .penguin .pupils circle:not(.glint) {
+    r: 3.8px;
+  }
+  .penguin .shine {
+    opacity: 0.22;
+  }
+  .penguin .mouth {
+    display: none;
+  }
+  .penguin .cheeks {
+    transform: translateY(-0.6px);
+  }
   .belly {
     fill: var(--m-lt);
     opacity: 0.35;
   }
   .pip {
-    --pingo-skin: var(--m);
+    --mascot-skin: var(--m);
   }
   .pip :global(.band-stripe) {
     fill: var(--accent);

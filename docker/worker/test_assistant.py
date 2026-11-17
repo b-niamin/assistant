@@ -1,4 +1,4 @@
-"""The `pingo` helpers that extension services import. Run: cd docker/worker && python3 -m unittest -q"""
+"""The `assistant` helpers that extension services import. Run: cd docker/worker && python3 -m unittest -q"""
 from __future__ import annotations
 
 import io
@@ -9,21 +9,21 @@ from contextlib import redirect_stdout
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
-import pingo  # noqa: E402
+import assistant  # noqa: E402
 
 
 class Env(unittest.TestCase):
     def test_numbers_with_bounds(self) -> None:
         with mock.patch.dict(os.environ, {"A": "3", "B": "x", "C": " "}):
-            self.assertEqual(pingo.env_int("A", 30, minimum=5), 5)
-            self.assertEqual(pingo.env_int("B", 30), 30)
-            self.assertEqual(pingo.env_int("C", 30, maximum=10), 10)
-            self.assertEqual(pingo.env("C", "d"), "d")
+            self.assertEqual(assistant.env_int("A", 30, minimum=5), 5)
+            self.assertEqual(assistant.env_int("B", 30), 30)
+            self.assertEqual(assistant.env_int("C", 30, maximum=10), 10)
+            self.assertEqual(assistant.env("C", "d"), "d")
 
     def test_connect_needs_a_url(self) -> None:
         with mock.patch.dict(os.environ, {"DATABASE_URL": ""}):
             with self.assertRaises(Exception):
-                pingo.connect()
+                assistant.connect()
 
 
 class Loop(unittest.TestCase):
@@ -35,12 +35,12 @@ class Loop(unittest.TestCase):
             if len(calls) == 1:
                 raise ValueError("boom")
             if len(calls) == 3:
-                pingo.stopping().set()
+                assistant.stopping().set()
 
         out = io.StringIO()
         with redirect_stdout(out):
-            pingo.every(0, one)
-        pingo.stopping().clear()
+            assistant.every(0, one)
+        assistant.stopping().clear()
         self.assertEqual(len(calls), 3)
         self.assertIn("error: ValueError: boom", out.getvalue())
 

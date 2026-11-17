@@ -20,7 +20,7 @@ was run through its validator against both chart surfaces (`#fcfcfb` light, `#1a
 | Status | `--good`, `--warning`, `--serious`, `--critical` (dots); `--good-ink` for good text |
 | Metric hues | `--hue-blue/orange/aqua/yellow/magenta/green/violet/red` (validated categorical slots, own dark steps); `--brand` = Pingo's orange |
 | Fills | `--fill-1` (gray buttons, segmented track, stepper), `--fill-2` (wells, chips), `--sep` (row hairlines), `--accent-tint`, `--critical-tint`, `--good-tint` |
-| Glass | `--glass`, `--glass-hi`, `--glass-edge`, `--glass-blur`, `--glass-shadow` (the control layer, see Pingo UI) |
+| Glass | `--glass`, `--glass-hi`, `--glass-edge`, `--glass-blur`, `--glass-shadow` (the control layer, see Assistant UI) |
 | Shape | `--radius-xs` 8, `--radius-sm` 12, `--radius` 20, `--radius-lg` 28, `--radius-pill`; `--shadow-card` (none in dark), `--shadow-pop`; `--tap` = 44 px |
 | Type | `--font` (system: SF Pro on Apple), `--font-rounded` (figures), `--text-xs..2xl`, `--text-figure`, `--weight-*` |
 | Spacing | `--space-1..7` = 4, 8, 12, 16, 24, 32, 48 px |
@@ -43,7 +43,7 @@ Dark mode is its own set of steps (not an inversion), applied by `prefers-color-
   Deltas carry an arrow and a sign besides colour; tone follows the metric's `goodWhen`.
 - Text never wears a series colour. Bars and lines carry colour; labels use ink tokens.
 - Controls: range presets are a segmented control built from links (works without JS); buttons, cards,
-  lists and controls come from Pingo UI below.
+  lists and controls come from Assistant UI below.
 - Form controls stay native elements (labels, keyboard, form posts, screen readers) and wear the shell's
   look from `src/lib/controls.css`: checkboxes, radios, sliders (`--fill` shows the filled part),
   date/time/search picker buttons, file buttons, focus and disabled states, and the open list of a select
@@ -51,13 +51,13 @@ Dark mode is its own set of steps (not an inversion), applied by `prefers-color-
   setting is a switch: `<input type="checkbox" role="switch">`. A checkbox or radio with its text goes in
   `<label class="check">`. No component or class is needed; extensions get it as they are.
 
-## Pingo UI (since shell 7)
+## Assistant UI (since shell 7)
 
 One set of components for the shell and every extension, after Apple's Human Interface Guidelines
 (materials and Liquid Glass, tab bars vs segmented controls, 44 pt targets, the iOS text styles). Phone first:
 the phone is the main device. Classes live in `src/lib/ui.css` (also injected into onefile apps), the parts
 with behaviour in `src/lib/ui/` and are exported from `$shell/ui`. The proposal with its audit and research:
-the "Pingo UI" artifact of 17 November 2026.
+the "Assistant UI" artifact of 17 November 2026.
 
 - **Type**: one system font (SF Pro on Apple), figures in its rounded cut (`--font-rounded`). On phones
   (`max-width: 700px` or a coarse pointer) the scale is iOS's: body 17, subheadline 15, footnote 13,
@@ -103,6 +103,14 @@ load bars are orange (effort). Text keeps ink tokens.
 
 ## Mascot: Pingo
 
+**Appearance** (System settings -> Appearance, `lib/appearance.ts`, core.app_settings "appearance"): the
+mascot's name (Pingo by default; texts say `{name}`, `mascotName()` in `$shell/ui`), its kind (a **penguin**
+by default, or the original **jelly bean**; both have the same eyes, lids, pupils that follow the pointer,
+moods, hop, sway, sleep, accessories and covered eyes) and the accent theme: **Lagoon** (default), **Iris**,
+**Plum** or **Forest**, each with checked light and dark steps (`html[data-accent]` in app.css, also set in
+onefile apps). Technical names never use the mascot's name: `assistant.sh`, `assistant-db`, `import
+assistant`, `<assistant-mascot>`.
+
 `lib/Mascot.svelte` is a jelly-bean runner, pure SVG + CSS. Its mood follows today's
 Training Readiness (`lib/mascot.ts`): charged (75+, hops and sparkles), steady (50-74, breathes),
 tired (25-49, half-closed eyes, sways), asleep (<25, closed eyes, floating z's), idle (no data). It
@@ -112,7 +120,7 @@ A small decorative Pingo is the brand mark in the header; the login page shows a
 Pingo is the app's face everywhere, so a screen without data never feels broken:
 
 - **Icons**: `static/favicon.svg` (cropped, no shadow), `apple-touch-icon.png` and `icon-192/512.png`
-  (Pingo on a warm tile) via `manifest.webmanifest`; theme colour is Pingo's orange. `static/pingo.svg` is
+  (Pingo on a warm tile) via `manifest.webmanifest`; theme colour is Pingo's orange. `static/mascot-penguin.svg` and `static/mascot-bean.svg` are
   the full static Pingo, used by the README. Regenerate the PNGs from the SVG if Pingo's look changes.
 - **Dashboard**: Pingo greets next to the greeting, mood by time of day (`moodForHour`: asleep before
   6, charged in the morning, steady until 22, tired late).
@@ -123,8 +131,8 @@ Pingo is the app's face everywhere, so a screen without data never feels broken:
 
 ### What Pingo wears
 
-Pingo dresses for what you are doing. The drawings are SVG fragments in `lib/pingo-accessories.ts`, shared
-by `Mascot.svelte` and `<assistant-pingo>`, so every Pingo in the app (and in onefile apps) can wear them:
+Pingo dresses for what you are doing. The drawings are SVG fragments in `lib/mascot-accessories.ts`, shared
+by `Mascot.svelte` and `<assistant-mascot>`, so every Pingo in the app (and in onefile apps) can wear them:
 
 | Accessory | Where |
 |---|---|
@@ -150,7 +158,7 @@ Pass `accessory="party-hat"` (or `"none"`) to choose yourself.
 
 **Eyes covered.** While a password field has focus (`type="password"`, or one marked with
 `autocomplete="*-password"` / `data-secret`), every Pingo on the page covers its eyes with both hands; when
-the field is revealed (type flipped to `text`), it peeks through one. `lib/pingo-watch.svelte.ts` holds the
+the field is revealed (type flipped to `text`), it peeks through one. `lib/mascot-watch.svelte.ts` holds the
 one document-wide listener; `shy` forces it (`true`, `"peek"`, `false`).
 
 ## Extensions wear this look (required)
@@ -162,9 +170,9 @@ fits. The source's own palette, fonts and logo are dropped.
 - Native extensions render inside the shell, so `app.css` and `$shell/ui` are there already.
 - Onefile apps run in a sandboxed iframe that cannot load the shell's files. The host injects
   (`src/lib/extensions/theme.ts`) the token blocks of `app.css` and the form controls of `controls.css` as
-  `@layer assistant`, so the app's own unlayered rules still win, and defines `<assistant-pingo mood size label accessory shy>`: Pingo as a custom
+  `@layer assistant`, so the app's own unlayered rules still win, and defines `<assistant-mascot mood size label accessory shy>`: Pingo as a custom
   element in shadow DOM, with the same moods (breathing, hop, sway, closed eyes; still under reduced
-  motion). Without `accessory` it wears the app's own (`window.assistantPingo.accessory`), and it covers
+  motion). Without `accessory` it wears the app's own (`window.assistantMascot.accessory`), and it covers
   its eyes on password fields by itself.
 - `node scripts/ext.mjs check` prints `look:` warnings: Pingo missing, no shell tokens, raw hex in native
   pages. A new extension must have none; older ones are warned only.

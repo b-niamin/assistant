@@ -5,7 +5,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { bashReason, reason } from './pingo-guard.mjs';
+import { bashReason, reason } from './assistant-guard.mjs';
 
 // A repo on a feature branch, so a bare `git push` there is not a push to main.
 const repo = mkdtempSync(path.join(tmpdir(), 'guard-'));
@@ -50,14 +50,14 @@ test('git history and work: hard resets, cleans, branch -D ask', () => {
 
 test('database: deleting data or changing schema/roles asks; reads and writes pass', () => {
   asks(`psql "$AGENT_DATABASE_URL" -c "DELETE FROM gym.sets WHERE id = 3"`);
-  asks(`pingo-db --write -c 'truncate health.daily'`);
-  asks(`pingo-db --write <<'SQL'\nALTER TABLE core.profiles ADD COLUMN x int;\nSQL`);
+  asks(`assistant-db --write -c 'truncate health.daily'`);
+  asks(`assistant-db --write <<'SQL'\nALTER TABLE core.profiles ADD COLUMN x int;\nSQL`);
   asks(`psql "$AGENT_DATABASE_URL" -c "drop table gym.sets"`);
   asks(`python3 -c "import psycopg; psycopg.connect(u).execute('DELETE FROM x')"`);
   asks('dropdb assistant');
-  passes(`pingo-db -c "SELECT count(*) FROM gym.sets"`);
-  passes(`pingo-db --write -c "UPDATE gym.sets SET reps = 8 WHERE id = 3"`);
-  passes(`pingo-db --write -c "INSERT INTO health.journal (note) VALUES ('ok')"`);
+  passes(`assistant-db -c "SELECT count(*) FROM gym.sets"`);
+  passes(`assistant-db --write -c "UPDATE gym.sets SET reps = 8 WHERE id = 3"`);
+  passes(`assistant-db --write -c "INSERT INTO health.journal (note) VALUES ('ok')"`);
   passes('grep -rn "DELETE FROM" apps/web/src');
 });
 
@@ -95,7 +95,7 @@ test("the agents' own permissions: edits and shell writes ask", () => {
 
 test('hook protocol: ask JSON for a critical call, nothing otherwise, ask on garbage', () => {
   const run = (input) =>
-    spawnSync('node', [new URL('./pingo-guard.mjs', import.meta.url).pathname], { input, encoding: 'utf8' }).stdout;
+    spawnSync('node', [new URL('./assistant-guard.mjs', import.meta.url).pathname], { input, encoding: 'utf8' }).stdout;
   const out = JSON.parse(run(JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git push origin main' }, cwd: repo })));
   assert.equal(out.hookSpecificOutput.permissionDecision, 'ask');
   assert.match(out.hookSpecificOutput.permissionDecisionReason, /main/);

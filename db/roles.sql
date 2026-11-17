@@ -29,7 +29,7 @@ REVOKE SELECT ON core.sessions FROM claude_ro;
 REVOKE SELECT ON core.oauth_clients, core.oauth_grants, core.oauth_tokens, core.oauth_requests FROM claude_ro;
 -- The agents: every row of core, but not who is logged in, the connector's tokens or the migration log.
 -- Not the owner of anything, so no DROP/ALTER/CREATE; TRUNCATE is not granted. Deletes are asked for in
--- the terminal (docker/terminal/pingo-guard.mjs) and undone from the nightly backup.
+-- the terminal (docker/terminal/assistant-guard.mjs) and undone from the nightly backup.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA core TO agent_rw;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA core TO agent_rw;
 REVOKE ALL ON core.sessions, core.oauth_clients, core.oauth_grants, core.oauth_tokens, core.oauth_requests FROM agent_rw;

@@ -15,10 +15,10 @@ The app's main way to work with Claude is the chat (`/chat`, the Chat button in 
 the backup, hidden until the owner turns it on in the user menu ("Turn on the terminal") or a page hands it a
 command. The chat runs the same `claude` CLI here, headless (`services/terminal/chat.mjs`):
 `claude -p --input-format stream-json --output-format stream-json --permission-prompt-tool stdio`, in
-`/workspace`, on the CLI's own login (no API key), with the same managed settings and `pingo-guard.mjs`. What the
+`/workspace`, on the CLI's own login (no API key), with the same managed settings and `assistant-guard.mjs`. What the
 guard answers "ask" for arrives as a `can_use_tool` request and shows in the chat as an Allow/Deny card;
 AskUserQuestion shows its options. A chat's process quits after 20 idle minutes and the next message resumes
-the session (`--resume`). Chats live in `~/.pingo/chats` (the `agent-home` volume). The web app reaches them
+the session (`--resume`). Chats live in `~/.assistant/chats` (the `agent-home` volume). The web app reaches them
 through `/chat/api/...` with a single-use `chat` ticket per request; writing needs the unlocked session, which
 leaves an 8-hour chat grant behind (like a connected terminal) until the lock. Pages that hand the AI a request
 (Ask the AI to translate, Update an extension) open a chat; with Codex as the default AI they still use a tmux
@@ -44,7 +44,7 @@ Login state lives in the `agent-home` volume (`/home/claude`), so it survives re
 4. Copies the CLIs into `~/.npm-global` when needed (`cli-home.mjs`, see below).
 5. Writes the `assistant` and `browser` MCP servers into `~/.codex/config.toml` (`codex-config.mjs`, its own
    marked blocks only), plus `sandbox_mode = "danger-full-access"` (Codex's bubblewrap sandbox cannot run in
-   a container) and `approval_policy = "on-request"`, and copies `pingo.rules` to `~/.codex/rules/`.
+   a container) and `approval_policy = "on-request"`, and copies `assistant.rules` to `~/.codex/rules/`.
 6. Starts the terminal server (`services/terminal/server.mjs`).
 
 ## Updates of the CLIs
@@ -52,7 +52,7 @@ Login state lives in the `agent-home` volume (`/home/claude`), so it survives re
 Claude Code and Codex update themselves (`npm install -g`, as Claude's auto-update and Codex's "Update now"
 run it). The image installs them as root into `/usr/local`, which the container user cannot write, so global
 npm installs go to `~/.npm-global` in the `agent-home` volume instead (`NPM_CONFIG_PREFIX`, first on `PATH`).
-The terminal server passes `NPM_CONFIG_PREFIX` into the shell it starts (and `/etc/profile.d/pingo-path.sh`
+The terminal server passes `NPM_CONFIG_PREFIX` into the shell it starts (and `/etc/profile.d/assistant-path.sh`
 sets it for login shells): without it the CLIs see root's `/usr/local` and fail with "no write permission
 to npm prefix".
 On every start the entrypoint copies each CLI from the image there when the home copy is missing or older
@@ -66,14 +66,14 @@ Everything, without asking, except critical changes, which wait for the owner's 
 | Without asking | Asks the owner first |
 |---|---|
 | edit any file in the checkout (`/workspace`), extensions included, and commit | a push that can reach `main` (the host's updater deploys it as root), a force push, deleting a branch, `gh pr merge`, deleting a repo or release |
-| read data: `pingo-db -c 'SELECT ...'` (role `claude_ro`) | SQL that deletes data or changes schema or roles: `DELETE`, `DROP`, `TRUNCATE`, `ALTER`, `GRANT`... |
-| write data: `pingo-db --write -c 'INSERT/UPDATE ...'` (role `agent_rw`; Codex asks for every `--write`) | `git reset --hard`, `git clean -f`, `git branch -D`, `git stash drop`, history rewrites |
+| read data: `assistant-db -c 'SELECT ...'` (role `claude_ro`) | SQL that deletes data or changes schema or roles: `DELETE`, `DROP`, `TRUNCATE`, `ALTER`, `GRANT`... |
+| write data: `assistant-db --write -c 'INSERT/UPDATE ...'` (role `agent_rw`; Codex asks for every `--write`) | `git reset --hard`, `git clean -f`, `git branch -D`, `git stash drop`, history rewrites |
 | use every extension through the `assistant` MCP server, `node scripts/ext.mjs install/update/new/check` | `rm -r` outside `/tmp` and build folders, `node scripts/ext.mjs remove`, `ext-run` (a command as an extension's service, with its keys) |
 | push a feature branch, open a PR | changing their own permission settings (`~/.claude/settings*.json`, `~/.codex/config.toml`, `~/.codex/rules/`) |
 
 How: Claude Code reads `/etc/claude-code/managed-settings.json` (allow list, `bypassPermissions` off) and
-runs `pingo-guard.mjs` before every shell command and file edit; the guard answers "ask" for the list above.
-Codex runs with `approval_policy = "on-request"` and the execpolicy rules in `pingo.rules`. Both files are
+runs `assistant-guard.mjs` before every shell command and file edit; the guard answers "ask" for the list above.
+Codex runs with `approval_policy = "on-request"` and the execpolicy rules in `assistant.rules`. Both files are
 root-owned in the image, so an agent cannot loosen them; change them here, in the repo.
 
 Hard limits, which no approval prompt can be talked past:

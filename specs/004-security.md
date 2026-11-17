@@ -80,13 +80,13 @@ browser ── wss /settings/{terminal,browser}/ws?ticket=…  ──►  web (s
   sign-in booleans, never file contents, plus whether the session is unlocked. Opening a shell needs the
   unlock and a ticket. Opened and closed sessions are logged (`/logs/web.log`, `docker compose logs terminal`).
 - **Agents in the terminal: full access, critical changes approved.** Claude Code and Codex may edit any
-  file, use every extension (MCP tools, `ext`), and read and write data (`pingo-db`, role `agent_rw`)
+  file, use every extension (MCP tools, `ext`), and read and write data (`assistant-db`, role `agent_rw`)
   without asking. They ask the owner first before a critical change: a push that can reach main, a force
   push or branch deletion, merging a PR, `git reset --hard`/`clean -f`, SQL that deletes data or changes
   schema or roles, `rm -r` outside scratch folders, removing an extension, or changing their own permission
   settings. Claude: `/etc/claude-code/managed-settings.json` (allow list, bypass mode off) and its
-  PreToolUse hook `pingo-guard.mjs`, both root-owned in the image. Codex: `approval_policy = "on-request"`
-  and the execpolicy rules `pingo.rules`. Hard limits behind them, which no prompt can talk past:
+  PreToolUse hook `assistant-guard.mjs`, both root-owned in the image. Codex: `approval_policy = "on-request"`
+  and the execpolicy rules `assistant.rules`. Hard limits behind them, which no prompt can talk past:
   `agent_rw` owns nothing (no DDL, no `TRUNCATE`, no `secrets`, sessions or connector tokens); nothing from
   the checkout runs as the database superuser (core migrations are baked into the migrate image from main,
   spec 006); the updater deploys only main, and an extension's `compose.yml` that could reach the host

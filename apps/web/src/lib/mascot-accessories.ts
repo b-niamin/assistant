@@ -1,7 +1,7 @@
 /**
  * What Pingo wears. Each accessory is a small SVG fragment in Pingo's 64x64 box, drawn over the body, so
- * the same markup serves the Svelte mascot (Mascot.svelte) and the `<assistant-pingo>` custom element of
- * onefile apps (extensions/theme.ts). Skin-coloured parts (hands) use `var(--pingo-skin)`; `CLIP` is
+ * the same markup serves the Svelte mascot (Mascot.svelte) and the `<assistant-mascot>` custom element of
+ * onefile apps (extensions/theme.ts). Skin-coloured parts (hands) use `var(--mascot-skin)`; `CLIP` is
  * replaced by the id of the body's clip path. Which accessory fits where: `accessoryFor` in mascot.ts.
  *
  * Keep ACCESSORY_IDS in step with ACCESSORIES in apps/web/scripts/extensions-lib.mjs (a test checks).
@@ -28,7 +28,7 @@ export type Accessory = (typeof ACCESSORY_IDS)[number];
 
 export const isAccessory = (v: unknown): v is Accessory => typeof v === 'string' && (ACCESSORY_IDS as readonly string[]).includes(v);
 
-const SKIN = 'style="fill: var(--pingo-skin, #ff7527); stroke: rgb(0 0 0 / 0.18); stroke-width: 0.8"';
+const SKIN = 'style="fill: var(--mascot-skin, #ff7527); stroke: rgb(0 0 0 / 0.18); stroke-width: 0.8"';
 
 /** A hand (paw) at x, y, turned by deg. */
 const hand = (x: number, y: number, deg = 0) =>

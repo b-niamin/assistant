@@ -23,7 +23,7 @@ nothing.
 
 ```
 sh <checkout>-updater/update.sh        the scheduled task (root, every minute) and, in a terminal, "update now"
-sudo ./pingo.sh update                  the same from the checkout (sets the updater up on first use)
+sudo ./assistant.sh update                  the same from the checkout (sets the updater up on first use)
      ... --status | --cancel           what it does or did | stop a running update
 ```
 
@@ -32,7 +32,7 @@ takes the app's requests ("Update now", "Resume", "Cancel" in System settings �
 later) and finishes an update that was interrupted. Run in a terminal, the same command updates now and
 draws a progress bar; when an update already runs, it follows that one instead.
 
-Why not `pingo.sh` in the schedule: the checkout is writable by the containers (Claude edits it), so root
+Why not `assistant.sh` in the schedule: the checkout is writable by the containers (Claude edits it), so root
 must never run code from it on its own. The scheduled copy lives in `<checkout>-updater/` and replaces
 itself only from the private mirror of GitHub main.
 
@@ -70,8 +70,8 @@ terminal", the default; or "Restart it by itself", `restarts=auto`). Recreating 
 shell and the Claude and Codex sessions running there. With "ask", an update
 builds their images and does everything else, then leaves their `up`/`restart` in `<home>/state`
 (`pending`); the status carries `pendingRestart`, the panel and the dock say "Restart needed", and
-"Restart now" (`restart=<id>` in the control file), `sudo ./pingo.sh update --restart`, or "y" at the
-prompt of `sudo ./pingo.sh update` in a terminal recreates them from the deployed commit's compose file.
+"Restart now" (`restart=<id>` in the control file), `sudo ./assistant.sh update --restart`, or "y" at the
+prompt of `sudo ./assistant.sh update` in a terminal recreates them from the deployed commit's compose file.
 
 **One part restarted on request** (System settings → Infrastructure, and the chat's "Restart the terminal"
 when the terminal still runs a version from before the chat): `restart-service=<service>@<id>` in the
@@ -118,7 +118,7 @@ there when a new long-lived service or build context appears.
 
 - **Failure**: a failed step stops the update; whatever it had not replaced keeps running (a failed build
   changes nothing, not even the code). Automatic mode tries the same commit again after 30 minutes and
-  2 hours, then waits for main to move or for "Update now" / `pingo.sh update`.
+  2 hours, then waits for main to move or for "Update now" / `assistant.sh update`.
 - **Interrupted** (reboot, kill, power): the lock's process is gone but `<home>/state` still holds the
   journal (`target`, `base`, `done`, `attempt`). The next run takes the lock over and resumes, skipping the
   done steps (builds are cached anyway), up to 3 attempts. The app shows "interrupted" when the status says
@@ -132,7 +132,7 @@ there when a new long-lived service or build context appears.
   steps, startedAt, attempt, the app request it took), `/logs/updater.log`, `/logs/updater-build.log` (the
   steps and the build output, as they run) and `/logs/updater-heartbeat` (every run, and every 15 s while
   an update runs). On the host, `<home>/last-run` and `<home>/last-error` (an error that stops a run also goes to
-  `updater.log`: the scheduled task's own output is seen by nobody); `pingo.sh update --status` shows both.
+  `updater.log`: the scheduled task's own output is seen by nobody); `assistant.sh update --status` shows both.
   The schedule runs `update.sh` without arguments: it finds its checkout in `<home>/checkout`, else by the
   home's name (`<checkout>-updater`), and writes the file on every run.
 
@@ -143,8 +143,8 @@ there when a new long-lived service or build context appears.
   owner), and the owner gets `u+rw` (`u+x` on directories). `.env` and git's read-only objects are left
   alone. Removing the ACLs leaves x bits on every file, so the checkout gets `core.fileMode false` (git
   would otherwise count every file as changed and stop the fast-forward). `install` also strips the ACL
-  from the updater home, so the mirror is cloned as (and stays owned by) the checkout owner. By hand: `sudo ./pingo.sh fix-permissions`;
-  `./pingo.sh doctor` reports what is wrong.
+  from the updater home, so the mirror is cloned as (and stays owned by) the checkout owner. By hand: `sudo ./assistant.sh fix-permissions`;
+  `./assistant.sh doctor` reports what is wrong.
 
 ## Security (spec 004)
 
@@ -173,7 +173,7 @@ fsmonitor, local changes and commits, stale and live locks, self-update.
 ## Install
 
 `install.sh` runs `scripts/update.sh install` at the end (`--manual` when automatic updates were
-declined). By hand, `sudo ./pingo.sh update` sets it up the first time. It clones the mirror next to the
+declined). By hand, `sudo ./assistant.sh update` sets it up the first time. It clones the mirror next to the
 checkout (`<checkout>-updater/`), copies the script there, records the running commit as deployed, and on
 a Linux box adds a cron line (`* * * * * sh <home>/update.sh`). On Synology it prints the Task Scheduler
 entry: Control Panel → Task Scheduler → Create → Scheduled Task → User-defined script, user `root`, daily
@@ -214,9 +214,9 @@ other container mounts. `mode=auto|manual`, plus
 them as root and never runs anything from them, and echoes the request it took in its status). While an
 update runs: a progress bar (step n of m, what runs, since when, attempt), the last lines of the build
 output, reloading every 5 seconds. A request not taken within 3 minutes means the scheduled task does not
-run: the panel says so and names `sudo ./pingo.sh update`. With no heartbeat for 20 minutes the updater
+run: the panel says so and names `sudo ./assistant.sh update`. With no heartbeat for 20 minutes the updater
 counts as stopped; the dock shows "Updating to <sha> · n/m", "Update interrupted", "Update available" or
-"Updates stopped". `./pingo.sh doctor` warns when no run happened for 15 minutes. All logs in `/logs` are
+"Updates stopped". `./assistant.sh doctor` warns when no run happened for 15 minutes. All logs in `/logs` are
 readable in System settings → Logs.
 
 ## Writing into the shared `logs` volume

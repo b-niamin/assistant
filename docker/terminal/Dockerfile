@@ -16,16 +16,16 @@ RUN python3 -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir cryptography "psycopg[binary]" pytest
 ENV PATH=/opt/venv/bin:$PATH
 # Login shells (`bash -l`, e.g. the terminal after an agent exits) reset PATH in /etc/profile; put ours back.
-RUN printf '%s\n' 'PATH="$HOME/.npm-global/bin:/opt/venv/bin:$PATH"' 'export NPM_CONFIG_PREFIX="$HOME/.npm-global"' >/etc/profile.d/pingo-path.sh
+RUN printf '%s\n' 'PATH="$HOME/.npm-global/bin:/opt/venv/bin:$PATH"' 'export NPM_CONFIG_PREFIX="$HOME/.npm-global"' >/etc/profile.d/assistant-path.sh
 
 # What the agents may do without asking: everything, except critical changes, which wait for the owner's
-# approval (pingo-guard.mjs for Claude Code, pingo.rules for Codex; see README.md). Root-owned, so the agents
+# approval (assistant-guard.mjs for Claude Code, assistant.rules for Codex; see README.md). Root-owned, so the agents
 # cannot loosen them; Claude Code reads managed settings before any of its own.
 COPY managed-settings.json /etc/claude-code/managed-settings.json
-COPY pingo-guard.mjs pingo.rules /usr/local/lib/
-COPY pingo-db ext-run /usr/local/bin/
-RUN chmod 644 /etc/claude-code/managed-settings.json /usr/local/lib/pingo-guard.mjs /usr/local/lib/pingo.rules \
- && chmod 755 /usr/local/bin/pingo-db /usr/local/bin/ext-run
+COPY assistant-guard.mjs assistant.rules /usr/local/lib/
+COPY assistant-db ext-run /usr/local/bin/
+RUN chmod 644 /etc/claude-code/managed-settings.json /usr/local/lib/assistant-guard.mjs /usr/local/lib/assistant.rules \
+ && chmod 755 /usr/local/bin/assistant-db /usr/local/bin/ext-run
 
 # Non-root. Match the host owner of the checkout with --build-arg UID=$(id -u) if they differ.
 ARG UID=1000

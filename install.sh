@@ -13,7 +13,7 @@
 # ASSISTANT_START=manual (you start the stack yourself). ASSISTANT_PROJECT names the compose project of a
 # new install (default: the folder name; pinned in .env). ASSISTANT_TAILSCALE=0 leaves Tailscale alone (no
 # `tailscale serve`; the app stays on localhost; kept in .env as TAILSCALE_SERVE=0).
-# Interrupted (Ctrl-C, a closed terminal)? Run it again: it goes on where it stopped. `./pingo.sh uninstall`
+# Interrupted (Ctrl-C, a closed terminal)? Run it again: it goes on where it stopped. `./assistant.sh uninstall`
 # removes everything it made.
 #
 # What it does, and nothing else:
@@ -96,7 +96,7 @@ yes_no() { # $1 = question, $2 = y|n suggestion; true for yes
 interactive=no
 [ "${ASSISTANT_YES:-0}" != 1 ] && (exec < /dev/tty) 2>/dev/null && interactive=yes
 if [ "$interactive" = yes ] && [ -z "$DIR" ] && [ ! -f "$default_dir/.env" ]; then
-  printf '\n  Pingo Assistant installer. Enter takes the suggestion in [brackets].\n\n' > /dev/tty
+  printf '\n  Assistant installer. Enter takes the suggestion in [brackets].\n\n' > /dev/tty
   ask DIR "Install folder" "$default_dir"
   case $DIR in /*) ;; *) DIR=$(pwd)/$DIR ;; esac
 fi
@@ -181,7 +181,7 @@ else
   else mv "$DIR.cloning" "$DIR"; fi
 fi
 cd "$DIR"
-# installed_ids, env_value (shared with pingo.sh and the db scripts); an older checkout may lack it.
+# installed_ids, env_value (shared with assistant.sh and the db scripts); an older checkout may lack it.
 [ ! -f db/lib.sh ] || . ./db/lib.sh
 # The containers run as the checkout's owner (HOST_UID), never root. Run as root (through sudo) on a new
 # install, the checkout goes to the user who ran sudo (or ASSISTANT_UID).
@@ -357,7 +357,7 @@ else
   # would fail on it with "password authentication failed".
   if [ "$had_db" = yes ]; then
     quietly "Starting the database" dc up -d --no-deps db
-    sh ./pingo.sh check-db || die "Stopped: .env does not match the existing database (see above)."
+    sh ./assistant.sh check-db || die "Stopped: .env does not match the existing database (see above)."
     ok "The database takes the password in .env"
   fi
   quietly "Building images and starting the containers" dc up -d --build --remove-orphans
@@ -390,7 +390,7 @@ if (quietly "Updates from GitHub main" sh scripts/update.sh install $manual "$DI
     say "user root, daily every minute, first run 00:00, last run time 23:59 (not 00:59), command:  sh $updater"
   fi
 else
-  say "Updater not set up; later: sudo ./pingo.sh update"
+  say "Updater not set up; later: sudo ./assistant.sh update"
 fi
 
 # 7. next steps
@@ -399,7 +399,7 @@ grep -q '^INSTALLED_AT=' .env || printf 'INSTALLED_AT=%s\n' "$(date -u +%Y-%m-%d
 sed -i '/^START_MODE=/d' .env && printf 'START_MODE=%s\n' "$START" >> .env
 token=$(sed -n 's/^SETUP_TOKEN=//p' .env)
 if [ "$START" = manual ] && [ -n "$(dc ps -q 2>/dev/null)" ]; then
-  say "The stack is running. ./pingo.sh update rebuilds or restarts what a pulled change touches."
+  say "The stack is running. ./assistant.sh update rebuilds or restarts what a pulled change touches."
 elif [ "$START" = manual ]; then
   cat <<MANUAL
 
@@ -409,7 +409,7 @@ elif [ "$START" = manual ]; then
       so auto-update and the commands below find the same containers.
     - Portainer or another tool: the compose file $DIR/stack/docker-compose.yml with $DIR/stack/.env,
       project name $PROJECT.
-    - A terminal:  cd $DIR && sudo ./pingo.sh start
+    - A terminal:  cd $DIR && sudo ./assistant.sh start
   The first start builds images: 10-20 minutes on a small NAS.
 MANUAL
 fi
@@ -429,7 +429,7 @@ esac)
 
   The wizard there sets the app password, your profile and language, the apps, updates and Claude.
   Backups:     $backups (daily)
-  Later:  ./pingo.sh status | doctor | logs | ext available | update | uninstall   (./pingo.sh help)
+  Later:  ./assistant.sh status | doctor | logs | ext available | update | uninstall   (./assistant.sh help)
 
 NEXT
 

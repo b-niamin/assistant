@@ -106,7 +106,7 @@ export function injectShim(
   lang = 'en',
   versions: Record<string, number> = {}
 ): string {
-  // theme: the shell's tokens and <assistant-pingo> (theme.ts), so every app wears the shell's look.
+  // theme: the shell's tokens and <assistant-mascot> (theme.ts), so every app wears the shell's look.
   // window.assistantSettings: the values of the app's settings panel in System settings (read-only).
   // window.assistantLang: the shell's language (spec 007); an app that speaks it uses it over its own guess.
   const code = /^[a-z]{2}$/.test(lang) ? lang : 'en';

@@ -1,27 +1,27 @@
 #!/bin/sh
-# pingo: one command for everything you do with the assistant on the host. Run it in the checkout.
+# assistant.sh: one command for everything you do with the assistant on the host. Run it in the checkout.
 #
-#   ./pingo.sh install [ext...]      install or re-run the installer (asks in a terminal; see install.sh)
-#   ./pingo.sh update                update to GitHub main now, with a progress bar (the same command the
+#   ./assistant.sh install [ext...]      install or re-run the installer (asks in a terminal; see install.sh)
+#   ./assistant.sh update                update to GitHub main now, with a progress bar (the same command the
 #                                   schedule runs: <folder>-updater/update.sh); a running update is followed
-#   ./pingo.sh update --status       what the updater does or did; --cancel stops a running update;
+#   ./assistant.sh update --status       what the updater does or did; --cancel stops a running update;
 #                                   --restart also restarts the terminal when it waits for it
-#   ./pingo.sh start | stop | restart [service]
-#   ./pingo.sh status                containers and the app's health
-#   ./pingo.sh doctor                checks the install: permissions, git, .env, database password, ...
-#   ./pingo.sh logs [service]        follow logs (web, terminal, worker, ...)
-#   ./pingo.sh ext <args>            the extension CLI in the terminal container: available, install <id>, list, ...
-#   ./pingo.sh fix-permissions       owner, Synology ACLs and modes in the checkout
-#   ./pingo.sh fix-db-password       the database keeps its data but takes the password in .env
-#   ./pingo.sh move <new-folder>     move the install (stopped, data kept), e.g. to /volume1/docker/assistant
-#   ./pingo.sh backup [--list]       make a backup now (database, .env, extensions) | list them
-#   ./pingo.sh restore <backup>      bring a backup back (also on a new machine, after ./pingo.sh install)
-#   ./pingo.sh auto-update [install | status]   set up the updater and its schedule (once) | status
-#   ./pingo.sh uninstall [--keep-backups] [--yes]   remove the install: containers, volumes (the data),
+#   ./assistant.sh start | stop | restart [service]
+#   ./assistant.sh status                containers and the app's health
+#   ./assistant.sh doctor                checks the install: permissions, git, .env, database password, ...
+#   ./assistant.sh logs [service]        follow logs (web, terminal, worker, ...)
+#   ./assistant.sh ext <args>            the extension CLI in the terminal container: available, install <id>, list, ...
+#   ./assistant.sh fix-permissions       owner, Synology ACLs and modes in the checkout
+#   ./assistant.sh fix-db-password       the database keeps its data but takes the password in .env
+#   ./assistant.sh move <new-folder>     move the install (stopped, data kept), e.g. to /volume1/docker/assistant
+#   ./assistant.sh backup [--list]       make a backup now (database, .env, extensions) | list them
+#   ./assistant.sh restore <backup>      bring a backup back (also on a new machine, after ./assistant.sh install)
+#   ./assistant.sh auto-update [install | status]   set up the updater and its schedule (once) | status
+#   ./assistant.sh uninstall [--keep-backups] [--yes]   remove the install: containers, volumes (the data),
 #                                   images, the updater and its schedule, the tailnet address, the backups
 #                                   in this install's own folder, and this folder
 #
-# Docker on Synology needs root: put sudo in front (sudo ./pingo.sh status).
+# Docker on Synology needs root: put sudo in front (sudo ./assistant.sh status).
 set -eu
 PATH=$PATH:/usr/local/bin:/var/packages/ContainerManager/target/usr/bin:/var/packages/Tailscale/target/bin
 DIR=$(cd "$(dirname "$0")" && pwd)
@@ -41,7 +41,7 @@ else DC=""; fi
 # Compose with the folder, .env and files spelled out (COMPOSE_FILE in .env lists the extensions' ones).
 dc() {
   [ -n "$DC" ] || die "Docker Compose is missing."
-  [ -f .env ] || die "not installed yet: ./pingo.sh install"
+  [ -f .env ] || die "not installed yet: ./assistant.sh install"
   [ -r .env ] || die "cannot read .env (it belongs to root): put sudo in front"
   set -- -p "$(project)" --project-directory "$DIR" --env-file "$DIR/.env" \
     $(sed -n 's/^COMPOSE_FILE=//p' .env | tr ':' '\n' | while IFS= read -r f; do [ ! -f "$f" ] || echo "-f $f"; done) "$@"
@@ -100,17 +100,17 @@ db_mismatch_help() {
   cat >&2 <<HELP
     The database (volume $(project)_db-data) was created with another POSTGRES_PASSWORD than the one in .env.
     Either:
-      - put back the .env of the install that made this database, then: sudo ./pingo.sh start
-      - or keep the data and give the database the password in .env:   sudo ./pingo.sh fix-db-password
+      - put back the .env of the install that made this database, then: sudo ./assistant.sh start
+      - or keep the data and give the database the password in .env:   sudo ./assistant.sh fix-db-password
         (extension secrets and Garmin logins were encrypted with the old .env: enter them again)
       - or start with an empty database (deletes all data; backups stay in $(backup_dir)):
-          sudo ./pingo.sh stop && sudo docker compose -p $(project) rm -f db && sudo docker volume rm $(project)_db-data
+          sudo ./assistant.sh stop && sudo docker compose -p $(project) rm -f db && sudo docker volume rm $(project)_db-data
 HELP
 }
 
 fix_db_password() {
   dc up -d --no-deps db >/dev/null 2>&1 || die "cannot start the db container"
-  db_wait || die "the database does not answer (./pingo.sh logs db)"
+  db_wait || die "the database does not answer (./assistant.sh logs db)"
   if db_check; then ok "the database already takes the password in .env"; return 0; fi
   if [ -t 0 ] && [ "${ASSISTANT_YES:-0}" != 1 ]; then
     printf '  The database keeps its data and its password becomes the one in .env. Go on? (y/n) '
@@ -144,7 +144,7 @@ doctor() {
 
   # .env
   env_ok=no
-  if [ ! -f .env ]; then f ".env is missing: not installed yet (./pingo.sh install)"
+  if [ ! -f .env ]; then f ".env is missing: not installed yet (./assistant.sh install)"
   elif [ ! -r .env ]; then f "cannot read .env (it belongs to $(stat -c %U .env)): put sudo in front"
   else
     env_ok=yes
@@ -153,9 +153,9 @@ doctor() {
       SECRETS_KEY SIDECAR_TICKET_SECRET CLAUDE_TOOLS_TOKEN PUBLIC_ORIGIN HOST_UID; do
       [ -n "$(envv "$k")" ] || missing="$missing $k"
     done
-    if [ -n "$missing" ]; then f ".env has no value for:$missing (re-run ./pingo.sh install, it adds missing secrets)"
+    if [ -n "$missing" ]; then f ".env has no value for:$missing (re-run ./assistant.sh install, it adds missing secrets)"
     else ok ".env has every secret"; fi
-    grep -q '^INSTALLED_AT=' .env || w "the installer did not finish last time: sudo ./pingo.sh install"
+    grep -q '^INSTALLED_AT=' .env || w "the installer did not finish last time: sudo ./assistant.sh install"
     case $(stat -c %a .env) in 600 | 400) ;; *) w ".env is readable by others (mode $(stat -c %a .env)): chmod 600 .env" ;; esac
   fi
 
@@ -166,14 +166,14 @@ doctor() {
   if [ "$is_root" = yes ] || [ "$(id -u)" = "$uid" ]; then
     f0=$fails
     n=$(find "$DIR" -xdev ! -user "$uid" ! -path "$DIR/.env" 2>/dev/null | grep -c . || true)
-    [ "$n" = 0 ] || f "$n file(s) do not belong to uid $uid (left by a run as root?): sudo ./pingo.sh fix-permissions"
+    [ "$n" = 0 ] || f "$n file(s) do not belong to uid $uid (left by a run as root?): sudo ./assistant.sh fix-permissions"
     n=$(find "$DIR" -xdev ! -path "$DIR/.env" ! -path "$DIR/.git/objects/*" ! -type l \
       \( ! -perm -u+rw -o -type d ! -perm -u+x \) 2>/dev/null | grep -c . || true)
     m=$(find "$DIR/.git/objects" -xdev \( -type d ! -perm -u+rwx \) -o \( -type f ! -perm -u+r \) 2>/dev/null | grep -c . || true)
-    [ "$((n + m))" = 0 ] || f "$((n + m)) path(s) the owner cannot write (git pull and Claude would fail): sudo ./pingo.sh fix-permissions"
+    [ "$((n + m))" = 0 ] || f "$((n + m)) path(s) the owner cannot write (git pull and Claude would fail): sudo ./assistant.sh fix-permissions"
     if command -v synoacltool >/dev/null 2>&1; then
       n=$(find "$DIR" -xdev ! -path "$DIR/.env" -exec ls -dln {} + 2>/dev/null | sh scripts/update.sh acl-paths | grep -c . || true)
-      [ "$n" = 0 ] || f "$n path(s) carry a Synology ACL (they deny writes): sudo ./pingo.sh fix-permissions"
+      [ "$n" = 0 ] || f "$n path(s) carry a Synology ACL (they deny writes): sudo ./assistant.sh fix-permissions"
     fi
     [ "$fails" != "$f0" ] || ok "the checkout belongs to uid $uid and it can write all of it"
   else
@@ -193,7 +193,7 @@ doctor() {
       behind=$(as_owner git -C "$DIR" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
       [ "$ahead" = 0 ] || w "$ahead local commit(s) are not on GitHub: auto-update pauses until they are pushed"
       if [ "$behind" = 0 ]; then ok "git works and the checkout is up to date with GitHub main"
-      else w "$behind commit(s) behind GitHub main: sudo ./pingo.sh update"; fi
+      else w "$behind commit(s) behind GitHub main: sudo ./assistant.sh update"; fi
     else
       w "git fetch failed (network, or the remote): $(as_owner git -C "$DIR" remote get-url origin 2>/dev/null)"
     fi
@@ -204,14 +204,14 @@ doctor() {
   # Compose files
   cf_ok=yes
   for p in $(envv COMPOSE_FILE | tr ':' ' '); do
-    case $p in /*) ;; *) w "COMPOSE_FILE has a relative path ($p); re-run ./pingo.sh install" ;; esac
+    case $p in /*) ;; *) w "COMPOSE_FILE has a relative path ($p); re-run ./assistant.sh install" ;; esac
     # An extension whose service moved to the worker (or that was removed) leaves its old entry: harmless.
-    [ -f "$p" ] || w "COMPOSE_FILE lists $p, which is gone (skipped): sudo ./pingo.sh install tidies it"
+    [ -f "$p" ] || w "COMPOSE_FILE lists $p, which is gone (skipped): sudo ./assistant.sh install tidies it"
   done
   if [ -f extensions/installed.json ]; then
     for id in $(installed_ids extensions/installed.json); do
       [ ! -f "extensions/$id/compose.yml" ] || envv COMPOSE_FILE | grep -q "extensions/$id/compose.yml" ||
-        { w "extension $id brings a service that is not in the stack: sudo ./pingo.sh install"; cf_ok=no; }
+        { w "extension $id brings a service that is not in the stack: sudo ./assistant.sh install"; cf_ok=no; }
     done
   fi
   if [ "$docker_ok" = yes ]; then
@@ -221,18 +221,18 @@ doctor() {
 
   # Started by Container Manager & co. from stack/
   if [ "$(envv START_MODE)" = manual ]; then
-    if [ ! -f stack/docker-compose.yml ]; then f "stack/docker-compose.yml is missing: sudo ./pingo.sh install"
+    if [ ! -f stack/docker-compose.yml ]; then f "stack/docker-compose.yml is missing: sudo ./assistant.sh install"
     else
       for src in $(envv COMPOSE_FILE | tr ':' ' '); do
         if [ "$src" -nt stack/docker-compose.yml ]; then
-          w "stack/docker-compose.yml is older than $src: sudo ./pingo.sh install, then rebuild the project in Container Manager"
+          w "stack/docker-compose.yml is older than $src: sudo ./assistant.sh install, then rebuild the project in Container Manager"
           break
         fi
       done
       if [ -d /volume1 ]; then
         for s in stack stack/docker-compose.yml stack/.env; do
           [ -e "$s" ] && [ "$(($(stat -c %a "$s" | tail -c 2) & 4))" -ne 0 ] ||
-            f "$s is not readable by Container Manager: sudo ./pingo.sh install"
+            f "$s is not readable by Container Manager: sudo ./assistant.sh install"
         done
       fi
     fi
@@ -243,7 +243,7 @@ doctor() {
     p=$(project)
     other=$(docker ps -a --filter "label=com.docker.compose.project=$p" --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null |
       grep -v -x -e "$DIR" -e "$DIR/stack" | sort -u | head -n 1)
-    [ -z "$other" ] || f "the compose project $p is also used by $other: both installs share containers and volumes (set COMPOSE_PROJECT_NAME in one .env, or ./pingo.sh move one of them)"
+    [ -z "$other" ] || f "the compose project $p is also used by $other: both installs share containers and volumes (set COMPOSE_PROJECT_NAME in one .env, or ./assistant.sh move one of them)"
     if docker volume inspect "${p}_db-data" >/dev/null 2>&1; then
       db_check && rc=0 || rc=$?
       case $rc in
@@ -254,9 +254,9 @@ doctor() {
           for id in $(dc exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT DISTINCT split_part(name, '"'"'/'"'"', 1) FROM core.schema_migrations WHERE name LIKE '"'"'%/%'"'"'"' 2>/dev/null); do
             [ -f "extensions/$id/extension.json" ] || lost="$lost $id"
           done
-          [ -z "$lost" ] || w "the database has data of extensions that are not installed here:$lost (sudo ./pingo.sh install$lost)" ;;
+          [ -z "$lost" ] || w "the database has data of extensions that are not installed here:$lost (sudo ./assistant.sh install$lost)" ;;
         1) f "the database was made with another password than the one in .env"; db_mismatch_help 2>&1; helped=yes ;;
-        2) say "database password not checked (db not running: sudo ./pingo.sh start)" ;;
+        2) say "database password not checked (db not running: sudo ./assistant.sh start)" ;;
       esac
     else
       say "no database yet (volume ${p}_db-data): it is made on the first start"
@@ -270,37 +270,37 @@ doctor() {
         *)
           if docker logs "$mig" 2>&1 | grep -q "password authentication failed"; then
             f "migrate failed: password authentication failed"; [ "${helped:-}" = yes ] || db_mismatch_help 2>&1
-          else f "migrate failed ($code): sudo ./pingo.sh logs migrate"; fi ;;
+          else f "migrate failed ($code): sudo ./assistant.sh logs migrate"; fi ;;
       esac
     fi
     down=$(dc ps -a --format '{{.Service}} {{.State}}' 2>/dev/null | awk '$1 != "migrate" && $2 != "running" { print $1 "(" $2 ")" }' | xargs)
-    if [ -z "$(dc ps -a -q 2>/dev/null)" ]; then w "no containers: sudo ./pingo.sh start"
-    elif [ -n "$down" ]; then f "not running: $down (sudo ./pingo.sh logs <service>)"
+    if [ -z "$(dc ps -a -q 2>/dev/null)" ]; then w "no containers: sudo ./assistant.sh start"
+    elif [ -n "$down" ]; then f "not running: $down (sudo ./assistant.sh logs <service>)"
     else ok "every service runs"; fi
     sick=$(dc ps -a --format '{{.Service}} {{.Health}}' 2>/dev/null | awk '$2 == "unhealthy" { print $1 }' | xargs)
-    [ -z "$sick" ] || f "failing its health check: $sick (sudo ./pingo.sh logs <service>)"
+    [ -z "$sick" ] || f "failing its health check: $sick (sudo ./assistant.sh logs <service>)"
     port=$(envv WEB_PORT)
     if curl -fs -o /dev/null "http://127.0.0.1:${port:-3000}/healthz" 2>/dev/null; then ok "the app answers on port ${port:-3000}"
-    else w "the app does not answer on port ${port:-3000} (still building? sudo ./pingo.sh logs web)"; fi
+    else w "the app does not answer on port ${port:-3000} (still building? sudo ./assistant.sh logs web)"; fi
   fi
 
   # Backups
   bdir=$(backup_dir)
   case $bdir/ in "$DIR"/*) w "BACKUP_DIR ($bdir) is inside the checkout, where the terminal can read the .env in each backup: move it next to the checkout" ;; esac
-  last=$(ls -1d "$bdir"/pingo-* 2>/dev/null | sort | tail -n 1)
-  if [ -z "$last" ]; then w "no backup in $bdir yet (sudo ./pingo.sh backup)"
-  elif [ -n "$(find "$last" -maxdepth 0 -mmin +2160 2>/dev/null)" ]; then w "the last backup is more than 36 hours old: $last (sudo ./pingo.sh logs backup)"
+  last=$(ls -1d "$bdir"/assistant-* 2>/dev/null | sort | tail -n 1)
+  if [ -z "$last" ]; then w "no backup in $bdir yet (sudo ./assistant.sh backup)"
+  elif [ -n "$(find "$last" -maxdepth 0 -mmin +2160 2>/dev/null)" ]; then w "the last backup is more than 36 hours old: $last (sudo ./assistant.sh logs backup)"
   else ok "last backup: $(basename "$last") in $bdir"; fi
 
   # Updater
   home=$(updater_home)
-  if [ ! -f "$home/update.sh" ]; then say "the updater is not set up (sudo ./pingo.sh auto-update install)"
+  if [ ! -f "$home/update.sh" ]; then say "the updater is not set up (sudo ./assistant.sh auto-update install)"
   else
     st=$(sed -n 's/.*"status":"\([^"]*\)".*"message":"\([^"]*\)".*/\1: \2/p' "$home/status.json" 2>/dev/null | head -n 1)
     case $st in
       ok:* | updating:* | available:*) ok "updater: ${st#*: }" ;;
       "") ok "the updater is set up ($home)" ;;
-      *) w "updater $st (sudo ./pingo.sh update --status)" ;;
+      *) w "updater $st (sudo ./assistant.sh update --status)" ;;
     esac
     # Each run leaves a timestamp; none for 15 minutes means the schedule does not run it.
     # The logs volume is root's: without sudo, the updater home's own last-run stamp tells the same.
@@ -324,8 +324,8 @@ doctor() {
 # data stays where it is.
 move_to() {
   [ "$(id -u)" = 0 ] || die "run it with sudo"
-  [ -n "${1:-}" ] || die "usage: sudo ./pingo.sh move <new folder>"
-  [ -f .env ] || die "not installed yet: ./pingo.sh install"
+  [ -n "${1:-}" ] || die "usage: sudo ./assistant.sh move <new folder>"
+  [ -f .env ] || die "not installed yet: ./assistant.sh install"
   parent=$(cd "$(dirname "$1")" 2>/dev/null && pwd -P) || die "$(dirname "$1") does not exist"
   new=$parent/$(basename "$1")
   [ "$new" != "$DIR" ] || die "the install is already in $new"
@@ -367,7 +367,7 @@ doctor_end() {
 }
 
 # --- backup and restore ---------------------------------------------------------------------------
-# Backups are folders pingo-<day>_<time> in BACKUP_DIR (db/backup.sh): db.dump, env, extensions.tgz.
+# Backups are folders assistant-<day>_<time> in BACKUP_DIR (db/backup.sh): db.dump, env, extensions.tgz.
 backup_dir() {
   b=$(envv BACKUP_DIR); b=${b:-../assistant-backups}
   case $b in /*) ;; *) b=$DIR/$b ;; esac
@@ -376,10 +376,10 @@ backup_dir() {
 
 backup_now() {
   if [ "${1:-}" = --list ]; then
-    ls -1d "$(backup_dir)"/pingo-* 2>/dev/null | sort -r || say "no backups in $(backup_dir)"
+    ls -1d "$(backup_dir)"/assistant-* 2>/dev/null | sort -r || say "no backups in $(backup_dir)"
     return 0
   fi
-  dc run --rm -T backup now || die "the backup failed (./pingo.sh logs backup, /logs/backup.log)"
+  dc run --rm -T backup now || die "the backup failed (./assistant.sh logs backup, /logs/backup.log)"
   ok "backup made in $(backup_dir)"
 }
 
@@ -388,10 +388,10 @@ RESTORE_KEYS="SECRETS_KEY TOKEN_ENCRYPTION_KEY APP_PASSWORD_HASH"
 
 restore() {
   src=${1:-}
-  [ -n "$src" ] || die "restore <backup folder>   (sudo ./pingo.sh backup --list)"
+  [ -n "$src" ] || die "restore <backup folder>   (sudo ./assistant.sh backup --list)"
   case $src in /*) ;; *) [ -d "$src" ] || src=$(backup_dir)/$src ;; esac
   [ -f "$src/db.dump" ] || die "$src has no db.dump"
-  [ -f .env ] || die "install first (./pingo.sh install), then restore into it"
+  [ -f .env ] || die "install first (./assistant.sh install), then restore into it"
   stamp=$(date +%Y%m%d-%H%M%S)
   say "restoring $src"
   [ -f "$src/manifest.json" ] && say "$(cat "$src/manifest.json")"
@@ -433,7 +433,7 @@ restore() {
 
   # Database: a fresh one, the dump without owners and grants (migrate puts back roles and owners).
   dc up -d --no-deps db >/dev/null || die "cannot start the db container"
-  db_wait || die "the database does not answer (./pingo.sh logs db)"
+  db_wait || die "the database does not answer (./assistant.sh logs db)"
   dc exec -T db sh -c 'dropdb -U "$POSTGRES_USER" --if-exists --force "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"' ||
     die "could not recreate the database"
   if dc exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl' < "$src/db.dump"; then ok "database restored"
@@ -442,7 +442,7 @@ restore() {
   # call them: take that away; migrate gives each installed extension's back to its own role.
   dc exec -T db sh -c 'psql -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA ext_query FROM PUBLIC"' >/dev/null 2>&1 || true
   dc up -d || die "could not start the stack"
-  ok "started; migrate re-applies the roles. Check: ./pingo.sh status"
+  ok "started; migrate re-applies the roles. Check: ./assistant.sh status"
 }
 
 # The updater's home: next to the checkout, outside it (spec 006).
@@ -569,7 +569,7 @@ case $cmd in
     # (never this checkout's copy, which the containers can change). Set up on first use.
     home=$(updater_home)
     if [ ! -f "$home/update.sh" ]; then
-      [ "${1:-}" != --status ] && [ "${1:-}" != --cancel ] || die "the updater is not set up: sudo ./pingo.sh update"
+      [ "${1:-}" != --status ] && [ "${1:-}" != --cancel ] || die "the updater is not set up: sudo ./assistant.sh update"
       sh scripts/update.sh install "$DIR" || die "could not set up the updater"
     fi
     case ${1:-} in
@@ -586,7 +586,7 @@ case $cmd in
     dc ps --format 'table {{.Service}}\t{{.Status}}'
     port=$(envv WEB_PORT)
     if curl -fs -o /dev/null "http://127.0.0.1:${port:-3000}/healthz" 2>/dev/null; then ok "app answers on port ${port:-3000}: $(envv PUBLIC_ORIGIN)"
-    else say "app not answering on port ${port:-3000} yet (building? ./pingo.sh logs web)"; fi ;;
+    else say "app not answering on port ${port:-3000} yet (building? ./assistant.sh logs web)"; fi ;;
   doctor) doctor ;;
   # For install.sh: does .env open the existing database? (exit 1 = it does not)
   check-db)

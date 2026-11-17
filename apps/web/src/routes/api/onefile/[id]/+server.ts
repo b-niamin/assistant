@@ -10,6 +10,7 @@ import { kvAllVersioned } from '#lib/extensions/kv.server.ts';
 import { readSettings } from '#lib/extensions/config.server.ts';
 import { injectShim, ONEFILE_CSP } from '#lib/extensions/onefile.ts';
 import { themeTags } from '#lib/extensions/theme.ts';
+import { appearance } from '#lib/server/appearance.ts';
 import { accessoryOf } from '#lib/mascot.ts';
 import { extensionById, visibleTo } from '#lib/extensions/registry.server.ts';
 
@@ -21,7 +22,7 @@ export const GET: RequestHandler = async ({ params, locals, url, request }) => {
   if (!ext.entry) throw error(404, 'Not found');
   const html = await readFile(path.join(EXTENSIONS_DIR, ext.id, ext.entry), 'utf8');
   const [{ data, versions }, settings] = await Promise.all([kvAllVersioned(ext, locals.profileId), readSettings(ext)]);
-  const body = injectShim(html, data, url.origin, settings, themeTags(undefined, undefined, accessoryOf(ext)), locals.lang, versions);
+  const body = injectShim(html, data, url.origin, settings, themeTags(undefined, await appearance(), accessoryOf(ext)), locals.lang, versions);
   // A onefile app can be large (Gym is ~900 KB with its pictures) and is sent on every open: compress it
   // (adapter-node compresses only static files).
   const gz = /\bgzip\b/.test(request.headers.get('accept-encoding') ?? '') && body.length > 4096;

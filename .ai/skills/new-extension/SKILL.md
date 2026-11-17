@@ -53,7 +53,7 @@ Native:
 - Calendar (optional, both kinds): things with a date (a workout, a match, a deadline) go on the shared
   calendar through `web/calendar.server.ts` (`export const calendar: ExtCalendar`, shell 5); see
   docs/extensions.md, "Calendar entries".
-- Look (required): Pingo UI (`specs/001-design.md`): every page starts with `PageHead` from `$shell/ui`
+- Look (required): Assistant UI (`specs/001-design.md`): every page starts with `PageHead` from `$shell/ui`
   (Pingo, title, one line, actions; `back` for a page further in), buttons/cards/lists/segmented controls
   from the shell's classes (`.btn*`, `.card`, `.list-group`, `.segmented`, docs/extensions.md "Look"), sheets
   with `Sheet`, icons with `Icon`; empty and error states with `EmptyState`. In `extension.json`: its
@@ -72,7 +72,7 @@ Native:
 
 Onefile:
 - Follow onefile-apps' ARTIFACTS-DEVELOPMENT.md (one file, CSP meta, EN + PL, phone-first, light + dark).
-- Look (required): the shell injects its tokens and `<assistant-pingo>`; style with `var(--page, <fallback>)`
+- Look (required): the shell injects its tokens and `<assistant-mascot>`; style with `var(--page, <fallback>)`
   and put Pingo in the header and empty states, not the app's own palette or fonts.
 - Languages (required, spec 007): its own dictionary for every language of the app, `"languages"` in
   `extension.json`, `window.assistantLang` over `navigator.language`; name and description in `i18n/<lang>.json`.

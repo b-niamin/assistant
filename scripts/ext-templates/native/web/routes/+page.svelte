@@ -10,7 +10,7 @@
 
 <svelte:head><title>{t('{{name}}')} · {t('Assistant')}</title></svelte:head>
 
-<!-- Every page starts with PageHead (Pingo UI, specs/001-design.md): Pingo, the title, the app's pages. -->
+<!-- Every page starts with PageHead (Assistant UI, specs/001-design.md): Pingo, the title, the app's pages. -->
 <PageHead title={t('{{name}}')} />
 
 <form method="POST" action="?/add" class="card add">

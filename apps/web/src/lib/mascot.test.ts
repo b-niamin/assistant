@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { accessoryFor, accessoryOf, ACCESSORY_IDS, guessAccessory, lineFor, moodFor, moodForHour } from './mascot';
-import { ACCESSORY_SVG } from './pingo-accessories';
+import { ACCESSORY_SVG } from './mascot-accessories';
 
 describe('mascot', () => {
   it('maps readiness bands to moods', () => {

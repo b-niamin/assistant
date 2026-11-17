@@ -11,6 +11,7 @@ export type NavId =
   | 'apps'
   | 'profiles'
   | 'language'
+  | 'appearance'
   | 'connector'
   | 'ai'
   | 'infrastructure'
@@ -56,6 +57,12 @@ export const SETTINGS_NAV: NavGroup[] = [
   {
     label: 'Apps and people',
     items: [
+      {
+        id: 'appearance',
+        href: '/settings/appearance',
+        label: 'Appearance',
+        icon: ['M10 3a7 7 0 1 0 0 14c1 0 1.5-.7 1.5-1.5 0-1.2-1-1.5-1-2.5s.8-1.5 2-1.5H14a3 3 0 0 0 3-3c0-3-3-5.5-7-5.5z', 'M6.5 9.5h.01M8.5 6.5h.01M12 6.5h.01']
+      },
       {
         id: 'apps',
         href: '/settings/apps',

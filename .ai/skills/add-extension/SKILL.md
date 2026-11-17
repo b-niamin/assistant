@@ -66,7 +66,7 @@ Every extension wears the assistant's layout and has Pingo, the mascot, woven in
 - **native**: `import { Mascot, moodFor, moodForHour, countUp } from '$shell/ui'`; the shell's classes
   and tokens are already on the page.
 - **onefile**: inside the shell the iframe gets the tokens injected (as `@layer assistant`) and a
-  `<assistant-pingo mood="steady" size="40">` element. Use `var(--page, <fallback>)` so the file still works
+  `<assistant-mascot mood="steady" size="40">` element. Use `var(--page, <fallback>)` so the file still works
   on its own, and drop the app's own palette and fonts.
 - `node scripts/ext.mjs check <id>` prints `look:` warnings; a new extension leaves it with none.
 

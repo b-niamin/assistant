@@ -324,7 +324,7 @@
         </p>
       </div>
     {:else if sel.kind === 'container'}
-      <p class="meta">{t('The app does not restart this part; the host does (sudo ./pingo.sh restart).')}</p>
+      <p class="meta">{t('The app does not restart this part; the host does (sudo ./assistant.sh restart).')}</p>
     {/if}
   </div>
 </section>

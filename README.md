@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="apps/web/static/pingo.svg" alt="Pingo, the assistant's mascot: an orange jelly-bean runner in a sweatband" width="128" />
+<img src="apps/web/static/mascot-penguin.svg" alt="Pingo, the assistant's mascot: a little penguin (the name and the kind are yours to pick)" width="128" />
 
-# Pingo Assistant
+# Assistant
 
 A self-hosted web app. Apps are added as extensions.
 Claude uses the extensions' data through an MCP server: from claude.ai, or from Claude Code and Codex in the app's terminal.
@@ -46,12 +46,12 @@ It asks a few questions (folder, port, Tailscale, start, updates); Enter takes t
 takes them all. Then it starts the stack and prints an address and a setup code.
 
 1. Open the printed address + `/setup`, enter the setup code and follow the wizard: password, profile, apps, updates and Claude.
-2. Check the install with `sudo ./pingo.sh doctor`.
+2. Check the install with `sudo ./assistant.sh doctor`.
 
 Interrupted? Run the same command again: it goes on where it stopped. To remove everything it made:
-`sudo ./pingo.sh uninstall`.
+`sudo ./assistant.sh uninstall`.
 
-Synology steps, installer options and `pingo.sh` commands: [docs/install.md](docs/install.md).
+Synology steps, installer options and `assistant.sh` commands: [docs/install.md](docs/install.md).
 
 ## Screenshots
 
@@ -88,6 +88,6 @@ written by Claude in your instance. Details: [architecture spec](specs/000-archi
 ## Docs
 
 - [Extensions repo](https://github.com/b-niamin/assistant-extensions): ready-made extensions
-- [Install and run](docs/install.md): installer, Synology steps, `pingo.sh`, development
+- [Install and run](docs/install.md): installer, Synology steps, `assistant.sh`, development
 - [Architecture](specs/000-architecture.md), [extensions](specs/002-extensions.md), [MCP and the Claude connector](specs/005-claude-tools.md), [security](specs/004-security.md), [all specs](specs)
 - [AGENTS.md](AGENTS.md): rules for people and AI agents working in this repo

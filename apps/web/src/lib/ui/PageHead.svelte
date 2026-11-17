@@ -59,7 +59,7 @@
     </a>
   {/if}
   <div class="row">
-    {#if mascot && !back}<span class="pingo"><Mascot {mood} {accessory} size={52} decorative /></span>{/if}
+    {#if mascot && !back}<span class="mascot"><Mascot {mood} {accessory} size={52} decorative /></span>{/if}
     <div class="text">
       <h1>{title}</h1>
       {#if lede}<div class="sub">{@render lede()}</div>{:else if sub}<p class="sub">{sub}</p>{/if}
@@ -100,7 +100,7 @@
     align-items: center;
     gap: var(--space-3);
   }
-  .pingo {
+  .mascot {
     flex: none;
     display: inline-flex;
     margin: -4px 0;

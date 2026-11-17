@@ -7,6 +7,7 @@ import { defaultProfile, isConfigured } from '#lib/server/app-config.ts';
 import { canonicalRedirect } from '#lib/server/canonical-origin.ts';
 import { checkSession, isElevated, listProfiles, PROFILE_COOKIE, SESSION_COOKIE, SESSION_DAYS } from '#lib/server/session.ts';
 import { htmlTag, MOTION_COOKIE, parseTheme, THEME_COOKIE } from '#lib/theme.ts';
+import { appearance } from '#lib/server/appearance.ts';
 import { LANG_COOKIE, pickLanguage } from '#lib/i18n/languages.ts';
 import { languageSettings } from '#lib/server/languages.ts';
 
@@ -29,7 +30,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     return response;
   }
   // server.mjs lets only the paths above in from the internet; anything else from there is a bug.
-  if (event.request.headers.get('x-pingo-public') === '1') throw error(404, 'Not found');
+  if (event.request.headers.get('x-assistant-public') === '1') throw error(404, 'Not found');
 
   // Opened under another port than PUBLIC_ORIGIN's: go there, or every form would fail the CSRF check.
   // Tailscale Serve keeps the browser's Host and sets X-Forwarded-Host; either only ever leads to ORIGIN.
@@ -81,7 +82,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     if (ext && !visibleTo(ext, event.locals.profileId)) throw error(404, 'Not found');
   }
 
-  const tag = htmlTag(event.locals.theme, event.locals.lang, event.cookies.get(MOTION_COOKIE) === 'reduce');
+  const tag = htmlTag(event.locals.theme, event.locals.lang, event.cookies.get(MOTION_COOKIE) === 'reduce', (await appearance()).accent);
   const response = await resolve(event, { transformPageChunk: ({ html }) => html.replace('<html lang="en">', tag) });
   response.headers.set('X-Content-Type-Options', 'nosniff');
   if (!response.headers.has('Referrer-Policy')) response.headers.set('Referrer-Policy', 'same-origin');

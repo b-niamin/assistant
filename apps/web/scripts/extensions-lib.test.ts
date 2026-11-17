@@ -4,7 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain JS module without types
 import * as lib from './extensions-lib.mjs';
-import { ACCESSORY_IDS } from '../src/lib/pingo-accessories';
+import { ACCESSORY_IDS } from '../src/lib/mascot-accessories';
 
 const manifest = (over = {}) => ({
   id: 'notes',
@@ -205,10 +205,10 @@ describe('look', () => {
     expect(lib.lookWarnings(ours, { kind: 'native' }, 'x')).toEqual([]);
   });
 
-  it('asks a onefile app for <assistant-pingo> and the shell tokens', () => {
+  it('asks a onefile app for <assistant-mascot> and the shell tokens', () => {
     const bare = ext({ 'app.html': '<style>body{color:#000}</style>' });
     expect(lib.lookWarnings(bare, { kind: 'onefile', entry: 'app.html' }, 'x')).toHaveLength(2);
-    const ours = ext({ 'app.html': '<style>body{background:var(--page,#fff)}</style><assistant-pingo mood="idle"></assistant-pingo>' });
+    const ours = ext({ 'app.html': '<style>body{background:var(--page,#fff)}</style><assistant-mascot mood="idle"></assistant-mascot>' });
     expect(lib.lookWarnings(ours, { kind: 'onefile', entry: 'app.html' }, 'x')).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { mascotName } from '#lib/ui/mascot-name.ts';
   import { page } from '$app/state';
   import Mascot from '#lib/Mascot.svelte';
   import { useT } from '#lib/i18n/index.ts';
@@ -10,8 +11,8 @@
 <svelte:head><title>{missing ? t('Not found') : t('Error')} · {t('Assistant')}</title></svelte:head>
 
 <section class="card oops rise">
-  <Mascot mood={missing ? 'tired' : 'asleep'} size={96} label={t('Pingo, the assistant mascot. Click me.')} />
-  <h1>{missing ? t('Pingo looked everywhere') : t('Something went wrong')}</h1>
+  <Mascot mood={missing ? 'tired' : 'asleep'} size={96} label={t('{name}, the assistant mascot. Click me.', { name: mascotName() })} />
+  <h1>{missing ? t('{name} looked everywhere', { name: mascotName() }) : t('Something went wrong')}</h1>
   <p class="muted">
     {missing ? t('There is no page at this address.') : page.error?.message ? t(page.error.message) : t('Try again in a moment.')}
   </p>

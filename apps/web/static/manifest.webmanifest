@@ -1,11 +1,11 @@
 {
   "name": "Assistant",
   "short_name": "Assistant",
-  "description": "A self-hosted assistant, with Pingo the mascot.",
+  "description": "A self-hosted assistant, with a mascot.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fff4ec",
-  "theme_color": "#ff7527",
+  "background_color": "#eef7f6",
+  "theme_color": "#0b7a74",
   "icons": [
     { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
     { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192" },

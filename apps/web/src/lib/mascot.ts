@@ -2,9 +2,9 @@
  * Pingo, the app's mascot. Its mood follows today's Training Readiness, so the hero card reads at a
  * glance even before the number does. Pure logic here; the drawing is in Mascot.svelte.
  */
-import { isAccessory, type Accessory } from './pingo-accessories';
+import { isAccessory, type Accessory } from './mascot-accessories';
 
-export { ACCESSORY_IDS, isAccessory, type Accessory } from './pingo-accessories';
+export { ACCESSORY_IDS, isAccessory, type Accessory } from './mascot-accessories';
 
 export type Mood = 'charged' | 'steady' | 'tired' | 'asleep' | 'idle';
 

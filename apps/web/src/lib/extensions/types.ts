@@ -20,7 +20,7 @@ export interface ExtensionInfo {
   settings: SettingField[];
   /** Names of its secret fields; an admin sets the values (spec 004). */
   secrets: string[];
-  /** What Pingo wears on its pages (manifest "accessory", pingo-accessories.ts); null = guessed from id and name. */
+  /** What Pingo wears on its pages (manifest "accessory", mascot-accessories.ts); null = guessed from id and name. */
   accessory: string | null;
   /** Its icon in the tab bar and the apps list (manifest "icon", lib/ui/icons.js); null = a generic one. */
   icon: string | null;

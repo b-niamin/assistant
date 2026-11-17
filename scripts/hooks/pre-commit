@@ -30,7 +30,7 @@ if git diff --cached --name-only | grep -qE '^services/terminal/'; then
 fi
 
 # terminal approvals: what the agents' guard asks about.
-if git diff --cached --name-only | grep -qE '^docker/terminal/pingo-guard'; then
+if git diff --cached --name-only | grep -qE '^docker/terminal/assistant-guard'; then
   (cd "$root" && node --test docker/terminal/*.test.mjs)
 fi
 

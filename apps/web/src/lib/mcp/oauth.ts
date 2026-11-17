@@ -85,7 +85,7 @@ export const resourceMetadata = (base: string, path = '/mcp') => ({
   authorization_servers: [base],
   scopes_supported: SCOPES,
   bearer_methods_supported: ['header'],
-  resource_name: 'Pingo Assistant'
+  resource_name: 'Assistant'
 });
 
 /** RFC 8414: the endpoints, all under /mcp/oauth so one public listener serves them. */

@@ -184,6 +184,14 @@ export const installPrompt = (id: string): string =>
   `Install the ready-made extension ${id}: run ${installCommand(id)}; if it lacks one of the app's languages, ` +
   `translate it (add-extension skill); then tell me what to set up.`;
 
+/** Update installed extensions to the extensions repo's version (the old folders go to extensions/.trash/). */
+export const updateCommand = (ids: string[]): string => `node scripts/ext.mjs update ${ids.join(' ')}`;
+
+/** What "Update" / "Update all" asks the agent, the same way as "Install". */
+export const updatePrompt = (ids: string[]): string =>
+  `Update the extension${ids.length > 1 ? 's' : ''} ${ids.join(', ')} to the extensions repo's version: run ${updateCommand(ids)}; ` +
+  `if one lacks one of the app's languages, translate it (add-extension skill); then tell me what changed and when the app has rebuilt.`;
+
 /** Remove an installed extension (its folder goes to extensions/.trash/; `--data` also drops what it stored). */
 export const removeCommand = (id: string, withData = false): string => `node scripts/ext.mjs remove ${id}${withData ? ' --data' : ''}`;
 

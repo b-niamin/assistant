@@ -1030,5 +1030,17 @@
   "Link": "Link",
   "Refreshing…": "Odświeżam…",
   "Release to refresh": "Puść, aby odświeżyć",
-  "Pull down to refresh": "Pociągnij w dół, aby odświeżyć"
+  "Pull down to refresh": "Pociągnij w dół, aby odświeżyć",
+  "{n} app updates": {
+    "one": "Jedna aktualizacja aplikacji",
+    "few": "{n} aktualizacje aplikacji",
+    "many": "{n} aktualizacji aplikacji",
+    "other": "{n} aktualizacji aplikacji"
+  },
+  "App updates need a newer core": "Aktualizacje aplikacji wymagają nowszego rdzenia",
+  "Updating… the chat runs it, and the app rebuilds itself in about a minute.": "Aktualizuję… czat to uruchamia, a aplikacja przebuduje się w około minutę.",
+  "New versions from the extensions repo. Their data stays.": "Nowe wersje z repozytorium rozszerzeń. Ich dane zostają.",
+  "Update all": "Aktualizuj wszystkie",
+  "Updating…": "Aktualizuję…",
+  "needs a newer core": "wymaga nowszego rdzenia"
 }

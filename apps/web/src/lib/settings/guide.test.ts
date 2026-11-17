@@ -11,6 +11,8 @@ import {
   PROFILE_ID_RE,
   removeCommand,
   removePrompt,
+  updateCommand,
+  updatePrompt,
   shellQuote,
   slugify,
   TEMPLATES,
@@ -116,5 +118,13 @@ describe('commands for the dock terminal', () => {
   it('asks the AI to remove an app, with or without its data', () => {
     expect(removePrompt('gym')).toContain('run node scripts/ext.mjs remove gym (');
     expect(removePrompt('gym', true)).toContain('remove gym --data');
+  });
+});
+
+describe('updating apps', () => {
+  it('asks the AI to update one or several apps with one ext update', () => {
+    expect(updateCommand(['health', 'training'])).toBe('node scripts/ext.mjs update health training');
+    expect(updatePrompt(['health'])).toMatch(/^Update the extension health to .*run node scripts\/ext\.mjs update health;/);
+    expect(updatePrompt(['health', 'training'])).toContain('extensions health, training');
   });
 });

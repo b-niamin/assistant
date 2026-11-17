@@ -18,16 +18,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXTENSION_ID_RE, FIELD_NAME_RE, UNIT_NAME_RE } from '../src/lib/ids.js';
 import { ICON_NAMES } from '../src/lib/ui/icons.js';
+import { SHELL_API } from '../src/lib/shell-api.js';
 
 export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-/**
- * The SDK contract version (spec 002). It grows by additions only: an extension declares the version it
- * was written for and builds on that core or any newer one. 2 = shared charts, EmptyState, EN, ticks;
- * 3 = `import assistant` for Python services (docker/worker/lib); 4 = `ext-run` in the app's terminal, and a
- * source's `command` run there by its button; 5 = the shared calendar; 6 = the Pingo rename; 7 = Assistant UI
- * (lib/ui.css classes, PageHead/Segmented/Sheet/Icon in $shell/ui, manifest "icon" and "pages"); 8 = Pager.
- */
-export const SHELL_API = 9;
+/** The SDK contract version (spec 002), in src/lib/shell-api.js so the web app reads it too. */
+export { SHELL_API };
 /** First path segments the shell owns; an extension id can never take one. */
 export const RESERVED_IDS = new Set([
   'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',

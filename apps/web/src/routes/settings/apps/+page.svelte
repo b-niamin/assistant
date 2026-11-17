@@ -1,6 +1,7 @@
 <script lang="ts">
   import Mascot from '#lib/Mascot.svelte';
   import PageHead from '#lib/ui/PageHead.svelte';
+  import AppUpdates from '#lib/settings/AppUpdates.svelte';
   import { hueFor, initials } from '#lib/settings/guide.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -24,6 +25,8 @@
     <a href="/settings/language">{t('Language')}</a>
   </p>
 {/if}
+
+{#await data.updates then updates}<AppUpdates {updates} />{/await}
 
 <ul class="card rows">
   {#each data.extensions as ext (ext.id)}

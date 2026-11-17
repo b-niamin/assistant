@@ -105,7 +105,7 @@ checkout the agents edit: `docker/migrate/Dockerfile` copies `db/` into the imag
 mirror. Extension migrations still come from `extensions/` and run as each extension's owner role.
 
 Extensions are not part of this repo (`extensions/` is git-ignored), so auto-update never touches them;
-`ext update <id>` does. Their background work follows by itself (the worker, spec 002); only a changed
+`ext update <id>` does (System settings -> Apps lists newer versions and has "Update all"). Their background work follows by itself (the worker, spec 002); only a changed
 extension `compose.yml` needs `./install.sh`.
 
 `apps/web/package*.json` needs nothing either: live-reload compares their content hash with the one

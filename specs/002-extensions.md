@@ -71,7 +71,10 @@ assistant-extensions                ready-made extensions and reference skeleton
 
 `ext install <id>` shallow-clones the extensions repo (`EXTENSIONS_REPO`), copies `extensions/<id>/` into
 `extensions/<id>/` and records the source commit as `from`; `ext update <id>` replaces it with the repo's
-current version (the old folder goes to `extensions/.trash/`). Nothing is fetched at runtime.
+current version (the old folder goes to `extensions/.trash/`). Nothing is fetched at runtime except
+`catalog.json`: System settings -> Apps compares its `version` with each installed manifest's and lists the
+newer ones, with "Update all" (or one app's Update) asking the AI in the chat to run `ext update`. A version whose
+`shell` is above this core's `SHELL_API` (`apps/web/src/lib/shell-api.js`) waits for a core update.
 For anything else, a source the owner names is read in a scratch directory and only inspires the code
 Claude writes in `extensions/<id>/` (the `add-extension` skill); its link is recorded as `inspiredBy`.
 Claude edits an extension in place (live-reload rebuilds the shell). An extension worth sharing between

@@ -1,6 +1,7 @@
 /**
- * The extensions repo's catalog.json (spec 002): what "Extend the system" offers. Ready-made extensions
- * are installed by `ext install` in the terminal.
+ * The extensions repo's catalog.json (spec 002): what "Extend the system" offers, and the versions System
+ * settings -> Apps compares with the installed ones. Ready-made extensions are installed and updated by
+ * `ext install` / `ext update`, which the AI runs in the chat.
  * Read over HTTPS and kept for 10 minutes; nothing from it is executed here.
  */
 import * as env from '$app/env/private';
@@ -17,6 +18,10 @@ export interface CatalogExtension {
   /** Brings a background service: `./install.sh` on the host starts it. */
   service: boolean;
   needs?: string;
+  /** Its version in the repo (manifest "version"), compared with the installed one for updates. */
+  version?: string;
+  /** The shell API it needs (manifest "shell"): a newer one than this core waits for a core update. */
+  shell?: number;
   /** What Pingo wears for it (its manifest "accessory"). */
   accessory?: Accessory;
   /** Name, description and needs in other languages (spec 007): {"pl": {"name": ..., "description": ...}}. */
@@ -71,6 +76,8 @@ export function parseCatalog(raw: unknown): Catalog {
       scope: scopeOf(e.scope),
       service: e.service === true,
       ...(str(e.needs, 80) ? { needs: str(e.needs, 80) } : {}),
+      ...(/^\d+\.\d+\.\d+$/.test(str(e.version, 20)) ? { version: e.version } : {}),
+      ...(Number.isInteger(e.shell) && e.shell > 0 && e.shell < 1000 ? { shell: e.shell } : {}),
       ...(isAccessory(e.accessory) ? { accessory: e.accessory } : {}),
       ...textsOf(e.i18n)
     }))

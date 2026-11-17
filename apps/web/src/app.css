@@ -315,6 +315,7 @@ code {
 /* Form controls: one quiet style everywhere. */
 select,
 input,
+textarea,
 button {
   font: inherit;
   color: var(--ink);
@@ -340,9 +341,17 @@ select {
   background-size: 5px 5px;
   background-repeat: no-repeat;
 }
+/* A text box takes the width it is given and grows with what is typed (no corner grip), at least two lines. */
 textarea {
+  display: block;
+  width: 100%;
   height: auto;
+  min-height: 70px;
   padding: 10px 12px;
+  line-height: 1.4;
+  resize: none;
+  field-sizing: content;
+  max-height: 50dvh;
 }
 /* Phones and tablets: 16px fields (iOS zooms the page into anything smaller) and 44px touch targets. */
 @media (pointer: coarse) {
@@ -350,6 +359,9 @@ textarea {
   select,
   textarea {
     font-size: max(16px, var(--text-base));
+  }
+  textarea {
+    min-height: 88px;
   }
   select,
   input:not([type='checkbox']):not([type='radio']) {

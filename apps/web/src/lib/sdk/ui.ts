@@ -19,3 +19,12 @@ export {
   type Accessory,
   type Mood
 } from '#lib/mascot.ts';
+/**
+ * Since shell 7, Pingo UI (spec 001): the head of every page with the shell's page navigation, a bottom
+ * sheet, the icon set. Buttons, cards, lists, segmented controls, steppers and chips are classes
+ * (lib/ui.css): .btn .btn-primary .btn-tinted .btn-plain .btn-danger .btn-glass, .card, .list > .list-row, ...
+ */
+export { default as PageHead } from '#lib/ui/PageHead.svelte';
+export { default as Sheet } from '#lib/ui/Sheet.svelte';
+export { default as Icon } from '#lib/ui/Icon.svelte';
+export { ICON_NAMES } from '#lib/ui/icons.js';

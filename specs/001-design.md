@@ -19,6 +19,10 @@ was run through its validator against both chart surfaces (`#fcfcfb` light, `#1a
 | Data | `--accent` (single series), `--accent-wash` (10 % area fill), `--accent-ink` (links, text-safe step) |
 | Status | `--good`, `--warning`, `--serious`, `--critical` (dots); `--good-ink` for good text |
 | Metric hues | `--hue-blue/orange/aqua/yellow/magenta/green/violet/red` (validated categorical slots, own dark steps); `--brand` = Pingo's orange |
+| Fills | `--fill-1` (gray buttons, segmented track, stepper), `--fill-2` (wells, chips), `--sep` (row hairlines), `--accent-tint`, `--critical-tint`, `--good-tint` |
+| Glass | `--glass`, `--glass-hi`, `--glass-edge`, `--glass-blur`, `--glass-shadow` (the control layer, see Pingo UI) |
+| Shape | `--radius-xs` 8, `--radius-sm` 12, `--radius` 20, `--radius-lg` 28, `--radius-pill`; `--shadow-card` (none in dark), `--shadow-pop`; `--tap` = 44 px |
+| Type | `--font` (system: SF Pro on Apple), `--font-rounded` (figures), `--text-xs..2xl`, `--text-figure`, `--weight-*` |
 | Spacing | `--space-1..7` = 4, 8, 12, 16, 24, 32, 48 px |
 
 Dark mode is its own set of steps (not an inversion), applied by `prefers-color-scheme` and by
@@ -38,14 +42,57 @@ Dark mode is its own set of steps (not an inversion), applied by `prefers-color-
 - Status colour is never alone: always a dot plus a word (`.status good|warning|serious|critical`).
   Deltas carry an arrow and a sign besides colour; tone follows the metric's `goodWhen`.
 - Text never wears a series colour. Bars and lines carry colour; labels use ink tokens.
-- Controls: range presets are a segmented control built from links (works without JS); one quiet
-  style for select/input/button.
+- Controls: range presets are a segmented control built from links (works without JS); buttons, cards,
+  lists and controls come from Pingo UI below.
 - Form controls stay native elements (labels, keyboard, form posts, screen readers) and wear the shell's
   look from `src/lib/controls.css`: checkboxes, radios, sliders (`--fill` shows the filled part),
   date/time/search picker buttons, file buttons, focus and disabled states, and the open list of a select
   where the browser allows it (Chromium's `appearance: base-select`; elsewhere its own list). An on/off
   setting is a switch: `<input type="checkbox" role="switch">`. A checkbox or radio with its text goes in
   `<label class="check">`. No component or class is needed; extensions get it as they are.
+
+## Pingo UI (since shell 7)
+
+One set of components for the shell and every extension, after Apple's Human Interface Guidelines
+(materials and Liquid Glass, tab bars vs segmented controls, 44 pt targets, the iOS text styles). Phone first:
+the phone is the main device. Classes live in `src/lib/ui.css` (also injected into onefile apps), the parts
+with behaviour in `src/lib/ui/` and are exported from `$shell/ui`. The proposal with its audit and research:
+the "Pingo UI" artifact of 17 November 2026.
+
+- **Type**: one system font (SF Pro on Apple), figures in its rounded cut (`--font-rounded`). On phones
+  (`max-width: 700px` or a coarse pointer) the scale is iOS's: body 17, subheadline 15, footnote 13,
+  title 2 22, large title 34. Fields stay at 16 px or more so Safari does not zoom.
+- **Touch**: every target is 44 × 44 px or more (`--tap`). A small button (`.btn-sm`, 34 px) and a small
+  icon button grow their touch area with an invisible `::after`.
+- **Buttons**: pill shaped. `.btn` gray, `.btn-primary` filled (one main action per screen), `.btn-tinted`
+  (accent wash), `.btn-plain` (text), `.btn-danger`, `.btn-glass`. Sizes 44 (default), 52 (`.btn-lg`, a main
+  action across the width), 34 (`.btn-sm`). Pressed, a button shrinks to 96 %.
+- **Glass** only on the control layer that floats over content: the header, the tab bar, the page
+  navigation, buttons over a page (back, add). Cards and content never wear it. Under "reduce transparency"
+  (`prefers-reduced-transparency`) glass is a solid `--surface-2`; with forced colours it gets a border.
+- **Cards**: one look (`.card`: `--surface`, 1 px ring, radius 20, a soft shadow in light, none in dark).
+  The card a page leads with is the same card with a `.figure`; no card has its own colour or gradient.
+- **Lists**: inset grouped (`.list-group` > `.list-row`), rows of 52 px or more, hairlines inset past the
+  icon, a chevron on link rows.
+- **Sheets**: `Sheet` from `$shell/ui`, a bottom sheet with a grabber and a round close button on a phone,
+  a centred window on a computer.
+
+### Navigation
+
+One pattern in every app, three levels:
+
+1. **Between apps.** On a phone a floating glass tab bar at the bottom (`lib/ui/TabBar.svelte`): Home, the
+   first three apps in nav order and More (every app and System settings in a sheet); when everything fits,
+   no More. Each app shows its manifest `"icon"` and `"short"` name. Wider screens keep the header's links.
+2. **The pages of an app.** Its manifest `"pages"` (2 to 5): the shell draws them as one glass segmented
+   control under the page title (`PageHead`), sticky under the header while the page scrolls. Words only on
+   a phone.
+3. **Further in** (a workout, a plan, an activity): `PageHead` with `back` (a glass back button with the
+   parent's name), no page navigation. `focus` hides the tab bar while the page is open (a workout under way).
+
+`PageHead` is how every page starts: Pingo (dressed for the app), the large title, one line under it, actions
+on the right (glass icon buttons). `ext check` warns about a page without it, an extension's own fonts, raw
+colours and raw font sizes.
 
 ## Colour per metric
 

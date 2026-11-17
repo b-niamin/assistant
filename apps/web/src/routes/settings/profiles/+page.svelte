@@ -41,7 +41,7 @@
               <!-- svelte-ignore a11y_autofocus -->
               <input id="rn-{p.id}" name="name" value={p.name} maxlength="40" required autofocus />
               <button class="btn btn-primary">{t('Save')}</button>
-              <button class="btn-ghost" type="button" onclick={() => (editing = null)}>{t('Cancel')}</button>
+              <button class="btn-plain" type="button" onclick={() => (editing = null)}>{t('Cancel')}</button>
             </form>
           {:else}
             <p class="name">
@@ -53,7 +53,7 @@
         </div>
         {#if editing !== p.id}
           <div class="acts">
-            <button class="btn-ghost" type="button" onclick={() => (editing = p.id)}>{t('Rename')}</button>
+            <button class="btn-plain" type="button" onclick={() => (editing = p.id)}>{t('Rename')}</button>
             {#if p.id !== data.current}
               <form method="POST" action="/profile">
                 <input type="hidden" name="profile" value={p.id} />

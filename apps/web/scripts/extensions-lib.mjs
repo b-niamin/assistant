@@ -17,15 +17,17 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXTENSION_ID_RE, FIELD_NAME_RE, UNIT_NAME_RE } from '../src/lib/ids.js';
+import { ICON_NAMES } from '../src/lib/ui/icons.js';
 
 export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /**
  * The SDK contract version (spec 002). It grows by additions only: an extension declares the version it
  * was written for and builds on that core or any newer one. 2 = shared charts, EmptyState, EN, ticks;
  * 3 = `import pingo` for Python services (docker/worker/lib); 4 = `ext-run` in the app's terminal, and a
- * source's `command` run there by its button.
+ * source's `command` run there by its button; 5 = the shared calendar; 6 = the Pingo rename; 7 = Pingo UI
+ * (lib/ui.css classes, PageHead/Segmented/Sheet/Icon in $shell/ui, manifest "icon" and "pages").
  */
-export const SHELL_API = 6;
+export const SHELL_API = 7;
 /** First path segments the shell owns; an extension id can never take one. */
 export const RESERVED_IDS = new Set([
   'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',
@@ -100,6 +102,28 @@ export const ACCESSORIES = [
 /** A secret name: lowercase, digits, underscores, e.g. "api_token". */
 export const SECRET_RE = FIELD_NAME_RE;
 
+/**
+ * Manifest "pages": the extension's own pages, shown by the shell as one segmented control under the page
+ * title (PageHead). 2 to 5 of them, the first is the extension's home (path ""), each with a short label
+ * (English, translated through its i18n) and optionally an icon.
+ */
+export function pagesProblems(list, dirName) {
+  const where = `${dirName}/extension.json: "pages"`;
+  if (!Array.isArray(list) || list.length < 2 || list.length > 5) return [`${where} must list 2 to 5 pages`];
+  const errors = [];
+  const seen = new Set();
+  list.forEach((p, i) => {
+    if (!p || typeof p !== 'object') return errors.push(`${where}[${i}] is not an object`);
+    if (typeof p.path !== 'string' || !/^([a-z0-9-]+(\/[a-z0-9-]+)*)?$/.test(p.path) || seen.has(p.path))
+      errors.push(`${where}[${i}]: "path" must be "" or a unique path below the extension, like "plans"`);
+    seen.add(p.path);
+    if (i === 0 && p.path !== '') errors.push(`${where}[0]: the first page is the extension's home, path ""`);
+    if (typeof p.label !== 'string' || p.label.length < 1 || p.label.length > 24) errors.push(`${where}[${i}]: "label" of 1-24 characters`);
+    if (p.icon !== undefined && !ICON_NAMES.includes(p.icon)) errors.push(`${where}[${i}]: unknown "icon" ${p.icon}`);
+  });
+  return errors;
+}
+
 /** Manifest "worksWith": at most 5 other extensions, each with a short reason in English (translated in i18n). */
 export function worksWithProblems(list, ownId, dirName) {
   const where = `${dirName}/extension.json: "worksWith"`;
@@ -125,6 +149,8 @@ export function validateManifest(m, dirName, root) {
   req('id', ID_RE.test(m.id ?? '') && m.id === dirName);
   if (RESERVED_IDS.has(m.id)) errors.push(`${dirName}: id "${m.id}" is reserved by the shell`);
   req('name', typeof m.name === 'string' && m.name.length > 0 && m.name.length <= 40);
+  // A shorter name for the phone's tab bar, when the name is long ("Training & Health" -> "Health").
+  if (m.short !== undefined) req('short', typeof m.short === 'string' && m.short.length > 0 && m.short.length <= 12);
   req('description', typeof m.description === 'string' && m.description.length <= 200);
   req('version', /^\d+\.\d+\.\d+$/.test(m.version ?? ''));
   req('kind', KINDS.includes(m.kind));
@@ -141,6 +167,10 @@ export function validateManifest(m, dirName, root) {
   // What Pingo wears on its pages; left out, the shell guesses from the id and name.
   if (m.accessory !== undefined && !ACCESSORIES.includes(m.accessory))
     errors.push(`${dirName}/extension.json: "accessory" must be one of ${ACCESSORIES.join(', ')}`);
+  // Its icon in the tab bar and the apps list, and its pages (spec 001, "Navigation"): the shell draws both.
+  if (m.icon !== undefined && !ICON_NAMES.includes(m.icon))
+    errors.push(`${dirName}/extension.json: "icon" must be one of ${ICON_NAMES.join(', ')}`);
+  if (m.pages !== undefined) errors.push(...pagesProblems(m.pages, dirName));
   // Other extensions it works better with (spec 002, "Works with"): its settings panel suggests installing them.
   if (m.worksWith !== undefined) errors.push(...worksWithProblems(m.worksWith, m.id, dirName));
   // Languages a onefile app's own UI speaks (it carries its translations inside the HTML; spec 007).
@@ -389,6 +419,9 @@ export function infoOf({ entry, manifest, root, messages }) {
     settings: settingsOf(manifest),
     secrets: settingsOf(manifest).filter((f) => f.type === 'secret').map((f) => f.name),
     accessory: manifest.accessory ?? null,
+    icon: manifest.icon ?? null,
+    short: manifest.short ?? null,
+    pages: (manifest.pages ?? []).map((p) => ({ href: p.path ? `/${manifest.id}/${p.path}` : `/${manifest.id}`, label: p.label, icon: p.icon ?? null })),
     worksWith: (manifest.worksWith ?? []).map((w) => ({ id: w.id, why: w.why.trim() })),
     // Languages it has translations for (spec 007); System settings -> Language lists the gaps.
     languages: root ? languagesOf(manifest, root, messages ?? readTranslations(root, manifest.id).messages) : [BASE_LANG],
@@ -707,8 +740,14 @@ export function lookWarnings(root, manifest, id) {
     const web = path.join(root, 'web');
     const files = existsSync(web) ? walk(web).filter((/** @type {string} */ f) => /\.(svelte|ts)$/.test(f)) : [];
     const src = files.map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
-    if (!/import\s*\{[^}]*\bMascot\b[^}]*\}\s*from\s*['"]\$shell\/ui['"]/.test(src))
-      warnings.push(`${id}: Pingo is missing (import { Mascot } from '$shell/ui' for its header or empty states)`);
+    // PageHead and EmptyState draw Pingo themselves.
+    if (!/import\s*\{[^}]*\b(Mascot|PageHead|EmptyState)\b[^}]*\}\s*from\s*['"]\$shell\/ui['"]/.test(src))
+      warnings.push(`${id}: Pingo is missing (PageHead or Mascot from '$shell/ui' in its header, EmptyState in empty states)`);
+    // Pingo UI (spec 001): one system font and the shell's page head with its page navigation.
+    const styles = walk(web).filter((f) => /\.(css|svelte)$/.test(f)).map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
+    if (/@font-face/.test(styles)) warnings.push(`${id}: its own font (@font-face): the app has one system font (var(--font), figures var(--font-rounded))`);
+    if (files.some((f) => f.endsWith('.svelte')) && !/\bPageHead\b/.test(src))
+      warnings.push(`${id}: no PageHead from '$shell/ui' (every page starts with it: title, Pingo, the page navigation)`);
     const pages = files.filter((f) => f.endsWith('.svelte')).map((f) => readFileSync(path.join(web, f), 'utf8')).join('\n');
     if (/#[0-9a-fA-F]{6}\b/.test(pages))
       warnings.push(`${id}: raw hex colours in its pages (use the shell tokens: --ink, --accent, --hue-*, ...)`);

@@ -74,14 +74,27 @@ and `window.assistantLang`. A tile comes from the `__tile` key it writes (spec 0
 
 ## Look
 
-Use the tokens and classes of `apps/web/src/app.css` (spec 001), never raw colours or sizes:
+Pingo UI (spec 001): the tokens of `apps/web/src/app.css`, the classes of `apps/web/src/lib/ui.css` and the
+components of `$shell/ui`. Never raw colours, sizes or fonts, and no buttons, cards, sheets or navigation of
+your own:
 
 | Kind | Names |
 | --- | --- |
-| Colours | `--page`, `--surface`, `--surface-2`, `--ink`, `--ink-2`, `--ink-3` (secondary text), `--ink-4` (non-text marks), `--accent`, `--accent-ink` (links), `--accent-fill` (filled buttons), `--field-border`, `--good`, `--warning`, `--serious`, `--critical`, `--critical-ink` (error text), `--hue-*` (chart series) |
-| Space and shape | `--space-1` to `--space-7`, `--radius`, `--radius-sm`, `--font`, `--mono` |
-| Classes | `.card`, `.btn`, `.btn-primary` (one per screen), `.btn-ghost`, `.eyebrow`, `.muted`, `.num` (tabular figures), `.segmented`, `.status` + `good`/`warning`/`serious`/`critical` (a dot and a word, never colour alone), `.sr` (screen readers only), `.rise` (entrance) |
+| Colours | `--page`, `--surface`, `--surface-2`, `--fill-1`, `--fill-2` (gray controls and wells), `--sep`, `--ink`, `--ink-2`, `--ink-3` (secondary text), `--ink-4` (non-text marks), `--accent`, `--accent-ink` (links), `--accent-fill` (filled buttons), `--accent-tint`, `--field-border`, `--good`, `--warning`, `--serious`, `--critical`, `--critical-ink` (error text), `--critical-tint`, `--good-tint`, `--hue-*` (chart series, a calendar's colour) |
+| Glass | `--glass`, `--glass-hi`, `--glass-edge`, `--glass-blur`, `--glass-shadow`: only for controls over content (`.glass`, `.btn-glass`) |
+| Space and shape | `--space-1` to `--space-7`, `--radius-xs` 8, `--radius-sm` 12, `--radius` 20, `--radius-lg` 28, `--radius-pill`, `--tap` (44px), `--shadow-card`, `--shadow-pop` |
+| Type | `--font`, `--font-rounded` (figures), `--mono`; `--text-xs` ... `--text-2xl`, `--text-figure`; `--weight-*`. Phones get the iOS sizes (body 17px) by themselves |
+| Buttons | `.btn` (gray), `.btn-primary` (one per screen), `.btn-tinted`, `.btn-plain`, `.btn-danger`, `.btn-glass`; `.btn-sm` (34px, 44px touch), `.btn-lg` (52px), `.btn-block`, `.btn-icon` (round). On `<button>` and `<a>` |
+| Surfaces and lists | `.card`, `.well`, `.section-head` (a Title 2 and an action), `.list-group` > `.list-row` (`.list-icon`, `.list-text` > `.list-title` + `.list-sub`, `.list-end`; a link row gets a chevron) |
+| Controls | `.segmented` (links with `aria-current` or buttons with `aria-pressed`; `.full`, `.glass`), `.stepper` (− value +), `.chips` > `button.chip` (`aria-pressed`/`aria-checked`), `.chip` (a label), `.status` + `good`/`warning`/`serious`/`critical` (a dot and a word, never colour alone) |
+| Text | `.eyebrow`, `.figure` (the big number of a card, `<small>` for its unit), `.muted`, `.num` (tabular figures), `.sr` (screen readers only), `.rise` (entrance) |
+| Components | `PageHead` (every page starts with it: title, one line, Pingo, actions; `back` for a page further in, `focus` hides the tab bar), `Sheet` (a bottom sheet), `Icon` (`ICON_NAMES`), `EmptyState`, `Mascot`, `LineChart`, `Sparkline` |
 | Form controls | plain `<input>`, `<select>`, `<textarea>`: the shell styles them (`src/lib/controls.css`, also in onefile apps). `<label class="check"><input type="checkbox"> Text</label>`; an on/off setting: `<input type="checkbox" role="switch">` |
+
+The manifest names the app's icon in the tab bar (`"icon"`, from `ICON_NAMES`), a short name for it when the
+name is long (`"short"`, up to 12 characters) and its pages (`"pages"`: 2 to 5 of `{ "path", "label", "icon" }`,
+the first with path `""`). The shell draws the page navigation under `PageHead` from that list, the same in
+every app; a page that is not in it (a workout, an activity) is a page further in and gets `back` instead.
 
 ## Calendar entries: `web/calendar.server.ts`
 

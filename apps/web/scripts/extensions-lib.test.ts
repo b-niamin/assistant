@@ -191,14 +191,16 @@ describe('look', () => {
     return root;
   };
 
-  it('asks a native extension for Pingo and tokens, not hex', () => {
-    const bare = ext({ 'web/routes/+page.svelte': '<h1 style="color:#123456">Hi</h1>' });
+  it('asks a native extension for Pingo, PageHead and tokens, not hex or its own fonts', () => {
+    const bare = ext({ 'web/routes/+page.svelte': '<h1 style="color:#123456">Hi</h1><style>@font-face { font-family: X; }</style>' });
     expect(lib.lookWarnings(bare, { kind: 'native' }, 'x')).toEqual([
       expect.stringMatching(/Pingo is missing/),
+      expect.stringMatching(/its own font/),
+      expect.stringMatching(/no PageHead/),
       expect.stringMatching(/raw hex/)
     ]);
     const ours = ext({
-      'web/routes/+page.svelte': "<script>import { Mascot, countUp } from '$shell/ui';</script><Mascot /><p style=\"color: var(--ink)\">Hi</p>"
+      'web/routes/+page.svelte': "<script>import { PageHead, countUp } from '$shell/ui';</script><PageHead title=\"Hi\" /><p style=\"color: var(--ink)\">Hi</p>"
     });
     expect(lib.lookWarnings(ours, { kind: 'native' }, 'x')).toEqual([]);
   });

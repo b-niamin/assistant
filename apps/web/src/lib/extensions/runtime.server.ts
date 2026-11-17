@@ -5,7 +5,7 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import * as env from '$app/env/private';
 import { db } from '#lib/server/db.ts';
-import { readSecret } from '#lib/server/extension-secrets.ts';
+import { deleteSecret, readSecret, setSecret } from '#lib/server/extension-secrets.ts';
 import type { ExtActions, ExtensionContext, ExtHandler, ExtLoad, Sql } from '#lib/sdk/index.ts';
 import { calendarFor } from './calendar.server';
 import { kvAll, kvApply } from './kv.server';
@@ -37,7 +37,10 @@ export async function contextFor(id: string, event: Pick<RequestEvent, 'locals'>
         if (env.EXTENSION_DB_ROLES !== 'off') await sql.unsafe(`SET LOCAL ROLE ${role}`);
         return fn(sql);
       }) as Promise<T>,
-    secrets: { get: (name) => readSecret(ext, name) },
+    secrets: {
+      get: (name) => readSecret(ext, name),
+      set: (name, value) => (value ? setSecret(ext, name, value) : deleteSecret(ext, name))
+    },
     settings: {
       all: () => readSettings(ext),
       get: async (name) => (await readSettings(ext))[name] ?? null

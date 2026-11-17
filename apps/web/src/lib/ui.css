@@ -1,0 +1,471 @@
+/*
+ * Pingo UI: the shell's components as classes (spec 001). Imported by the root layout for the shell and
+ * native extensions, and inlined into onefile apps (lib/extensions/theme.ts, @layer assistant), so every
+ * page builds from the same buttons, cards, lists and controls. Everything uses the tokens of app.css.
+ * Svelte wrappers for the parts with behaviour live in lib/ui (PageHead, Segmented, Stepper, Sheet, Icon).
+ */
+
+/* ---------- Buttons ----------
+   .btn gray · .btn-primary filled (one main action per screen) · .btn-tinted · .btn-plain (text) ·
+   .btn-danger · .btn-glass (only over content: headers, floating). Sizes: default 44, .btn-lg 52,
+   .btn-sm 34 on screen with a 44 touch area. .btn-block fills the width, .btn-icon is round. A variant
+   works alone or with .btn, on <button> and <a>. */
+:where(.btn, .btn-primary, .btn-tinted, .btn-plain, .btn-danger, .btn-glass) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--fill-1);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.btn-primary {
+  background: var(--accent-fill);
+  color: #fff;
+}
+.btn-tinted {
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+}
+.btn-plain {
+  background: none;
+  color: var(--accent-ink);
+  padding: 0 var(--space-2);
+}
+.btn-danger {
+  background: var(--critical-tint);
+  color: var(--critical-ink);
+}
+.btn-glass,
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 1px 0 var(--glass-hi),
+    inset 0 0 0 1px var(--glass-edge),
+    var(--glass-shadow);
+}
+.btn-lg {
+  height: 52px;
+  padding: 0 var(--space-6);
+}
+.btn-sm {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-md);
+}
+/* A small button still takes a 44px touch. */
+.btn-sm::after,
+.icon-sm::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+.btn-icon {
+  width: var(--tap);
+  padding: 0;
+  border-radius: 50%;
+}
+.btn-icon.btn-sm {
+  width: 34px;
+}
+:where(.btn, .btn-primary, .btn-tinted, .btn-plain, .btn-danger, .btn-glass) svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+@media (hover: hover) {
+  :where(.btn, .btn-tinted, .btn-danger, .btn-glass):hover {
+    filter: brightness(0.96);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.08);
+  }
+  .btn-plain:hover {
+    color: var(--ink);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :where(.btn, .btn-primary, .btn-tinted, .btn-plain, .btn-danger, .btn-glass) {
+    transition: transform 0.12s ease, filter 0.15s ease;
+  }
+  :where(.btn, .btn-primary, .btn-tinted, .btn-plain, .btn-danger, .btn-glass):active:not(:disabled) {
+    transform: scale(0.96);
+  }
+}
+:where(.btn, .btn-primary, .btn-tinted, .btn-plain, .btn-danger, .btn-glass):disabled,
+:where(.btn, .btn-primary, .btn-tinted, .btn-plain, .btn-danger, .btn-glass)[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---------- Surfaces ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--ring);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+}
+/* A quieter box inside a card or a sheet: a stat, a field group. */
+.well {
+  background: var(--fill-2);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+}
+@media (max-width: 700px) {
+  .card {
+    padding: var(--space-4);
+  }
+}
+.eyebrow {
+  font-size: var(--text-md);
+  color: var(--ink-2);
+  font-weight: var(--weight-bold);
+}
+/* The one big number of a card, in rounded figures (SF Pro Rounded on Apple). */
+.figure {
+  font-family: var(--font-rounded);
+  font-size: var(--text-figure);
+  font-weight: var(--weight-heavy);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.figure small {
+  font-size: 0.5em;
+  font-weight: var(--weight-bold);
+  color: var(--ink-3);
+  letter-spacing: 0;
+}
+/* A section of a page: a title (Title 2) with an action at the end. */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-6) var(--space-1) var(--space-3);
+}
+.section-head :is(h2, h3) {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-heavy);
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Lists (inset grouped) ----------
+   <div class="list-group"><a class="list-row" href>…</a>…</div>. A row: optional .list-icon (a coloured
+   badge), .list-text (.list-title + .list-sub), .list-end (a value, a switch, a button). Rows are 52px or
+   more; a link row gets a chevron. */
+.list-group {
+  background: var(--surface);
+  border: 1px solid var(--ring);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.list-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+.list-row + .list-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--space-4);
+  height: 1px;
+  background: var(--sep);
+}
+.list-row:has(> .list-icon) + .list-row:has(> .list-icon)::before {
+  left: calc(var(--space-4) + 32px + var(--space-3));
+}
+:is(a, button).list-row {
+  cursor: pointer;
+}
+a.list-row::after {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-left: var(--space-1);
+  border: solid var(--ink-4);
+  border-width: 2px 2px 0 0;
+  transform: rotate(45deg);
+}
+a.list-row.no-chevron::after {
+  display: none;
+}
+@media (hover: hover) {
+  :is(a, button).list-row:hover {
+    background: var(--fill-2);
+  }
+}
+:is(a, button).list-row:active {
+  background: var(--fill-2);
+}
+.list-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  background: var(--c, var(--accent));
+  color: #fff;
+}
+.list-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.list-text {
+  flex: 1;
+  min-width: 0;
+}
+.list-title {
+  display: block;
+  font-size: var(--text-base);
+  line-height: 1.3;
+}
+.list-sub {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  line-height: 1.35;
+}
+.list-end {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-3);
+  font-size: var(--text-md);
+}
+
+/* ---------- Segmented control ----------
+   Range presets and views: links (aria-current="true"/"page", work without JS) or buttons (aria-pressed).
+   .glass for the page navigation (PageHead). Each segment is 38px inside a 44px track. */
+.segmented {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.segmented.glass {
+  background: var(--glass);
+}
+.segmented.full {
+  display: flex;
+}
+.segmented.full > * {
+  flex: 1;
+}
+.segmented > :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+.segmented > :is(a, button) svg {
+  width: 18px;
+  height: 18px;
+}
+@media (hover: hover) {
+  .segmented > :is(a, button):hover {
+    color: var(--ink);
+  }
+}
+.segmented > :is([aria-current='true'], [aria-current='page'], [aria-pressed='true']) {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 0 0 0.5px var(--ring);
+}
+.segmented.glass > :is([aria-current='true'], [aria-current='page'], [aria-pressed='true']) {
+  background: var(--glass-hi);
+}
+
+/* ---------- Stepper: − value + ---------- */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--fill-1);
+}
+.stepper > :is(button, a) {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--ink);
+  font-size: 1.375rem;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+.stepper > :is(button, a):disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.stepper > :is(output, span) {
+  min-width: 28px;
+  text-align: center;
+  font-family: var(--font-rounded);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Chips and status ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 11px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-2);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+}
+/* Filter chips: a row that scrolls sideways on a phone; each chip is a button (aria-pressed or, in a
+   radiogroup, aria-checked), 36px with a 44px touch. */
+.chips {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: 4px 0 var(--space-3);
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar {
+  display: none;
+}
+button.chip {
+  position: relative;
+  flex: none;
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border: 0;
+  background: var(--fill-1);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+button.chip::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+button.chip:is([aria-pressed='true'], [aria-checked='true']) {
+  background: var(--ink);
+  color: var(--page);
+}
+@media (min-width: 701px) {
+  .chips {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+}
+
+/* Status: always a dot plus a label, never colour alone. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.status::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-4);
+}
+.status.good::before {
+  background: var(--good);
+}
+.status.warning::before {
+  background: var(--warning);
+}
+.status.serious::before {
+  background: var(--serious);
+}
+.status.critical::before {
+  background: var(--critical);
+}
+
+/* Less transparency asked for (system setting) or forced colours: glass becomes a solid surface. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .btn-glass,
+  .segmented.glass {
+    background: var(--surface-2);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .status::before {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText;
+  }
+  :where(.btn, .btn-primary, .btn-tinted, .btn-plain, .btn-danger, .btn-glass),
+  .segmented > :is(a, button),
+  .glass {
+    border: 1px solid ButtonText;
+  }
+}

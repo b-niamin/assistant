@@ -4,7 +4,8 @@
  *
  * - the design tokens of app.css (`--page`, `--surface`, `--ink`, `--accent`, `--space-*`, ...), light and
  *   dark, inside `@layer assistant` so the app's own unlayered rules still win;
- * - the shell's checkboxes, radios, switches, sliders and picker buttons (lib/controls.css), in the same layer;
+ * - the shell's checkboxes, radios, switches, sliders and picker buttons (lib/controls.css) and its components
+ *   (lib/ui.css: .btn*, .card, .list, .segmented, .stepper, .chip, .glass, ...), in the same layer;
  * - `<assistant-pingo mood="steady" size="48">`: Pingo, the mascot, as a custom element (shadow DOM, so
  *   its SVG ids and styles never clash with the app). Moods: idle, steady, charged, tired, asleep.
  *   `accessory="book"` dresses it (pingo-accessories.ts); without the attribute it wears the app's own
@@ -15,6 +16,7 @@
  */
 import appCss from '../../app.css?raw';
 import controlsCss from '../controls.css?raw';
+import uiCss from '../ui.css?raw';
 import pipSvg from '../../../static/pingo.svg?raw';
 import { ACCESSORY_IDS, accessorySvg, SHY_SVG, type Accessory } from '../pingo-accessories';
 
@@ -120,7 +122,7 @@ export function pipElementScript(svg: string): string {
 }
 
 /** Everything a onefile app gets in front of its own code: a <style> and a <script>. */
-export function themeTags(css = appCss, svg = pipSvg, accessory: Accessory = 'none', controls = controlsCss): string {
+export function themeTags(css = appCss, svg = pipSvg, accessory: Accessory = 'none', controls = controlsCss + '\n' + uiCss): string {
   const tokens = tokensOf(css).replace(/<\/style/gi, '<\\/style');
   const look = controls.replace(/\/\*[\s\S]*?\*\//g, '').trim().replace(/<\/style/gi, '<\\/style');
   return (

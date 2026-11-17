@@ -2,7 +2,7 @@
   import { enhance, saveOnChoose } from '#lib/forms.ts';
   import { invalidate } from '$app/navigation';
   import Mascot from '#lib/Mascot.svelte';
-  import PageHead from '#lib/settings/PageHead.svelte';
+  import PageHead from '#lib/ui/PageHead.svelte';
   import UpdaterSchedule from '#lib/settings/UpdaterSchedule.svelte';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -48,7 +48,7 @@
 
 <svelte:head><title>{t('Updates')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Updates')} lede={t('The host\'s updater deploys what is on GitHub main and rebuilds only what changed.')} />
+<PageHead mascot={false} title={t('Updates')} sub={t('The host\'s updater deploys what is on GitHub main and rebuilds only what changed.')} />
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}

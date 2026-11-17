@@ -54,6 +54,11 @@ export interface ExtensionContext {
    */
   secrets: {
     get(name: string): Promise<string | null>;
+    /**
+     * Since shell 7: store a value the user typed on the extension's own page (a subscription link), or
+     * remove it with null. Encrypted like the panel's; never send a stored value back to the page.
+     */
+    set(name: string, value: string | null): Promise<void>;
   };
   /**
    * Values of the plain fields of its settings panel (manifest "settings"), set by an admin in

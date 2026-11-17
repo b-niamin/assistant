@@ -27,6 +27,24 @@
   --critical: #d03b3b;
   --critical-ink: #c22f2f; /* error text */
 
+  /* Fills and tints (iOS-style): gray controls on any surface, an accent or status wash behind its ink. */
+  --fill-1: rgba(120, 120, 110, 0.14); /* gray buttons, segmented track, stepper, wells */
+  --fill-2: rgba(120, 120, 110, 0.08); /* quieter wells: week days, chips, fields in a sheet */
+  --sep: rgba(11, 11, 11, 0.1); /* hairlines between list rows */
+  --accent-tint: rgba(42, 120, 214, 0.13); /* tinted buttons, selected rows */
+  --critical-tint: rgba(208, 59, 59, 0.12);
+  --good-tint: rgba(12, 163, 12, 0.12);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-pop: 0 12px 40px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08);
+
+  /* Glass (spec 001): the control layer that floats over content (tab bar, page navigation, buttons over a
+     page). Never for cards. ui.css swaps it for a solid fill under reduced transparency. */
+  --glass: rgba(252, 252, 251, 0.66);
+  --glass-hi: rgba(255, 255, 255, 0.9); /* the lit top edge, and the selected segment */
+  --glass-edge: rgba(0, 0, 0, 0.08);
+  --glass-blur: blur(22px) saturate(1.8);
+  --glass-shadow: 0 8px 28px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+
   /* Categorical hues (dataviz reference palette, validated). Each metric owns one: see
      modules/health/look.ts. Marks and icons wear them, text never does. */
   --hue-blue: #2a78d6;
@@ -41,8 +59,13 @@
 
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
-  --radius: 8px;
-  --radius-sm: 6px;
+  --font-rounded: ui-rounded, 'SF Pro Rounded', -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; /* figures */
+  --radius-xs: 8px; /* small marks inside a control */
+  --radius-sm: 12px; /* fields, wells, small tiles */
+  --radius: 20px; /* cards, lists */
+  --radius-lg: 28px; /* sheets, the tab bar */
+  --radius-pill: 999px; /* buttons, segmented controls, chips */
+  --tap: 44px; /* the smallest touch target (Apple HIG, WCAG 2.5.5) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -51,17 +74,32 @@
   --space-6: 32px;
   --space-7: 48px;
 
-  /* Type scale (spec 001): use these, not raw sizes and weights. Body text is --text-base. */
-  --text-xs: 0.75rem; /* 12px: chart axes, badges */
-  --text-sm: 0.8125rem; /* 13px: meta, labels, a tile's source */
-  --text-base: 0.9375rem; /* 15px: body, lists, fields (16px on touch screens) */
-  --text-lg: 1.125rem; /* 18px: card and section titles */
-  --text-xl: 1.5rem; /* 24px: page title on a phone, figures in tiles */
-  --text-2xl: 2rem; /* 32px: page title */
+  /* Type scale (spec 001, after iOS text styles): use these, not raw sizes and weights. Body text is
+     --text-base; phones get the iOS sizes (17px body) from the block below. */
+  --text-xs: 0.75rem; /* 12px: caption: chart axes, badges, tab bar labels */
+  --text-sm: 0.8125rem; /* 13px: footnote: meta, a tile's source */
+  --text-md: 0.875rem; /* 14px: subheadline: secondary lines in rows */
+  --text-base: 0.9375rem; /* 15px: body, lists, fields */
+  --text-lg: 1.125rem; /* 18px: headline: card and row titles */
+  --text-xl: 1.375rem; /* 22px: title 2: section titles, figures in tiles */
+  --text-2xl: 2rem; /* 32px: large title: the page title */
+  --text-figure: 3.25rem; /* 52px: the one big number of a card */
   --text-display: clamp(3rem, 10vw, 7rem); /* one hero figure per page */
   --weight-regular: 400;
   --weight-medium: 500; /* labels, navigation */
   --weight-bold: 600; /* headings, figures */
+  --weight-heavy: 700; /* large titles and figures only */
+}
+/* Phones: the iOS sizes (body 17, subheadline 15, footnote 13, headline 17 semibold, title 2 22, large title 34). */
+@media (max-width: 700px), (pointer: coarse) {
+  :root {
+    --text-sm: 0.8125rem;
+    --text-md: 0.9375rem;
+    --text-base: 1.0625rem;
+    --text-lg: 1.0625rem;
+    --text-xl: 1.375rem;
+    --text-2xl: 2.125rem;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -91,6 +129,18 @@
     --hue-magenta: #d55181;
     --hue-violet: #9085e9;
     --hue-red: #e66767;
+    --fill-1: rgba(120, 120, 128, 0.24);
+    --fill-2: rgba(120, 120, 128, 0.14);
+    --sep: rgba(255, 255, 255, 0.1);
+    --accent-tint: rgba(57, 135, 229, 0.22);
+    --critical-tint: rgba(230, 103, 103, 0.2);
+    --good-tint: rgba(12, 163, 12, 0.2);
+    --shadow-card: none;
+    --shadow-pop: 0 16px 48px rgba(0, 0, 0, 0.6);
+    --glass: rgba(42, 42, 46, 0.6);
+    --glass-hi: rgba(255, 255, 255, 0.14);
+    --glass-edge: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
   }
 }
 :root[data-theme='dark'] {
@@ -119,6 +169,18 @@
   --hue-magenta: #d55181;
   --hue-violet: #9085e9;
   --hue-red: #e66767;
+  --fill-1: rgba(120, 120, 128, 0.24);
+  --fill-2: rgba(120, 120, 128, 0.14);
+  --sep: rgba(255, 255, 255, 0.1);
+  --accent-tint: rgba(57, 135, 229, 0.22);
+  --critical-tint: rgba(230, 103, 103, 0.2);
+  --good-tint: rgba(12, 163, 12, 0.2);
+  --shadow-card: none;
+  --shadow-pop: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --glass: rgba(42, 42, 46, 0.6);
+  --glass-hi: rgba(255, 255, 255, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 *,
@@ -137,7 +199,9 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
-  font: 15px/1.5 var(--font);
+  font-size: var(--text-base);
+  line-height: 1.47;
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -186,8 +250,8 @@ button {
 select,
 input:where(:not([type='checkbox'], [type='radio'], [type='range'], [type='file'])),
 textarea {
-  height: 34px;
-  padding: 0 10px;
+  height: 38px;
+  padding: 0 12px;
   border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -205,7 +269,19 @@ select {
 }
 textarea {
   height: auto;
-  padding: 8px 10px;
+  padding: 10px 12px;
+}
+/* Phones and tablets: 16px fields (iOS zooms the page into anything smaller) and 44px touch targets. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, var(--text-base));
+  }
+  select,
+  input:not([type='checkbox']):not([type='radio']) {
+    min-height: var(--tap);
+  }
 }
 button {
   cursor: pointer;
@@ -216,68 +292,6 @@ form[aria-busy='true'] {
 }
 form[aria-busy='true'] button:disabled {
   cursor: progress;
-}
-/* Phones and tablets: 16px fields (iOS zooms the page into anything smaller) and 44px touch targets. */
-@media (pointer: coarse) {
-  input,
-  select,
-  textarea {
-    font-size: 16px;
-  }
-  select,
-  input:not([type='checkbox']):not([type='radio']),
-  .btn {
-    min-height: 44px;
-  }
-}
-.btn {
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid var(--ring);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-}
-/* A link that looks like a button: same box, no underline. */
-a.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
-.btn-primary {
-  border-color: var(--accent-fill);
-  background: var(--accent-fill);
-  color: #fff;
-  font-weight: 600;
-}
-.btn-ghost {
-  border: none;
-  background: none;
-  color: var(--ink-2);
-  padding: 0 6px;
-}
-@media (hover: hover) {
-  .btn-ghost:hover {
-    color: var(--ink);
-  }
-}
-.btn:disabled,
-.btn-ghost:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Surfaces */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--ring);
-  border-radius: var(--radius);
-  padding: var(--space-5);
-}
-.eyebrow {
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-  font-weight: 500;
 }
 .muted {
   color: var(--ink-3);
@@ -300,59 +314,6 @@ details.tech summary {
   width: fit-content;
 }
 
-/* Segmented control (range presets, tabs). Built from links so it works without JS. */
-.segmented {
-  display: inline-flex;
-  padding: 2px;
-  gap: 2px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-}
-.segmented a {
-  padding: 4px 12px;
-  border-radius: 4px;
-  color: var(--ink-2);
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-@media (hover: hover) {
-  .segmented a:hover {
-    color: var(--ink);
-  }
-}
-.segmented a[aria-current='true'] {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 0 0 1px var(--ring);
-}
-
-/* Status: always a dot plus a label, never colour alone. */
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.status::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ink-4);
-}
-.status.good::before {
-  background: var(--good);
-}
-.status.warning::before {
-  background: var(--warning);
-}
-.status.serious::before {
-  background: var(--serious);
-}
-.status.critical::before {
-  background: var(--critical);
-}
-
 .sr {
   position: absolute;
   width: 1px;
@@ -363,13 +324,6 @@ details.tech summary {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-
-@media (forced-colors: active) {
-  .status::before {
-    forced-color-adjust: none;
-    border: 1px solid CanvasText;
-  }
 }
 
 /* Motion: one entrance for cards, staggered by --i. Off under reduced motion. */

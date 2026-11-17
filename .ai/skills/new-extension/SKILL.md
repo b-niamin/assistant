@@ -53,9 +53,13 @@ Native:
 - Calendar (optional, both kinds): things with a date (a workout, a match, a deadline) go on the shared
   calendar through `web/calendar.server.ts` (`export const calendar: ExtCalendar`, shell 5); see
   docs/extensions.md, "Calendar entries".
-- Look (required): the shell's layout and tokens (`specs/001-design.md`) and Pingo from `$shell/ui` in the
-  header and every empty or error state, and its `"accessory"` in `extension.json` (what Pingo wears, list in
-  `specs/001-design.md`). No UI libraries, no raw hex. See the `add-extension` skill, step 4.
+- Look (required): Pingo UI (`specs/001-design.md`): every page starts with `PageHead` from `$shell/ui`
+  (Pingo, title, one line, actions; `back` for a page further in), buttons/cards/lists/segmented controls
+  from the shell's classes (`.btn*`, `.card`, `.list-group`, `.segmented`, docs/extensions.md "Look"), sheets
+  with `Sheet`, icons with `Icon`; empty and error states with `EmptyState`. In `extension.json`: its
+  `"accessory"` (what Pingo wears), `"icon"` (tab bar), `"short"` when the name is long, and `"pages"` when it
+  has more than one page (the shell draws the navigation). No UI libraries, own fonts or raw hex; touch
+  targets 44px. See the `add-extension` skill, step 4.
 - Languages (required, spec 007): every shown text through `t()` (`useT()` from `$shell/ui`, `ctx.t` on
   the server) and `i18n/<lang>.json` for each language of the app (System settings -> Language). See the
   `add-extension` skill, step 5.

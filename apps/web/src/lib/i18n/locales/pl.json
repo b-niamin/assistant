@@ -1010,5 +1010,8 @@
   "runs its services": "uruchamia jej usługi",
   "Works better with": "Działa lepiej z",
   "Chat width": "Szerokość czatu",
-  "Drag to resize the chat": "Przeciągnij, aby zmienić szerokość czatu"
+  "Drag to resize the chat": "Przeciągnij, aby zmienić szerokość czatu",
+  "Back to {page}": "Wróć do: {page}",
+  "{app} pages": "Strony: {app}",
+  "Home": "Start"
 }

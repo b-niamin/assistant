@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from '#lib/forms.ts';
-  import PageHead from '#lib/settings/PageHead.svelte';
+  import PageHead from '#lib/ui/PageHead.svelte';
   import { lockSession } from '#lib/dock/dock.svelte.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -10,7 +10,7 @@
 
 <svelte:head><title>{t('Security')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Security')} lede={t('One app password opens the whole assistant. Settings and the chat ask for it again and lock after an hour without use.')} />
+<PageHead mascot={false} title={t('Security')} sub={t('One app password opens the whole assistant. Settings and the chat ask for it again and lock after an hour without use.')} />
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}

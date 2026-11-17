@@ -267,14 +267,14 @@
     onpointerdown={onGripDown} onpointermove={onGripMove} onpointerup={onGripUp} onpointercancel={onGripUp} onkeydown={onGripKey}
     ondblclick={() => setChatWidth(CHAT_DEFAULT_WIDTH)}></div>
   <header class="top">
-    <button type="button" class="btn-ghost icon" onclick={() => (showList = !showList)} aria-expanded={showList} aria-controls="chat-list" title={t('Chats')}>
+    <button type="button" class="btn-plain icon" onclick={() => (showList = !showList)} aria-expanded={showList} aria-controls="chat-list" title={t('Chats')}>
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12" /></svg><span class="sr">{t('Chats')}</span>
     </button>
     <h2>{title || t('Chat with Claude')}</h2>
-    <button type="button" class="btn-ghost icon" onclick={() => show('')} disabled={!current} title={t('New chat')}>
+    <button type="button" class="btn-plain icon" onclick={() => show('')} disabled={!current} title={t('New chat')}>
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" /></svg><span class="sr">{t('New chat')}</span>
     </button>
-    <button type="button" class="btn-ghost icon" onclick={closeChat} title={t('Close')}>
+    <button type="button" class="btn-plain icon" onclick={closeChat} title={t('Close')}>
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg><span class="sr">{t('Close')}</span>
     </button>
   </header>
@@ -288,7 +288,7 @@
               <span class="ct">{c.title || t('Chat')}</span>
               <span class="meta">{#if c.busy}<span class="dot" aria-hidden="true"></span>{t('working')}{:else}{ago(c.updated)}{/if}</span>
             </button>
-            <button type="button" class="del btn-ghost" title={t('Delete this chat?')} onclick={() => remove(c.id)}>×<span class="sr">{t('Delete')}</span></button>
+            <button type="button" class="del btn-plain" title={t('Delete this chat?')} onclick={() => remove(c.id)}>×<span class="sr">{t('Delete')}</span></button>
           </li>
         {/each}
       </ul>

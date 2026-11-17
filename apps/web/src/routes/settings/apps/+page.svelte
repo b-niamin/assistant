@@ -1,6 +1,6 @@
 <script lang="ts">
   import Mascot from '#lib/Mascot.svelte';
-  import PageHead from '#lib/settings/PageHead.svelte';
+  import PageHead from '#lib/ui/PageHead.svelte';
   import { hueFor, initials } from '#lib/settings/guide.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -12,7 +12,7 @@
 
 <svelte:head><title>{t('Apps')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Apps')} lede={t('Each app has its own panel: who sees it, its settings, its data.')}>
+<PageHead mascot={false} title={t('Apps')} sub={t('Each app has its own panel: who sees it, its settings, its data.')}>
   {#snippet actions()}
     <a class="btn btn-primary" href="/settings/extensions/new">{t('Extend the system')}</a>
   {/snippet}

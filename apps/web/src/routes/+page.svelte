@@ -3,6 +3,8 @@
   import { enhance } from '#lib/forms.ts';
   import Tile from '#lib/dashboard/Tile.svelte';
   import Mascot from '#lib/Mascot.svelte';
+  import PageHead from '#lib/ui/PageHead.svelte';
+  import Icon from '#lib/ui/Icon.svelte';
   import { moodForHour, type Mood } from '#lib/mascot.ts';
   import { useT } from '#lib/i18n/index.ts';
   let { data, form } = $props();
@@ -36,18 +38,11 @@
 
 <svelte:head><title>{t('Assistant')}</title></svelte:head>
 
-<div class="head">
-  <div class="hello">
-    <Mascot mood={clock.mood} size={56} label={t('Pingo, the assistant mascot. Click me.')} />
-    <div>
-      <p class="eyebrow">{clock.today}</p>
-      <h1>{clock.greeting}, {profileName}</h1>
-    </div>
-  </div>
-  {#if !arranging && data.layout.length}
-    <button class="btn-ghost" onclick={startArrange}>{t('Arrange')}</button>
-  {/if}
-</div>
+<PageHead title={`${clock.greeting}, ${profileName}`} sub={clock.today} mood={clock.mood}>
+  {#snippet actions()}
+    {#if !arranging && data.layout.length}<button class="btn-plain btn-sm" onclick={startArrange}>{t('Arrange')}</button>{/if}
+  {/snippet}
+</PageHead>
 
 {#if arranging}
   <form
@@ -73,14 +68,14 @@
           </label>
           {#if d.hidden}<input type="hidden" name="hidden" value={d.key} />{/if}
           <span class="moves">
-            <button type="button" class="btn-ghost" aria-label={t('Move {title} up', { title: d.title })} disabled={i === 0} onclick={() => move(i, -1)}>↑</button>
-            <button type="button" class="btn-ghost" aria-label={t('Move {title} down', { title: d.title })} disabled={i === draft.length - 1} onclick={() => move(i, 1)}>↓</button>
+            <button type="button" class="btn btn-icon btn-sm" aria-label={t('Move {title} up', { title: d.title })} disabled={i === 0} onclick={() => move(i, -1)}><Icon name="up" size={18} /></button>
+            <button type="button" class="btn btn-icon btn-sm" aria-label={t('Move {title} down', { title: d.title })} disabled={i === draft.length - 1} onclick={() => move(i, 1)}><Icon name="down" size={18} /></button>
           </span>
         </li>
       {/each}
     </ol>
     <div class="buttons">
-      <button type="button" class="btn-ghost" onclick={() => (arranging = false)}>{t('Cancel')}</button>
+      <button type="button" class="btn-plain" onclick={() => (arranging = false)}>{t('Cancel')}</button>
       <button class="btn">{t('Save')}</button>
     </div>
   </form>
@@ -110,27 +105,6 @@
 </section>
 
 <style>
-  .head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: var(--space-3);
-    margin-bottom: var(--space-5);
-  }
-  .hello {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    min-width: 0;
-  }
-  .hello > div {
-    display: grid;
-    gap: var(--space-1);
-  }
-  .head p,
-  .head h1 {
-    margin: 0;
-  }
   .arrange {
     display: grid;
     gap: var(--space-3);

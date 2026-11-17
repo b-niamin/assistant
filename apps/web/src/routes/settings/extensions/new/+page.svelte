@@ -78,8 +78,8 @@
     <div class="sh">
       <h2 id="ready-h">{t('Ready to install')}</h2>
       <div class="arrows">
-        <button type="button" class="btn-ghost arrow" aria-label={t('Previous')} onclick={() => scrollRow('row-ready', -1)}>‹</button>
-        <button type="button" class="btn-ghost arrow" aria-label={t('Next')} onclick={() => scrollRow('row-ready', 1)}>›</button>
+        <button type="button" class="btn-plain arrow" aria-label={t('Previous')} onclick={() => scrollRow('row-ready', -1)}>‹</button>
+        <button type="button" class="btn-plain arrow" aria-label={t('Next')} onclick={() => scrollRow('row-ready', 1)}>›</button>
       </div>
     </div>
     <ul class="row" id="row-ready">

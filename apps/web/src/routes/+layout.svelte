@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import '#lib/controls.css';
+  import '#lib/ui.css';
   import Mascot from '#lib/Mascot.svelte';
   import Dock from '#lib/dock/Dock.svelte';
   import LockMenu from '#lib/dock/LockMenu.svelte';
@@ -10,6 +11,7 @@
   import { goto } from '$app/navigation';
   import { untrack } from 'svelte';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
+  import TabBar from '#lib/ui/TabBar.svelte';
   import { navigating, page } from '$app/state';
   import { provideLanguage, useT } from '#lib/i18n/index.ts';
   let { data, children } = $props();
@@ -54,7 +56,7 @@
 
 <a class="skip" href="#main">{t('Skip to content')}</a>
 
-<div class="page" class:pushed={chatPush} class:resizing={chatPanel.resizing} style:--chat-w="{chatWidth}px">
+<div class="page" class:pushed={chatPush} class:docked={data.authenticated && dockVisible()} class:tabbed={data.authenticated && !wizard} class:resizing={chatPanel.resizing} style:--chat-w="{chatWidth}px">
 {#if data.authenticated && !wizard}
   <!-- While the terminal is open the page behind it is out of reach for Tab and screen readers too. -->
   <header inert={dock.open && dockVisible()}>
@@ -84,6 +86,7 @@
 {/if}
 
 <main id="main" tabindex="-1" class:docked={data.authenticated && dockVisible()} inert={data.authenticated && dock.open && dockVisible()}>{@render children()}</main>
+{#if data.authenticated && !wizard && !chatPanel.open}<TabBar extensions={data.extensions} />{/if}
 </div>
 
 {#if data.authenticated}<Dock />{/if}
@@ -151,9 +154,10 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    background: color-mix(in srgb, var(--surface) 88%, transparent);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--ring);
+    background: var(--glass);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--sep);
   }
   .bar {
     max-width: 1120px;
@@ -255,10 +259,28 @@
     padding: var(--space-6) var(--space-4) var(--space-7);
   }
   /* Room for the dock's bar at the bottom. */
-  main.docked {
+  .page.docked {
     /* The dock bar's height (Dock.svelte .strip, 1px border, the phone's safe area). */
     --dock-h: calc(41px + env(safe-area-inset-bottom, 0px));
+  }
+  main.docked {
     padding-bottom: calc(var(--space-7) + 48px);
+  }
+  /* A phone: the apps are in the tab bar at the bottom (lib/ui/TabBar.svelte), so the header keeps only
+     the brand and the controls, and the page leaves room for the bar. */
+  @media (max-width: 700px) {
+    nav {
+      display: none;
+    }
+    .bar {
+      justify-content: space-between;
+    }
+    .page.tabbed main {
+      padding-bottom: calc(96px + var(--dock-h, 0px) + env(safe-area-inset-bottom, 0px));
+    }
+    :global(html[data-focus]) .page.tabbed main {
+      padding-bottom: calc(var(--space-7) + var(--dock-h, 0px));
+    }
   }
   /* A onefile app fills the page down to the dock bar instead of running under it. */
   main.docked:has(:global(.onefile-host)) {

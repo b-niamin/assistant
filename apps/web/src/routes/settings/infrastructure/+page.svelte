@@ -8,7 +8,7 @@
   import { page } from '$app/state';
   import { enhance } from '#lib/forms.ts';
   import Mascot from '#lib/Mascot.svelte';
-  import PageHead from '#lib/settings/PageHead.svelte';
+  import PageHead from '#lib/ui/PageHead.svelte';
   import {
     appLinks,
     appParts,
@@ -153,7 +153,7 @@
 
 <svelte:head><title>{t('Infrastructure')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Infrastructure')} lede={t('The parts of this server, what each one needs and how each one is doing. Pick a part for its details, its settings and a restart.')} />
+<PageHead mascot={false} title={t('Infrastructure')} sub={t('The parts of this server, what each one needs and how each one is doing. Pick a part for its details, its settings and a restart.')} />
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}

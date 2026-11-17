@@ -90,6 +90,12 @@ instances is copied into the extensions repo by hand.
   "shell": 1,                     // SDK contract version this extension was written for
   "entry": "app.html",            // onefile only
   "accessory": "stethoscope",     // optional: what Pingo wears on its pages (specs/001-design.md); else guessed
+  "icon": "heart",                // optional: its icon in the phone's tab bar (lib/ui/icons.js, spec 001 Pingo UI)
+  "short": "Health",              // optional: a name of at most 12 characters for the tab bar
+  "pages": [                      // optional: 2-5 pages, drawn by the shell under PageHead (spec 001 Navigation)
+    { "path": "", "label": "Today", "icon": "heart" },
+    { "path": "activities", "label": "Activities", "icon": "activity" }
+  ],
   "languages": ["en", "pl"],      // onefile only: the languages its own UI speaks (spec 007)
   "worksWith": [                  // optional, at most 5: other extensions it does more with (see "Works with")
     { "id": "calendar", "why": "Shows what is on today on the board." }
@@ -165,7 +171,7 @@ export const load = (async ({ url }, ctx) => {
 **The SDK** is `$shell` (types, context, `fail`/`error`/`redirect`/`json`) and `$shell/ui` (Pingo the mascot,
 motion helpers, the shared charts and empty state). The CSS tokens from `app.css` and `specs/001-design.md` are global. `ext check` rejects an
 import of anything else from the shell (`$lib` or `#lib`, another extension's files). The contract version is
-`SHELL_API` (now 5). It grows by additions only: a manifest declares the version it needs (1 to 5), and one that
+`SHELL_API` (now 7: 7 = Pingo UI). It grows by additions only: a manifest declares the version it needs (1 to 7), and one that
 needs more than the core has does not build ("update the assistant first").
 
 **Look (required).** Every extension wears the shell's layout and has Pingo, the mascot, woven in: native
@@ -354,6 +360,8 @@ without use or Lock; every action checks it server-side.
   A secret that holds a list (calendar subscription links) is declared with `"multiple": true`: the card
   shows one row per item (only its host and last characters) with a remove button, and a field with
   [+] that adds one. It stays one secret, one item per line, so `ctx.secrets.get` returns a string.
+  Since shell 7 an extension's own page may store one with `ctx.secrets.set(name, value | null)` (a calendar
+  link the user pastes there); it never sends a stored value back to the page.
 
 **System**: the terminal and the browser (spec 004; Claude and Codex run in the terminal on the owner's
 subscriptions, no AI API keys in the app), the app password (when not pinned by `APP_PASSWORD_HASH`) and

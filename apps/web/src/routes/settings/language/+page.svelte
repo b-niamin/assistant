@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '#lib/forms.ts';
   import Mascot from '#lib/Mascot.svelte';
-  import PageHead from '#lib/settings/PageHead.svelte';
+  import PageHead from '#lib/ui/PageHead.svelte';
   import { askAgent } from '#lib/dock/dock.svelte.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -20,7 +20,7 @@
 
 <svelte:head><title>{t('Language')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Language')} lede={t('Languages of the app. An app without one is translated by the AI when it is installed.')} />
+<PageHead mascot={false} title={t('Language')} sub={t('Languages of the app. An app without one is translated by the AI when it is installed.')} />
 
 {#if form?.error}<p class="note bad" role="alert">{form.error}</p>{/if}
 {#if form?.ok}<p class="note good" role="status">{form.ok}</p>{/if}

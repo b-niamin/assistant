@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '#lib/forms.ts';
   import Mascot from '#lib/Mascot.svelte';
-  import PageHead from '#lib/settings/PageHead.svelte';
+  import PageHead from '#lib/ui/PageHead.svelte';
   import { useT } from '#lib/i18n/index.ts';
 
   let { data, form } = $props();
@@ -11,7 +11,7 @@
 
 <svelte:head><title>{t('Backups')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Backups')} lede={t('Your data, its keys and the apps, to bring the assistant back on a new machine.')}>
+<PageHead mascot={false} title={t('Backups')} sub={t('Your data, its keys and the apps, to bring the assistant back on a new machine.')}>
   {#snippet actions()}
     <form method="POST" action="?/backup" use:enhance><button class="btn btn-primary">{t('Back up now')}</button></form>
   {/snippet}

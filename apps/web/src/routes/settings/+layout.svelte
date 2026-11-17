@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '#lib/ui/Icon.svelte';
   /**
    * Settings, one shell for the profile's own settings and the system's: a sidebar of sections on the left,
    * the section's page on the right. On a phone the overview is the list (like iOS Settings) and every
@@ -62,7 +63,7 @@
     </nav>
     <div class="content">
       {#if active !== 'overview'}
-        <a class="back" href="/settings"><span aria-hidden="true">‹</span> {t('Settings')}</a>
+        <a class="back btn-glass" href="/settings"><Icon name="back" size={20} />{t('Settings')}</a>
       {/if}
       {@render children()}
     </div>
@@ -367,18 +368,14 @@
     .chev {
       display: inline;
     }
+    /* The same back button as PageHead's (lib/ui). */
     .back {
       display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      height: 40px;
+      padding: 0 var(--space-4) 0 var(--space-2);
+      gap: 2px;
       margin-bottom: var(--space-3);
-      color: var(--accent-ink);
       font-weight: var(--weight-medium);
-      text-decoration: none;
-    }
-    .back span {
-      font-size: 1.4rem;
-      line-height: 1;
     }
   }
 </style>

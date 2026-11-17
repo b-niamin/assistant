@@ -142,7 +142,7 @@
             <form method="POST" action="?/secret" use:enhance>
               <input type="hidden" name="name" value={name} />
               <input type="hidden" name="remove" value="1" />
-              <button class="btn-ghost">{t('Remove')}</button>
+              <button class="btn-plain">{t('Remove')}</button>
             </form>
           {/if}
         </div>
@@ -154,7 +154,7 @@
 {#if ext.settingsPage}
   <section>
     <h2>{t('More')}</h2>
-    <p><a class="btn-ghost" href="{ext.href}/settings">{t('More {name} settings', { name: ext.name })}</a></p>
+    <p><a class="btn-plain" href="{ext.href}/settings">{t('More {name} settings', { name: ext.name })}</a></p>
   </section>
 {/if}
 

@@ -31,7 +31,7 @@
         <!-- svelte-ignore a11y_autofocus -->
         <input id="me-name" name="name" value={data.profile.name} maxlength="40" required autofocus />
         <button class="btn btn-primary">{t('Save')}</button>
-        <button class="btn-ghost" type="button" onclick={() => (renaming = false)}>{t('Cancel')}</button>
+        <button class="btn-plain" type="button" onclick={() => (renaming = false)}>{t('Cancel')}</button>
       </form>
     {:else}
       <h1>{data.profile.name}</h1>
@@ -41,7 +41,7 @@
   {#if !renaming}
     <div class="acts">
       <button class="btn" type="button" onclick={() => (renaming = true)}>{t('Rename')}</button>
-      <a class="btn-ghost" href="/settings/profiles">{t('All profiles')}</a>
+      <a class="btn-plain" href="/settings/profiles">{t('All profiles')}</a>
     </div>
   {/if}
   <span class="pingo"><Mascot mood="steady" size={56} decorative /></span>

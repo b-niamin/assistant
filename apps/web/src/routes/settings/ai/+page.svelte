@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance, saveOnChoose } from '#lib/forms.ts';
-  import PageHead from '#lib/settings/PageHead.svelte';
+  import PageHead from '#lib/ui/PageHead.svelte';
   import { AGENT_NAMES, openDock, refreshDock, runInDock } from '#lib/dock/dock.svelte.ts';
   import { useT } from '#lib/i18n/index.ts';
 
@@ -19,7 +19,7 @@
 
 <svelte:head><title>{t('Terminal and AI')} · {t('System settings')}</title></svelte:head>
 
-<PageHead title={t('Terminal and AI')} lede={t('The AI tools in the terminal at the bottom of every page.')}>
+<PageHead mascot={false} title={t('Terminal and AI')} sub={t('The AI tools in the terminal at the bottom of every page.')}>
   {#snippet actions()}
     <button type="button" class="btn" onclick={openDock}>{t('Open the terminal')}</button>
   {/snippet}

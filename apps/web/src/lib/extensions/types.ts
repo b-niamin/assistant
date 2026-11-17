@@ -22,6 +22,12 @@ export interface ExtensionInfo {
   secrets: string[];
   /** What Pingo wears on its pages (manifest "accessory", pingo-accessories.ts); null = guessed from id and name. */
   accessory: string | null;
+  /** Its icon in the tab bar and the apps list (manifest "icon", lib/ui/icons.js); null = a generic one. */
+  icon: string | null;
+  /** A name of at most 12 characters for the phone's tab bar (manifest "short"); null = the name. */
+  short?: string | null;
+  /** Its own pages (manifest "pages"): the segmented control under its page title. Empty = one page. */
+  pages: ExtPage[];
   /**
    * Other extensions it works better with (manifest "worksWith", spec 002): the id and what it adds, in
    * English (translated through the extension's i18n). Its settings panel suggests installing missing ones.
@@ -31,6 +37,13 @@ export interface ExtensionInfo {
   languages: string[];
   /** Switched off in System settings: gone from nav, routes and APIs, data kept. */
   enabled: boolean;
+}
+
+export interface ExtPage {
+  href: string;
+  /** English; translated through the extension's i18n for the page. */
+  label: string;
+  icon: string | null;
 }
 
 export interface WorksWith {

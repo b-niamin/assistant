@@ -138,6 +138,12 @@
   .pagenav :global(.segmented) {
     max-width: 560px;
   }
+  /* A computer: the sidebar lists the app's pages instead. */
+  @media (min-width: 1024px) {
+    .pagenav {
+      display: none;
+    }
+  }
   /* A phone: words only, so three or four pages fit side by side. */
   @media (max-width: 480px) {
     .pagenav :global(.segmented svg) {

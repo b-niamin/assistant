@@ -83,10 +83,12 @@ One pattern in every app, three levels:
 
 1. **Between apps.** On a phone a floating glass tab bar at the bottom (`lib/ui/TabBar.svelte`): Home, the
    first three apps in nav order and More (every app and System settings in a sheet); when everything fits,
-   no More. Each app shows its manifest `"icon"` and `"short"` name. Wider screens keep the header's links.
+   no More. Each app shows its manifest `"icon"` and `"short"` name. From 1024 px a sidebar like macOS and
+   iPadOS (`lib/ui/Sidebar.svelte`): Home, every app with its icon, the open app's pages under it, System
+   settings at the bottom; the header keeps only the controls. In between (a tablet) the header's links.
 2. **The pages of an app.** Its manifest `"pages"` (2 to 5): the shell draws them as one glass segmented
    control under the page title (`PageHead`), sticky under the header while the page scrolls. Words only on
-   a phone.
+   a phone; with the sidebar (1024 px and up) the pages are listed there instead.
 3. **Further in** (a workout, a plan, an activity): `PageHead` with `back` (a glass back button with the
    parent's name), no page navigation. `focus` hides the tab bar while the page is open (a workout under way).
 

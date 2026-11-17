@@ -12,6 +12,7 @@
   import { untrack } from 'svelte';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
   import TabBar from '#lib/ui/TabBar.svelte';
+  import Sidebar from '#lib/ui/Sidebar.svelte';
   import { navigating, page } from '$app/state';
   import { provideLanguage, useT } from '#lib/i18n/index.ts';
   let { data, children } = $props();
@@ -87,6 +88,7 @@
 
 <main id="main" tabindex="-1" class:docked={data.authenticated && dockVisible()} inert={data.authenticated && dock.open && dockVisible()}>{@render children()}</main>
 {#if data.authenticated && !wizard && !chatPanel.open}<TabBar extensions={data.extensions} />{/if}
+{#if data.authenticated && !wizard}<Sidebar extensions={data.extensions} />{/if}
 </div>
 
 {#if data.authenticated}<Dock />{/if}
@@ -265,6 +267,19 @@
   }
   main.docked {
     padding-bottom: calc(var(--space-7) + 48px);
+  }
+  /* A computer: the apps are in the sidebar (lib/ui/Sidebar.svelte), the header keeps the controls. */
+  @media (min-width: 1024px) {
+    .page.tabbed {
+      padding-left: var(--sidebar-w, 248px);
+    }
+    .page.tabbed nav,
+    .page.tabbed .brand {
+      display: none;
+    }
+    .page.tabbed .bar {
+      justify-content: flex-end;
+    }
   }
   /* A phone: the apps are in the tab bar at the bottom (lib/ui/TabBar.svelte), so the header keeps only
      the brand and the controls, and the page leaves room for the bar. */

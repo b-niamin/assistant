@@ -81,6 +81,15 @@ the "Assistant UI" artifact of 17 November 2026.
   mostly vertical move scrolls the page, a swipe from the screen's edge stays the browser's back. The head
   keeps the period's name, an optional pill (e.g. back to today) and round previous/next buttons (44 pt
   touch) for a mouse; ArrowLeft/ArrowRight while focus is inside. Less motion: no slide.
+- **Confirm** (since shell 9): `Confirm` from `$shell/ui` asks yes/no before a step that matters (finish a
+  workout, discard, remove), an iOS alert: a title, an optional line, "Cancel" and the step side by side
+  (44 pt), the step in bold, red with `danger`; an optional Pingo mood above the title. Escape, the backdrop
+  and Cancel say no. Not for steps that are easy to undo.
+- **Pull to refresh**: the shell's own, on every page of the shell and every native extension (iOS has none in
+  a home-screen app). At the very top of the page, a single finger pulls down: Pingo comes down under the
+  header in a ring that fills; let go past the mark and the page reloads (pages with unsaved work save it on
+  `pagehide`). It never starts from a sideways move (the Pager's), an upward one, a sheet or dialog, the chat
+  or terminal, a field, or a box that is itself scrolled; `data-no-pull` on an element opts it out.
 
 ### Navigation
 

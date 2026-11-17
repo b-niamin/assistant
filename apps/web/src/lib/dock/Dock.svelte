@@ -113,7 +113,7 @@
 <!-- While the terminal is open the page behind it is blurred and dimmed; a click there collapses it. -->
 <div class="backdrop" class:shown={dock.open} aria-hidden="true" onclick={() => (dock.open = false)}></div>
 
-<section class="dock" class:open={dock.open} aria-label={t('Terminal')}>
+<section class="dock" data-no-pull class:open={dock.open} aria-label={t('Terminal')}>
   <!-- The whole bar toggles the terminal for a mouse; the keyboard has the buttons inside it. -->
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <div class="strip" onclick={(e) => !(e.target as Element).closest('a, button') && toggle()}>

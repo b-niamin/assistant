@@ -12,6 +12,7 @@
   import { untrack } from 'svelte';
   import UserMenu from '#lib/user-menu/UserMenu.svelte';
   import TabBar from '#lib/ui/TabBar.svelte';
+  import PullRefresh from '#lib/ui/PullRefresh.svelte';
   import { navigating, page } from '$app/state';
   import { provideLanguage, useT } from '#lib/i18n/index.ts';
   let { data, children } = $props();
@@ -88,6 +89,9 @@
 <main id="main" tabindex="-1" class:docked={data.authenticated && dockVisible()} inert={data.authenticated && dock.open && dockVisible()}>{@render children()}</main>
 {#if data.authenticated && !wizard && !chatPanel.open}<TabBar extensions={data.extensions} />{/if}
 </div>
+
+<!-- Pull down at the top of any page to reload it (a phone; iOS has none in a home-screen app). -->
+<PullRefresh />
 
 {#if data.authenticated}<Dock />{/if}
 {#if data.authenticated && chatPanel.mounted}<ChatPanel docked={dockVisible()} width={chatWidth} push={chatPush} {viewport} />{/if}

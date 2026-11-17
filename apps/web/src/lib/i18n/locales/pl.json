@@ -1027,5 +1027,8 @@
   "Forest": "Las",
   "Primary": "Główny",
   "Tinted": "Podbarwiony",
-  "Link": "Link"
+  "Link": "Link",
+  "Refreshing…": "Odświeżam…",
+  "Release to refresh": "Puść, aby odświeżyć",
+  "Pull down to refresh": "Pociągnij w dół, aby odświeżyć"
 }

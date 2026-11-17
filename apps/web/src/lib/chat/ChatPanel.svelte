@@ -260,7 +260,7 @@
 
 <svelte:window onkeydown={onWindowKey} />
 
-<aside class="chat" class:open={chatPanel.open} class:docked class:push class:resizing={chatPanel.resizing} class:list-open={showList} style:--w="{width}px" bind:this={panel} inert={!chatPanel.open} aria-label={t('Chat with Claude')}>
+<aside class="chat" data-no-pull class:open={chatPanel.open} class:docked class:push class:resizing={chatPanel.resizing} class:list-open={showList} style:--w="{width}px" bind:this={panel} inert={!chatPanel.open} aria-label={t('Chat with Claude')}>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div class="grip" bind:this={grip} role="separator" aria-orientation="vertical" aria-label={t('Chat width')} title={t('Drag to resize the chat')}
     aria-valuenow={width} aria-valuemin={CHAT_MIN_WIDTH} aria-valuemax={clampChatWidth(Infinity, viewport)} tabindex="0"

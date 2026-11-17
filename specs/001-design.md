@@ -76,6 +76,11 @@ the "Assistant UI" artifact of 17 November 2026.
   icon, a chevron on link rows.
 - **Sheets**: `Sheet` from `$shell/ui`, a bottom sheet with a grabber and a round close button on a phone,
   a centred window on a computer.
+- **Pager** (since shell 8): `Pager` from `$shell/ui` pages through periods (a week, a month) inside a card.
+  Swipe left = next, right = previous; the page follows the finger and slides in when its `key` changes. A
+  mostly vertical move scrolls the page, a swipe from the screen's edge stays the browser's back. The head
+  keeps the period's name, an optional pill (e.g. back to today) and round previous/next buttons (44 pt
+  touch) for a mouse; ArrowLeft/ArrowRight while focus is inside. Less motion: no slide.
 
 ### Navigation
 

@@ -25,9 +25,9 @@ export const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)
  * was written for and builds on that core or any newer one. 2 = shared charts, EmptyState, EN, ticks;
  * 3 = `import assistant` for Python services (docker/worker/lib); 4 = `ext-run` in the app's terminal, and a
  * source's `command` run there by its button; 5 = the shared calendar; 6 = the Pingo rename; 7 = Assistant UI
- * (lib/ui.css classes, PageHead/Segmented/Sheet/Icon in $shell/ui, manifest "icon" and "pages").
+ * (lib/ui.css classes, PageHead/Segmented/Sheet/Icon in $shell/ui, manifest "icon" and "pages"); 8 = Pager.
  */
-export const SHELL_API = 7;
+export const SHELL_API = 8;
 /** First path segments the shell owns; an extension id can never take one. */
 export const RESERVED_IDS = new Set([
   'api', 'app', 'apps', 'assets', 'dock', 'ext', 'extensions', 'favicon', 'healthz', 'login', 'logout', 'mcp',

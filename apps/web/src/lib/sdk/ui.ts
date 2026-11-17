@@ -28,5 +28,7 @@ export { default as PageHead } from '#lib/ui/PageHead.svelte';
 export { default as Sheet } from '#lib/ui/Sheet.svelte';
 export { default as Icon } from '#lib/ui/Icon.svelte';
 export { ICON_NAMES } from '#lib/ui/icons.js';
+/** Since shell 8: swipe through periods (a week, a month): the page follows the finger, with buttons and arrow keys. */
+export { default as Pager } from '#lib/ui/Pager.svelte';
 /** Since shell 7: the mascot's name, picked in System settings -> Appearance (Pingo by default). */
 export { mascotName } from '#lib/ui/mascot-name.ts';

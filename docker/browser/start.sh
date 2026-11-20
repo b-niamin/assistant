@@ -6,9 +6,15 @@ SCREEN="${BROWSER_SCREEN:-1366x860}"
 W="${SCREEN%x*}"
 H="${SCREEN#*x}"
 
+# `docker restart` and a host reboot keep the container's writable layer, so /tmp still holds the lock and
+# socket of the previous Xvfb. Xvfb then refuses to start ("Server is already active for display 1"), x11vnc
+# has no display and Chromium crash-loops, leaving a 4 MB BrowserMetrics file per start in the profile volume.
+rm -f /tmp/.X1-lock /tmp/.X11-unix/X1
 Xvfb :1 -screen 0 "${SCREEN}x24" -nolisten tcp -nolisten unix &
+XVFB_PID=$!
 export DISPLAY=:1
 sleep 1
+kill -0 "$XVFB_PID" 2>/dev/null || { echo "[browser] Xvfb did not start, exiting so Docker restarts the container" >&2; exit 1; }
 # VNC only on loopback; websockify is the one network door to it (internal network only).
 x11vnc -display :1 -localhost -rfbport 5900 -forever -shared -nopw -quiet -noxdamage &
 # websockify accepts only handshakes carrying the app's Origin, which the web proxy sets (apps/web/server.mjs).
@@ -26,8 +32,13 @@ fi
 socat TCP-LISTEN:9223,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:9222 &
 
 mkdir -p /data/profile
+DELAY=2
 while true; do
+  # No display, no point in starting Chromium: exit and let Docker restart the container (which re-runs the
+  # lock cleanup above) instead of spinning.
+  kill -0 "$XVFB_PID" 2>/dev/null || { echo "[browser] Xvfb is gone, exiting so Docker restarts the container" >&2; exit 1; }
   rm -f /data/profile/SingletonLock /data/profile/SingletonSocket /data/profile/SingletonCookie
+  STARTED=$(date +%s)
   # --no-sandbox: the Chromium sandbox needs user namespaces Docker blocks by default. The container
   # is the sandbox: non-root, no secrets but this profile, no docker socket, no host mounts.
   chromium \
@@ -37,5 +48,13 @@ while true; do
     --no-first-run --no-default-browser-check --password-store=basic \
     --window-position=0,0 --window-size="${W},${H}" --start-maximized \
     about:blank || true
-  sleep 2
+  # Every start leaves a 4 MB BrowserMetrics file behind, so a Chromium that keeps dying within seconds must
+  # not be restarted every 2 s: back off 2, 4, 8 ... up to 300 s. A run of 10 s or more resets the delay.
+  RAN=$(( $(date +%s) - STARTED ))
+  if [ "$RAN" -ge 10 ]; then DELAY=2; fi
+  sleep "$DELAY"
+  if [ "$RAN" -lt 10 ]; then
+    DELAY=$(( DELAY * 2 ))
+    [ "$DELAY" -le 300 ] || DELAY=300
+  fi
 done

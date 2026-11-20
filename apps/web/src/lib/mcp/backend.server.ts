@@ -16,11 +16,16 @@ import { listProfiles } from '#lib/server/session.ts';
 import { canWrite } from './oauth';
 import { logToolCall, type GrantAccess } from './oauth.server';
 import type { McpBackend, McpTool } from './protocol';
+import { updateExtensions, versions } from './system.server';
 
 export const SEP = '__';
 
 /** Generic tools of the shell that hand out raw data: terminal only. */
 export const RAW_TOOLS = new Set(['query', 'describe', 'read_data', 'write_data']);
+
+/** May this caller update the installed extensions: the terminal, or a connection with writes for all apps. */
+export const canUpdate = (caller: Caller): boolean =>
+  caller.kind === 'terminal' || (canWrite(caller.scope) && !caller.extensions);
 
 export type Caller = { kind: 'terminal'; profileId: string } | ({ kind: 'connector' } & GrantAccess);
 
@@ -56,6 +61,11 @@ export function backendFor(caller: Caller): McpBackend {
       const profiles = (await listProfiles()).filter((x) => terminal || x.id === profile);
       return { profile, profiles, languages: await languageSettings(), extensions: visible };
     }
+    if (name === 'versions') return versions(terminal || !caller.extensions ? undefined : (id) => caller.extensions!.includes(id));
+    if (name === 'update_extensions') {
+      if (!canUpdate(caller)) throw error(404, `unknown tool ${name}`);
+      return updateExtensions(rest, terminal ? 'the terminal' : caller.client);
+    }
     const i = name.indexOf(SEP);
     if (i < 1) throw error(404, `unknown tool ${name}`);
     const ext = name.slice(0, i);
@@ -76,8 +86,40 @@ export function backendFor(caller: Caller): McpBackend {
             'extension must be translated into each; spec 007). Start here to find where data lives.',
           inputSchema: { type: 'object', properties: withProfile() },
           annotations: { title: 'Apps and profiles', readOnlyHint: true, openWorldHint: false }
+        },
+        {
+          name: 'versions',
+          title: 'Versions and updates',
+          description:
+            'The versions that run: the core (its commit, the newest one on GitHub, the shell API) and each ' +
+            'installed extension (installed version, the extensions repo\'s version, and whether it can be ' +
+            'updated now or needs a newer core first). Read-only.',
+          inputSchema: { type: 'object', properties: withProfile() },
+          annotations: { title: 'Versions and updates', readOnlyHint: true, openWorldHint: true }
         }
       ];
+      if (canUpdate(caller))
+        tools.push({
+          name: 'update_extensions',
+          title: 'Update extensions',
+          description:
+            'Updates installed extensions to the extensions repo\'s version, the same as "Update" / "Update all" in ' +
+            'System settings -> Apps: a chat in the app runs `ext update`, their data stays, the app rebuilds in about ' +
+            'a minute. Without `confirm` it only lists what it would update: show that to the user, and call again ' +
+            'with confirm: true only after they agree. Check `versions` first.',
+          inputSchema: {
+            type: 'object',
+            properties: withProfile({
+              extensions: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Extension ids to update; leave out for every update this core can take'
+              },
+              confirm: { type: 'boolean', description: 'true only after the user agreed to this update' }
+            })
+          },
+          annotations: { title: 'Update extensions', readOnlyHint: false, destructiveHint: true, openWorldHint: true }
+        });
       for (const e of visibleFor(caller, await listTools(caller.profileId)))
         for (const t of e.tools)
           tools.push({

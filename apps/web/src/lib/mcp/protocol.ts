@@ -26,7 +26,8 @@ export const INSTRUCTIONS =
   'A self-hosted personal assistant made of apps (extensions); each app holds one kind of data (training, ' +
   'the gym log, the house...). Call `extensions` first to see the apps, their profiles and tools, then each ' +
   "app's `overview`. Read before writing: writes change what the apps show. Tools take an optional `profile` " +
-  '(a person at home); without it they use the profile this connection was approved for.';
+  '(a person at home); without it they use the profile this connection was approved for. `versions` shows ' +
+  'what runs and what is newer; `update_extensions` updates apps, only after the user agreed.';
 
 type Id = string | number | null;
 interface Rpc {

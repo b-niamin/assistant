@@ -30,6 +30,14 @@ terminal: Claude Code, Codex ──stdio──> scripts/assistant-mcp.mjs ──
   Tools: `extensions` (the apps, their scope and tools, the profiles) and `<extension>__<tool>` for every
   tool of every extension the caller may see. The list is read on each `tools/list`, so a new extension
   appears on the server without a restart (claude.ai reads the list when it connects: reconnect there).
+- **The shell's own tools** besides `extensions` (`lib/mcp/system.server.ts`): `versions` (read-only: the
+  core's running commit against GitHub's, the shell API, and each installed extension's version against the
+  extensions repo's catalog.json: `current`, `update`, `needs_core`, `not_in_catalog`) and
+  `update_extensions` (the same as "Update" / "Update all" in System settings -> Apps). The web container
+  cannot change `extensions/`, so an update starts a chat in the app whose AI runs `ext update`; a critical
+  step there still asks the owner with an Allow/Deny card. The tool runs in two calls: without
+  `confirm: true` it only lists what it would update, for the AI to show the user before the second call.
+  `update_extensions` is offered to the terminal and to connections with writes for all apps only.
 - **Tools run as the extension**, through the same `ExtensionContext` as its pages: its DB role
   `ext_<id>`, its scope, its KV, its secrets. A tool cannot reach another extension's tables, and the
   `secrets` schema stays invisible.

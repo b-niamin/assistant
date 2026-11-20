@@ -26,3 +26,13 @@ describe('what a caller sees', () => {
     expect(names(connector('mcp:read', ['gym']))).toEqual(['gym__overview']);
   });
 });
+
+describe('who may update extensions', () => {
+  it('lets the terminal and full write connections update, nobody else', async () => {
+    const { canUpdate } = await import('./backend.server');
+    expect(canUpdate({ kind: 'terminal', profileId: 'p' })).toBe(true);
+    expect(canUpdate(connector('mcp:read mcp:write', null))).toBe(true);
+    expect(canUpdate(connector('mcp:read', null))).toBe(false);
+    expect(canUpdate(connector('mcp:read mcp:write', ['gym']))).toBe(false);
+  });
+});

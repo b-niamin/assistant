@@ -17,7 +17,7 @@ x-logging: &logging
 services:
   db:
     logging: *logging
-    image: postgres:18-alpine
+    image: postgres:19-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-assistant}
@@ -279,7 +279,7 @@ services:
   # Restore: sudo ./assistant.sh restore <BACKUP_DIR>/assistant-<day>. Status: /logs/backup-status.json.
   backup:
     logging: *logging
-    image: postgres:18-alpine
+    image: postgres:19-alpine
     restart: unless-stopped
     depends_on:
       db: { condition: service_healthy }
